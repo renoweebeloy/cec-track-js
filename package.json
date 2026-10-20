@@ -17,5 +17,10 @@
     "react-qr-code": "^2.1.2",
     "react-qr-reader": "^3.0.0-alpha.1",
     "html5-qrcode": "^2.3.8"
+  },
+  "overrides": {
+    "react-qr-reader": {
+      "react": "$react"
+    }
   }
 }
