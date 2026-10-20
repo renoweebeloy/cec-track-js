@@ -1,73 +1,63 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
-import { useRouter } from 'next/router';
 
-export default function Login() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [message, setMessage] = useState('');
-  const router = useRouter();
+export default function StudentDashboard() {
+  const [events, setEvents] = useState([]);
+  const [userEmail, setUserEmail] = useState('');
 
-  const handleLogin = async (e) => {
-    e.preventDefault();
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+  useEffect(() => {
+    // Kuhaon ang email sa naka-login nga user
+    const fetchUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) setUserEmail(user.email);
+    };
+    
+    // Kuhaon ang tanang "active" events
+    const fetchEvents = async () => {
+      const { data } = await supabase.from('events').select('*').eq('status', 'active');
+      if (data) setEvents(data);
+    };
+
+    fetchUser();
+    fetchEvents();
+  }, []);
+
+  const handleRegisterEvent = async (eventId) => {
+    const { error } = await supabase
+      .from('event_registrations')
+      .insert([{ event_id: eventId, student_email: userEmail }]);
+
     if (error) {
-      setMessage(error.message);
+      alert("Naka-register naka daan ani nga event o adunay error.");
     } else {
-      router.push('/dashboard');
-    }
-  };
-
-  const handleForgotPassword = async () => {
-    if (!email) {
-      setMessage("Palihug ibutang ang imong Gmail aron ma-send ang reset link.");
-      return;
-    }
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: 'https://imong-website.vercel.app/reset-password',
-    });
-    if (error) {
-      setMessage(error.message);
-    } else {
-      setMessage("Na-send na ang reset link sa imong email!");
+      alert("Success! Na-register naka sa event.");
     }
   };
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50">
-      <div className="p-8 bg-white rounded shadow-md w-96">
-        {/* Ibutang ang imong Custom Logo dinhi */}
-        <h1 className="text-2xl font-bold text-center text-orange-600 mb-6">System Login</h1>
-        
-        <form onSubmit={handleLogin} className="space-y-4">
-          <input 
-            type="email" 
-            placeholder="e.g. juandelacruz@gmail.com" 
-            className="w-full p-3 border rounded"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-          />
-          <input 
-            type="password" 
-            placeholder="Password" 
-            className="w-full p-3 border rounded"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-          />
-          <button type="submit" className="w-full p-3 text-white bg-orange-600 rounded hover:bg-orange-700">
-            Log In
-          </button>
-        </form>
-
-        <button 
-          onClick={handleForgotPassword} 
-          className="w-full mt-4 text-sm text-blue-500 hover:underline">
-          Forgot Password?
-        </button>
-        
-        {message && <p className="mt-4 text-sm text-center text-red-500">{message}</p>}
+    <div className="p-8 max-w-3xl mx-auto">
+      <h1 className="text-2xl font-bold mb-6 text-orange-600">Active Organization Events</h1>
+      
+      <div className="space-y-4">
+        {events.length === 0 ? (
+          <p className="text-gray-500">Walay active events sa pagkakaron.</p>
+        ) : (
+          events.map((event) => (
+            <div key={event.id} className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
+              <h2 className="text-xl font-bold">{event.title}</h2>
+              <p className="text-sm text-gray-500 mb-2">
+                Date: {new Date(event.date).toLocaleString()}
+              </p>
+              <p className="text-gray-700 mb-4">{event.description}</p>
+              
+              <button 
+                onClick={() => handleRegisterEvent(event.id)}
+                className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded font-medium">
+                Register for Event
+              </button>
+            </div>
+          ))
+        )}
       </div>
     </div>
   );
