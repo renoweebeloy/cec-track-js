@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import Head from 'next/head';
-import { useRouter } from 'next/router'; // GIDUGANG: Para maka-navigate sa laing page
+import { useRouter } from 'next/router';
 import styles from '../styles/Home.module.css'; 
 
 export default function Home() {
   const [currentTime, setCurrentTime] = useState('Loading...');
-  const router = useRouter(); // GIDUGANG: Initialization sa router
+  const [menuOpen, setMenuOpen] = useState(false);
+  const router = useRouter();
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -18,6 +19,7 @@ export default function Home() {
     <div className={styles.container}>
       <Head>
         <title>CECTRACK</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
       </Head>
 
       <header className={styles.header}>
@@ -25,11 +27,20 @@ export default function Home() {
           <button onClick={() => router.push('/')} className={styles.logoText}>
             CECTRACK
           </button>
-          <div className={styles.navLinks}>
+
+          {/* Hamburger Menu Icon para sa Mobile */}
+          <button 
+            className={styles.hamburgerBtn} 
+            onClick={() => setMenuOpen(!menuOpen)}
+            aria-label="Toggle menu"
+          >
+            ☰
+          </button>
+
+          {/* Navigation Links (Wala na ang Members link) */}
+          <div className={`${styles.navLinks} ${menuOpen ? styles.navLinksMobileOpen : ''}`}>
             <button className={styles.navItem}>About</button>
             <button className={styles.navItem}>Events</button>
-            <button className={styles.navItem}>Members</button>
-            {/* GI-UPDATE: Mo-adto sa login.js inig click */}
             <button onClick={() => router.push('/login')} className={styles.loginBtn}>
               <span>➔</span> Login
             </button>
@@ -38,27 +49,27 @@ export default function Home() {
       </header>
 
       <main className={styles.main}>
+        {/* Status Row Badges */}
         <div className={styles.statusRow}>
           <div className={styles.statusBadgeLeft}>
             <span><span className={styles.liveDot}></span> LIVE PHT</span>
             <span>|</span>
             <span>🕒 {currentTime}</span>
             <span>|</span>
-            <span>📅 Tuesday, October 20, 2026</span>
+            <span>📅 Tuesday, Oct 20, 2026</span>
           </div>
           <div className={styles.statusBadgeRight}>
             🛡️ Official CEC Portal
           </div>
         </div>
 
+        {/* Hero Section */}
         <section className={styles.heroSection}>
           <div className={styles.logoContainer}>
             <img 
               src="/logo.png" 
               alt="Cateel Extension Campus Logo" 
-              width="220" 
-              height="220" 
-              style={{ objectFit: 'contain' }}
+              className={styles.mainLogo}
             />
           </div>
           
@@ -71,13 +82,13 @@ export default function Home() {
           </p>
         </section>
 
+        {/* Search & Actions */}
         <section className={styles.actionArea}>
           <div className={styles.searchBox}>
             <input type="text" placeholder="Search Student ID (e.g. 2024-00123)..." className={styles.searchInput} />
             <button className={styles.checkBtn}>🔍 Check Record</button>
           </div>
           <div className={styles.buttonRow}>
-            {/* GI-UPDATE: Mo-adto sab ni sa login.js inig click */}
             <button onClick={() => router.push('/login')} className={styles.portalBtn}>
               ➔ Access Member Portal
             </button>
@@ -85,6 +96,7 @@ export default function Home() {
           </div>
         </section>
 
+        {/* Course Analytics */}
         <section className={styles.analyticsSection}>
           <div className={styles.analyticsHeader}>
             <div className={styles.analyticsTitle}>👥 DEPARTMENT MEMBERS BY COURSE</div>
