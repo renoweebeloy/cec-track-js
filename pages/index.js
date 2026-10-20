@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import Head from 'next/head';
-// KINI ANG IMPORT NGA MAG-CONNECT SA IMONG CSS
 import styles from '../styles/Home.module.css'; 
 
 export default function Home() {
@@ -17,13 +16,13 @@ export default function Home() {
   return (
     <div className={styles.container}>
       <Head>
-        <title>ACETRACK 3.0</title>
+        <title>CECTRACK</title>
       </Head>
 
       <header className={styles.header}>
         <div className={styles.headerContent}>
           <button onClick={() => setCurrentView('home')} className={styles.logoText}>
-            ACETRACK 3.0
+            CECTRACK
           </button>
           <div className={styles.navLinks}>
             <button className={styles.navItem}>About</button>
@@ -47,31 +46,25 @@ export default function Home() {
               <span>📅 Tuesday, October 20, 2026</span>
             </div>
             <div className={styles.statusBadgeRight}>
-              🛡️ Official ACES Portal
+              🛡️ Official CEC Portal
             </div>
           </div>
 
           <section className={styles.heroSection}>
+            {/* HERE IS THE LOGO IMAGE PLACEHOLDER */}
             <div className={styles.logoContainer}>
-              <svg width="220" height="220" viewBox="0 0 100 100">
-                <circle cx="50" cy="50" r="48" fill="#FFFFFF" stroke="#000000" strokeWidth="4" />
-                <path d="M 50 2 L 50 98 M 2 50 L 98 50" stroke="#000000" strokeWidth="2" />
-                <rect x="8" y="8" width="42" height="42" fill="#EA580C" />
-                <rect x="50" y="50" width="42" height="42" fill="#EA580C" />
-                <rect x="50" y="8" width="42" height="42" fill="#000000" />
-                <rect x="8" y="50" width="42" height="42" fill="#000000" />
-                <circle cx="50" cy="50" r="22" fill="#FFFFFF" stroke="#000000" strokeWidth="2" />
-                <path id="circlePath" d="M 16 50 A 34 34 0 1 1 84 50 A 34 34 0 1 1 16 50" fill="none" />
-                <text fontSize="6" fontWeight="900" fill="#000000">
-                  <textPath href="#circlePath" startOffset="50%" textAnchor="middle">
-                    ASSOCIATION OF COMPUTING AND ENGINEERING STUDENTS
-                  </textPath>
-                </text>
-              </svg>
+              <img 
+                src="/logo.png" 
+                alt="Cateel Extension Campus Logo" 
+                width="220" 
+                height="220" 
+                style={{ objectFit: 'contain' }}
+              />
             </div>
+            
             <div className={styles.tagBadge}>✨ EMPOWERING FUTURE LEADERS</div>
-            <h1 className={styles.heroTitle}>ACES</h1>
-            <h2 className={styles.heroSubtitle}>Association of Computing and Engineering Students</h2>
+            <h1 className={styles.heroTitle}>CEC</h1>
+            <h2 className={styles.heroSubtitle}>Cateel Extension Campus</h2>
             <p className={styles.heroDescription}>
               Uniting students across computing, engineering, and technology disciplines.<br />
               Innovate, collaborate, and excel together.
