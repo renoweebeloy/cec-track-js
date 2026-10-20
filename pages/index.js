@@ -66,7 +66,7 @@ export default function Home() {
           <h1 className={styles.heroTitle}>CEC</h1>
           <h2 className={styles.heroSubtitle}>Cateel Extension Campus</h2>
           <p className={styles.heroDescription}>
-            Uniting students across computing, engineering, and technology disciplines.<br />
+            Uniting students across CEC Dorsu disciplines.<br />
             Innovate, collaborate, and excel together.
           </p>
         </section>
