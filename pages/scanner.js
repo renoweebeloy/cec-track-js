@@ -40,3 +40,9 @@ export default function Scanner() {
     </div>
   );
 }
+       
+export async function getServerSideProps() {
+  return {
+    props: {},
+  };
+}
