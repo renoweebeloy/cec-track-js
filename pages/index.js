@@ -37,10 +37,9 @@ export default function Home() {
             ☰
           </button>
 
-          {/* Navigation Links (Wala na ang Members link) */}
+          {/* Navigation Links (Gikuha ang Events, About ug Login nalang nabilin) */}
           <div className={`${styles.navLinks} ${menuOpen ? styles.navLinksMobileOpen : ''}`}>
             <button className={styles.navItem}>About</button>
-            <button className={styles.navItem}>Events</button>
             <button onClick={() => router.push('/login')} className={styles.loginBtn}>
               <span>➔</span> Login
             </button>
