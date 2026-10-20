@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import Head from 'next/head';
+import Link from 'next/link';
 import { 
   Menu, X, Search, ArrowRight, UserCheck, 
-  BookOpen, Calendar, MapPin, Code, Compass, Layers, Calculator, 
-  Activity, Eye, EyeOff, Lock, Mail, Users, CheckCircle2, ChevronRight,
-  Sparkles, AlertCircle, RefreshCw, Info, Download, LogOut, ShieldAlert
+  Calendar, Lock, Mail, Users, CheckCircle2, ChevronRight,
+  Sparkles, AlertCircle, RefreshCw, Info, Download, LogOut, ShieldAlert, Eye, EyeOff
 } from 'lucide-react';
 
 export default function Home() {
@@ -83,7 +83,7 @@ export default function Home() {
                 <span>Members</span>
               </button>
               
-              <div className="pt-4">
+              <div className="pt-4 space-y-2">
                 <button 
                   onClick={() => { setCurrentView('login'); setIsMenuOpen(false); }}
                   className="w-full py-4 px-4 bg-[#F97316] text-white font-bold rounded-2xl shadow-md flex items-center justify-center space-x-2"
@@ -91,6 +91,12 @@ export default function Home() {
                   <ArrowRight className="w-5 h-5" />
                   <span>Login to Portal</span>
                 </button>
+                <Link
+                  href="/admin"
+                  className="w-full py-3 px-4 bg-slate-900 text-white font-bold rounded-2xl shadow-sm flex items-center justify-center space-x-2 text-sm"
+                >
+                  <span>Admin Dashboard</span>
+                </Link>
               </div>
             </div>
           </div>
@@ -104,10 +110,10 @@ export default function Home() {
             {/* Logo & Title Area */}
             <section className="text-center space-y-5">
               <div className="flex justify-center">
-                {/* Logo Placeholder */}
+                {/* Logo Placeholder (Pwede nimo ilisan og img tag puhon kung naa na ang logo file) */}
                 <div className="w-32 h-32 rounded-full bg-white p-2 shadow-lg border border-gray-200 flex items-center justify-center relative overflow-hidden">
                    <div className="absolute inset-0 bg-gradient-to-br from-orange-100 to-white opacity-50"></div>
-                   <span className="text-3xl font-black text-gray-800 relative z-10">CEC</span>
+                   <span className="text-2xl font-black text-[#0F172A] relative z-10">CEC TRACK</span>
                 </div>
               </div>
 
@@ -120,7 +126,7 @@ export default function Home() {
 
               <div className="space-y-2">
                 <h1 className="text-4xl font-black text-[#0F172A] tracking-tight">
-                  CEC TRACK
+                  CEC
                 </h1>
                 <h2 className="text-sm font-bold text-[#1E293B] px-4 leading-tight">
                   College of Engineering and Computing Students
@@ -131,7 +137,7 @@ export default function Home() {
               </div>
             </section>
 
-            {/* Actions Card */}
+            {/* Actions Card (Exact match sa imong reference image) */}
             <section className="bg-white p-4 rounded-3xl border border-gray-100 shadow-sm space-y-4">
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
@@ -157,9 +163,9 @@ export default function Home() {
                 <span>Access Member Portal</span>
               </button>
 
-              <button className="w-full py-4 bg-white border-2 border-gray-100 text-gray-800 font-bold rounded-2xl text-sm flex items-center justify-center space-x-2 hover:bg-gray-50 transition">
+              <button className="w-full py-4 bg-white border-2 border-gray-100 text-gray-800 font-bold rounded-2xl text-sm flex items-center justify-between px-6 hover:bg-gray-50 transition">
                 <span>Explore Events</span>
-                <ArrowRight className="w-4 h-4" />
+                <ChevronRight className="w-4 h-4" />
               </button>
             </section>
           </main>
@@ -170,7 +176,7 @@ export default function Home() {
           <main className="px-4 pt-12 animate-in slide-in-from-bottom-4 duration-300">
             <div className="text-center space-y-4 mb-8">
               <div className="w-16 h-16 mx-auto rounded-full bg-white shadow border border-gray-100 flex items-center justify-center">
-                 <span className="text-sm font-black text-gray-800">CEC</span>
+                 <span className="text-xs font-black text-gray-800">CEC</span>
               </div>
               <h1 className="text-3xl font-black text-[#F97316]">
                 CEC TRACK 3.0
@@ -361,7 +367,6 @@ export default function Home() {
 
                   {/* QR Code Area */}
                   <div className="mt-8 bg-white p-3 rounded-2xl shadow-sm border border-gray-100">
-                    {/* Placeholder for actual QR */}
                     <div className="w-40 h-40 bg-gray-900 rounded-xl flex items-center justify-center relative">
                        <span className="text-white text-xs font-bold">QR CODE</span>
                        <div className="absolute w-full h-full border-4 border-dashed border-white/20 rounded-xl"></div>
