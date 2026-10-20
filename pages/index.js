@@ -1,11 +1,5 @@
 import React, { useState } from 'react';
 import Head from 'next/head';
-import { 
-  Menu, X, Search, ArrowRight, UserCheck, 
-  Calendar, Mail, Lock, Eye, EyeOff, Users, CheckCircle2, ChevronRight,
-  Sparkles, AlertCircle, RefreshCw, Info, Download, LogOut, ShieldAlert,
-  Briefcase, Shield, Landmark, GraduationCap, Building2
-} from 'lucide-react';
 
 export default function Home() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -87,7 +81,7 @@ export default function Home() {
             onClick={() => setIsMenuOpen(!isMenuOpen)}
             className="p-2 rounded-full bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors focus:outline-none"
           >
-            {isMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+            {isMenuOpen ? '✕' : '☰'}
           </button>
         </div>
       </header>
@@ -102,24 +96,21 @@ export default function Home() {
               </span>
               <button 
                 onClick={() => setIsMenuOpen(false)}
-                className="p-2 rounded-full bg-gray-100 text-gray-500"
+                className="p-2 rounded-full bg-gray-100 text-gray-500 font-bold"
               >
-                <X className="w-5 h-5" />
+                ✕
               </button>
             </div>
 
             <div className="p-4 space-y-3">
               <button onClick={() => setIsMenuOpen(false)} className="w-full flex items-center space-x-3 p-4 bg-white rounded-2xl shadow-sm border border-gray-100 font-bold text-gray-800">
-                <Info className="w-5 h-5 text-[#F97316]" />
-                <span>About</span>
+                <span>ℹ️ About</span>
               </button>
               <button onClick={() => setIsMenuOpen(false)} className="w-full flex items-center space-x-3 p-4 bg-white rounded-2xl shadow-sm border border-gray-100 font-bold text-gray-800">
-                <Calendar className="w-5 h-5 text-[#F97316]" />
-                <span>Events</span>
+                <span>📅 Events</span>
               </button>
               <button onClick={() => setIsMenuOpen(false)} className="w-full flex items-center space-x-3 p-4 bg-white rounded-2xl shadow-sm border border-gray-100 font-bold text-gray-800">
-                <Users className="w-5 h-5 text-[#F97316]" />
-                <span>Members</span>
+                <span>👥 Members</span>
               </button>
               
               <div className="pt-4">
@@ -127,8 +118,7 @@ export default function Home() {
                   onClick={() => { setCurrentView('login'); setIsMenuOpen(false); }}
                   className="w-full py-4 px-4 bg-[#F97316] text-white font-bold rounded-2xl shadow-md flex items-center justify-center space-x-2"
                 >
-                  <ArrowRight className="w-5 h-5" />
-                  <span>Login to Portal</span>
+                  <span>Login to Portal ➔</span>
                 </button>
               </div>
             </div>
@@ -140,8 +130,6 @@ export default function Home() {
         {/* VIEW 1: HOME PAGE */}
         {currentView === 'home' && (
           <main className="px-4 pt-8 space-y-8 animate-in fade-in duration-300">
-            
-            {/* 1. HERO SECTION (PHOTO 1) */}
             <section className="text-center space-y-5">
               <div className="flex justify-center">
                 <CateelCampusLogo className="w-36 h-36" />
@@ -149,8 +137,7 @@ export default function Home() {
 
               <div className="flex justify-center">
                 <span className="inline-flex items-center space-x-1.5 bg-orange-100 text-[#F97316] font-bold text-xs uppercase tracking-wider px-4 py-1.5 rounded-full border border-orange-200">
-                  <Sparkles className="w-3.5 h-3.5" />
-                  <span>EMPOWERING FUTURE LEADERS</span>
+                  <span>✨ EMPOWERING FUTURE LEADERS</span>
                 </span>
               </div>
 
@@ -167,45 +154,37 @@ export default function Home() {
               </div>
             </section>
 
-            {/* SEARCH & ACTIONS */}
             <section className="bg-white p-4 rounded-3xl border border-gray-100 shadow-sm space-y-4">
               <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                  <Search className="h-4 w-4 text-gray-400" />
-                </div>
                 <input
                   type="text"
                   placeholder="Search Student ID (e.g. 2024-00123)..."
-                  className="w-full pl-10 pr-4 py-3.5 bg-gray-50 border border-gray-200 rounded-2xl text-sm focus:outline-none focus:border-orange-500"
+                  className="w-full px-4 py-3.5 bg-gray-50 border border-gray-200 rounded-2xl text-sm focus:outline-none focus:border-orange-500"
                 />
               </div>
 
-              <button className="w-full py-3.5 bg-orange-300/60 hover:bg-orange-300 text-orange-700 font-bold rounded-2xl text-sm flex items-center justify-center space-x-2 transition">
-                <Search className="w-4 h-4" />
-                <span>Check Record</span>
+              <button className="w-full py-3.5 bg-orange-300/60 hover:bg-orange-300 text-orange-700 font-bold rounded-2xl text-sm transition">
+                🔍 Check Record
               </button>
 
               <button
                 onClick={() => setCurrentView('login')}
-                className="w-full py-4 bg-[#F97316] hover:bg-orange-600 text-white font-bold rounded-2xl text-sm flex items-center justify-center space-x-2 shadow-lg shadow-orange-500/30 transition"
+                className="w-full py-4 bg-[#F97316] hover:bg-orange-600 text-white font-bold rounded-2xl text-sm shadow-lg shadow-orange-500/30 transition"
               >
-                <ArrowRight className="w-4 h-4" />
-                <span>Access Member Portal</span>
+                Access Member Portal ➔
               </button>
 
-              <button className="w-full py-4 bg-white border-2 border-gray-100 text-gray-800 font-bold rounded-2xl text-sm flex items-center justify-center space-x-2 hover:bg-gray-50 transition">
-                <span>Explore Events</span>
-                <ArrowRight className="w-4 h-4" />
+              <button className="w-full py-4 bg-white border-2 border-gray-100 text-gray-800 font-bold rounded-2xl text-sm hover:bg-gray-50 transition">
+                Explore Events ➔
               </button>
             </section>
 
-            {/* 2. DEPARTMENT MEMBERS BY COURSE SECTION (PHOTO 2 WITH NEW COURSES) */}
+            {/* DEPARTMENT MEMBERS BY COURSE */}
             <section className="space-y-4 pt-4">
               <div className="flex flex-col space-y-2 border-b border-gray-200 pb-3">
                 <div className="flex items-center space-x-2">
-                  <Users className="w-4 h-4 text-[#F97316]" />
                   <h2 className="text-xs font-black uppercase tracking-wider text-gray-500">
-                    DEPARTMENT MEMBERS BY COURSE
+                    👥 DEPARTMENT MEMBERS BY COURSE
                   </h2>
                 </div>
                 <div className="flex items-center space-x-2 text-xs font-semibold">
@@ -217,112 +196,63 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* UPDATED COURSE CARDS GRID */}
               <div className="grid grid-cols-2 gap-3">
-                
                 {/* BSBA */}
                 <div className="bg-white p-4 rounded-3xl border border-gray-100 shadow-sm space-y-2">
-                  <div className="flex items-start justify-between">
-                    <span className="inline-block text-[10px] font-black text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-md">
-                      BSBA
-                    </span>
-                    <div className="p-1.5 bg-blue-50 text-blue-600 rounded-lg">
-                      <Briefcase className="w-4 h-4" />
-                    </div>
-                  </div>
+                  <span className="inline-block text-[10px] font-black text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-md">BSBA</span>
                   <h3 className="text-xs font-bold text-gray-800 leading-snug">Business Administration</h3>
                   <div className="text-2xl font-black text-gray-900">320</div>
-                  <div className="text-[10px] text-gray-500 pt-2 border-t border-gray-50 flex items-center justify-between">
+                  <div className="text-[10px] text-gray-500 pt-2 border-t border-gray-50 flex justify-between">
                     <span>Active</span>
-                    <span className="text-emerald-600 font-bold bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-100">
-                      ID Ready 288
-                    </span>
+                    <span className="text-emerald-600 font-bold bg-emerald-50 px-1.5 py-0.5 rounded">ID Ready 288</span>
                   </div>
                 </div>
 
                 {/* BSCRIM */}
                 <div className="bg-white p-4 rounded-3xl border border-gray-100 shadow-sm space-y-2">
-                  <div className="flex items-start justify-between">
-                    <span className="inline-block text-[10px] font-black text-red-700 bg-red-50 border border-red-200 px-2 py-0.5 rounded-md">
-                      BSCRIM
-                    </span>
-                    <div className="p-1.5 bg-red-50 text-red-600 rounded-lg">
-                      <Shield className="w-4 h-4" />
-                    </div>
-                  </div>
+                  <span className="inline-block text-[10px] font-black text-red-700 bg-red-50 border border-red-200 px-2 py-0.5 rounded-md">BSCRIM</span>
                   <h3 className="text-xs font-bold text-gray-800 leading-snug">Criminology</h3>
                   <div className="text-2xl font-black text-gray-900">250</div>
-                  <div className="text-[10px] text-gray-500 pt-2 border-t border-gray-50 flex items-center justify-between">
+                  <div className="text-[10px] text-gray-500 pt-2 border-t border-gray-50 flex justify-between">
                     <span>Active</span>
-                    <span className="text-emerald-600 font-bold bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-100">
-                      ID Ready 225
-                    </span>
+                    <span className="text-emerald-600 font-bold bg-emerald-50 px-1.5 py-0.5 rounded">ID Ready 225</span>
                   </div>
                 </div>
 
                 {/* BSA */}
                 <div className="bg-white p-4 rounded-3xl border border-gray-100 shadow-sm space-y-2">
-                  <div className="flex items-start justify-between">
-                    <span className="inline-block text-[10px] font-black text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-md">
-                      BSA
-                    </span>
-                    <div className="p-1.5 bg-amber-50 text-amber-600 rounded-lg">
-                      <Landmark className="w-4 h-4" />
-                    </div>
-                  </div>
+                  <span className="inline-block text-[10px] font-black text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-md">BSA</span>
                   <h3 className="text-xs font-bold text-gray-800 leading-snug">Accountancy</h3>
                   <div className="text-2xl font-black text-gray-900">180</div>
-                  <div className="text-[10px] text-gray-500 pt-2 border-t border-gray-50 flex items-center justify-between">
+                  <div className="text-[10px] text-gray-500 pt-2 border-t border-gray-50 flex justify-between">
                     <span>Active</span>
-                    <span className="text-emerald-600 font-bold bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-100">
-                      ID Ready 162
-                    </span>
+                    <span className="text-emerald-600 font-bold bg-emerald-50 px-1.5 py-0.5 rounded">ID Ready 162</span>
                   </div>
                 </div>
 
                 {/* BEED */}
                 <div className="bg-white p-4 rounded-3xl border border-gray-100 shadow-sm space-y-2">
-                  <div className="flex items-start justify-between">
-                    <span className="inline-block text-[10px] font-black text-purple-700 bg-purple-50 border border-purple-200 px-2 py-0.5 rounded-md">
-                      BEED
-                    </span>
-                    <div className="p-1.5 bg-purple-50 text-purple-600 rounded-lg">
-                      <GraduationCap className="w-4 h-4" />
-                    </div>
-                  </div>
+                  <span className="inline-block text-[10px] font-black text-purple-700 bg-purple-50 border border-purple-200 px-2 py-0.5 rounded-md">BEED</span>
                   <h3 className="text-xs font-bold text-gray-800 leading-snug">Elementary Education</h3>
                   <div className="text-2xl font-black text-gray-900">150</div>
-                  <div className="text-[10px] text-gray-500 pt-2 border-t border-gray-50 flex items-center justify-between">
+                  <div className="text-[10px] text-gray-500 pt-2 border-t border-gray-50 flex justify-between">
                     <span>Active</span>
-                    <span className="text-emerald-600 font-bold bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-100">
-                      ID Ready 140
-                    </span>
+                    <span className="text-emerald-600 font-bold bg-emerald-50 px-1.5 py-0.5 rounded">ID Ready 140</span>
                   </div>
                 </div>
 
                 {/* BSAM */}
                 <div className="bg-white p-4 rounded-3xl border border-gray-100 shadow-sm space-y-2 col-span-2">
-                  <div className="flex items-start justify-between">
-                    <span className="inline-block text-[10px] font-black text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md">
-                      BSAM
-                    </span>
-                    <div className="p-1.5 bg-emerald-50 text-emerald-600 rounded-lg">
-                      <Building2 className="w-4 h-4" />
-                    </div>
-                  </div>
+                  <span className="inline-block text-[10px] font-black text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md">BSAM</span>
                   <h3 className="text-xs font-bold text-gray-800 leading-snug">Agribusiness Management</h3>
                   <div className="text-2xl font-black text-gray-900">100</div>
-                  <div className="text-[10px] text-gray-500 pt-2 border-t border-gray-50 flex items-center justify-between">
+                  <div className="text-[10px] text-gray-500 pt-2 border-t border-gray-50 flex justify-between">
                     <span>Active</span>
-                    <span className="text-emerald-600 font-bold bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-100">
-                      ID Ready 88 (88%)
-                    </span>
+                    <span className="text-emerald-600 font-bold bg-emerald-50 px-1.5 py-0.5 rounded">ID Ready 88 (88%)</span>
                   </div>
                 </div>
-
               </div>
             </section>
-
           </main>
         )}
 
@@ -348,46 +278,34 @@ export default function Home() {
 
             <form onSubmit={handleLoginSubmit} className="space-y-4">
               <div className="space-y-1.5">
-                <label className="text-xs font-bold uppercase tracking-wider text-gray-500 pl-1">
-                  EMAIL
-                </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                    <Mail className="h-5 w-5 text-gray-400" />
-                  </div>
-                  <input
-                    type="email"
-                    required
-                    value={loginEmail}
-                    onChange={(e) => setLoginEmail(e.target.value)}
-                    placeholder="e.g. juandelacruz@gmail.com"
-                    className="w-full pl-12 pr-4 py-4 bg-white border border-gray-200 rounded-2xl text-sm focus:outline-none focus:border-orange-500"
-                  />
-                </div>
+                <label className="text-xs font-bold uppercase tracking-wider text-gray-500 pl-1">EMAIL</label>
+                <input
+                  type="email"
+                  required
+                  value={loginEmail}
+                  onChange={(e) => setLoginEmail(e.target.value)}
+                  placeholder="e.g. juandelacruz@gmail.com"
+                  className="w-full px-4 py-4 bg-white border border-gray-200 rounded-2xl text-sm focus:outline-none focus:border-orange-500"
+                />
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-bold uppercase tracking-wider text-gray-500 pl-1">
-                  PASSWORD
-                </label>
+                <label className="text-xs font-bold uppercase tracking-wider text-gray-500 pl-1">PASSWORD</label>
                 <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                    <Lock className="h-5 w-5 text-gray-400" />
-                  </div>
                   <input
                     type={showPassword ? "text" : "password"}
                     required
                     value={loginPassword}
                     onChange={(e) => setLoginPassword(e.target.value)}
                     placeholder="••••••••"
-                    className="w-full pl-12 pr-12 py-4 bg-white border border-gray-200 rounded-2xl text-sm focus:outline-none focus:border-orange-500"
+                    className="w-full px-4 py-4 bg-white border border-gray-200 rounded-2xl text-sm focus:outline-none focus:border-orange-500"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-400"
+                    className="absolute inset-y-0 right-0 pr-4 flex items-center text-xs font-bold text-gray-500"
                   >
-                    {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                    {showPassword ? 'Hide' : 'Show'}
                   </button>
                 </div>
               </div>
@@ -396,9 +314,9 @@ export default function Home() {
                 <button
                   type="submit"
                   disabled={loginLoading}
-                  className="w-full py-4 bg-[#F97316] text-white font-bold rounded-2xl text-base shadow-lg shadow-orange-500/30 flex items-center justify-center space-x-2"
+                  className="w-full py-4 bg-[#F97316] text-white font-bold rounded-2xl text-base shadow-lg shadow-orange-500/30"
                 >
-                  {loginLoading ? <RefreshCw className="w-5 h-5 animate-spin" /> : <span>Log In</span>}
+                  {loginLoading ? 'Logging in...' : 'Log In'}
                 </button>
               </div>
             </form>
@@ -406,10 +324,9 @@ export default function Home() {
             <div className="mt-8 text-center">
               <button
                 onClick={() => setCurrentView('home')}
-                className="text-sm font-bold text-gray-500 hover:text-gray-800 flex items-center justify-center space-x-1 mx-auto"
+                className="text-sm font-bold text-gray-500 hover:text-gray-800"
               >
-                <ChevronRight className="w-4 h-4 rotate-180" />
-                <span>Back to Home</span>
+                ➔ Back to Home
               </button>
             </div>
           </main>
@@ -420,48 +337,29 @@ export default function Home() {
           <main className="animate-in slide-in-from-right duration-300 min-h-[calc(100vh-64px)] bg-[#374151] flex flex-col justify-end">
             <div className="bg-white rounded-t-3xl p-6 space-y-5 h-[90vh] overflow-y-auto">
               <div className="flex items-start justify-between border-b border-gray-100 pb-4">
-                <div className="flex items-center space-x-3">
-                  <div className="p-2 bg-orange-100 rounded-xl text-orange-600">
-                    <ShieldAlert className="w-6 h-6" />
-                  </div>
-                  <div>
-                    <h2 className="text-xl font-black text-gray-900 leading-tight">Data Privacy &<br/>Confidentiality</h2>
-                    <p className="text-xs text-gray-500 font-medium">Official Policy • RA 10173 Compliance</p>
-                  </div>
+                <div>
+                  <h2 className="text-xl font-black text-gray-900 leading-tight">Data Privacy & Confidentiality</h2>
+                  <p className="text-xs text-gray-500 font-medium">Official Policy • RA 10173 Compliance</p>
                 </div>
               </div>
 
-              <div className="bg-orange-50 p-4 rounded-xl border border-orange-100 flex space-x-3">
-                <AlertCircle className="w-5 h-5 text-orange-600 shrink-0" />
+              <div className="bg-orange-50 p-4 rounded-xl border border-orange-100">
                 <p className="text-sm font-bold text-orange-800">
-                  Please review and accept this student data agreement before entering your portal.
+                  ⚠️ Please review and accept this student data agreement before entering your portal.
                 </p>
               </div>
 
-              <div className="space-y-4">
-                <div className="flex space-x-3">
-                  <div className="w-6 h-6 rounded-full bg-orange-100 text-orange-600 font-bold text-xs flex items-center justify-center shrink-0">1</div>
-                  <div>
-                    <h4 className="text-sm font-bold text-gray-900">Confidentiality & Non-Disclosure</h4>
-                    <p className="text-xs text-gray-500 mt-1">You agree that all member directories, attendance logs, voting ballots, and internal organization materials are strictly confidential.</p>
-                  </div>
-                </div>
-                <div className="flex space-x-3">
-                  <div className="w-6 h-6 rounded-full bg-orange-100 text-orange-600 font-bold text-xs flex items-center justify-center shrink-0">2</div>
-                  <div>
-                    <h4 className="text-sm font-bold text-gray-900">Personal Data Protection (No Sharing)</h4>
-                    <p className="text-xs text-gray-500 mt-1">You must not screenshot, scrape, share, or disclose any personal details of fellow students or officers with external parties.</p>
-                  </div>
-                </div>
+              <div className="space-y-4 text-xs text-gray-600">
+                <p>1. <strong>Confidentiality & Non-Disclosure:</strong> You agree that all member directories, attendance logs, and internal records are strictly confidential.</p>
+                <p>2. <strong>Personal Data Protection:</strong> You must not share or disclose personal details of fellow students with external parties.</p>
               </div>
 
               <div className="pt-4 space-y-3">
                 <button 
                   onClick={handleAgreePrivacy}
-                  className="w-full py-4 bg-[#F97316] text-white font-bold rounded-2xl text-base shadow-md flex items-center justify-center space-x-2"
+                  className="w-full py-4 bg-[#F97316] text-white font-bold rounded-2xl text-base shadow-md"
                 >
-                  <CheckCircle2 className="w-5 h-5" />
-                  <span>Agree & Log In</span>
+                  Agree & Log In
                 </button>
                 <button 
                   onClick={() => setCurrentView('login')}
@@ -479,9 +377,8 @@ export default function Home() {
           <main className="px-4 pt-6 space-y-6 animate-in zoom-in-95 duration-300">
             <p className="text-sm text-gray-600 font-medium">Your official scannable organization credentials.</p>
             
-            <button className="w-full py-4 bg-[#F97316] text-white font-bold rounded-2xl text-sm flex items-center justify-center space-x-2 shadow-lg shadow-orange-500/30">
-              <Download className="w-5 h-5" />
-              <span>Download Official ID</span>
+            <button className="w-full py-4 bg-[#F97316] text-white font-bold rounded-2xl text-sm shadow-lg shadow-orange-500/30">
+              📥 Download Official ID
             </button>
 
             {/* ID Card Wrapper */}
@@ -494,16 +391,14 @@ export default function Home() {
                     • CEC TRACK 3.0 •
                   </span>
                   
-                  <div className="w-28 h-28 rounded-2xl bg-gray-200 border-4 border-white shadow-lg mb-4 overflow-hidden flex items-center justify-center">
-                    <UserCheck className="w-12 h-12 text-gray-400" />
+                  <div className="w-28 h-28 rounded-2xl bg-gray-200 border-4 border-white shadow-lg mb-4 flex items-center justify-center text-xs font-bold text-gray-500">
+                    PHOTO
                   </div>
 
                   <h2 className="text-2xl font-black text-gray-900 tracking-tight">Juan Dela Cruz</h2>
                   
                   <div className="mt-2 text-center">
-                    <span className="text-[10px] font-bold text-orange-500 uppercase tracking-widest block mb-1">
-                      STUDENT ID
-                    </span>
+                    <span className="text-[10px] font-bold text-orange-500 uppercase tracking-widest block mb-1">STUDENT ID</span>
                     <span className="bg-gray-100 text-gray-900 font-black text-base px-5 py-1.5 rounded-full border border-gray-200 block">
                       2024-00123
                     </span>
@@ -512,7 +407,6 @@ export default function Home() {
                   <div className="mt-8 bg-white p-3 rounded-2xl shadow-sm border border-gray-100">
                     <div className="w-40 h-40 bg-gray-900 rounded-xl flex items-center justify-center relative">
                        <span className="text-white text-xs font-bold">QR CODE</span>
-                       <div className="absolute w-full h-full border-4 border-dashed border-white/20 rounded-xl"></div>
                     </div>
                   </div>
                   <span className="text-xs font-bold text-gray-500 tracking-widest mt-4 uppercase">
@@ -533,8 +427,7 @@ export default function Home() {
                  onClick={() => setCurrentView('home')}
                  className="flex items-center space-x-2 text-rose-500 font-bold text-sm bg-rose-50 px-4 py-2 rounded-full border border-rose-100"
                >
-                 <LogOut className="w-4 h-4" />
-                 <span>Sign Out</span>
+                 🚪 Sign Out
                </button>
             </div>
           </main>
