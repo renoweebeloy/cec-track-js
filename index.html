@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ACETRACK 3.0</title>
+  <style>
+    /* RESET UG BASE STYLES */
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      background-color: #ffffff;
+      color: #111827;
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      min-height: 100vh;
+      padding-bottom: 80px;
+    }
+
+    /* NAVBAR HEADER */
+    .header {
+      width: 100%;
+      background-color: #ffffff;
+      border-bottom: 1px solid #f3f4f6;
+      position: sticky;
+      top: 0;
+      z-index: 50;
+    }
+    .header-content {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 0 32px;
+      height: 80px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .logo-text {
+      font-size: 1.5rem;
+      font-weight: 900;
+      color: #ea580c;
+      letter-spacing: -0.025em;
+      text-decoration: none;
+    }
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 32px;
+    }
+    .nav-item {
+      font-size: 0.875rem;
+      font-weight: 700;
+      color: #374151;
+      text-decoration: none;
+      cursor: pointer;
+    }
+    .login-btn {
+      background-color: #ea580c;
+      color: #ffffff;
+      padding: 10px 24px;
+      border-radius: 12px;
+      font-size: 0.875rem;
+      font-weight: 700;
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      box-shadow: 0 4px 12px rgba(234, 88, 12, 0.25);
+    }
+
+    /* MAIN CONTENT */
+    .main-container {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 32px 16px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    /* STATUS BADGES */
+    .status-row {
+      width: 100%;
+      max-width: 1100px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 32px;
+    }
+    .status-badge {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background-color: #ffffff;
+      border: 1px solid #e5e7eb;
+      border-radius: 9999px;
+      padding: 8px 24px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: #374151;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+    }
+    .live-dot {
+      width: 8px;
+      height: 8px;
+      background-color: #10b981;
+      border-radius: 9999px;
+      display: inline-block;
+    }
+
+    /* HERO SECTION */
+    .hero-section {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      max-width: 800px;
+      margin-bottom: 32px;
+    }
+    .logo-container {
+      margin-bottom: 24px;
+    }
+    .tag-badge {
+      background-color: #fff7ed;
+      color: #ea580c;
+      border: 1px solid #ffedd5;
+      font-size: 0.75rem;
+      font-weight: 800;
+      letter-spacing: 0.05em;
+      padding: 6px 16px;
+      border-radius: 9999px;
+      text-transform: uppercase;
+      margin-bottom: 16px;
+    }
+    .hero-title {
+      font-size: 3.5rem;
+      font-weight: 900;
+      color: #0f172a;
+      letter-spacing: -0.025em;
+      margin-bottom: 8px;
+    }
+    .hero-subtitle {
+      font-size: 1.25rem;
+      font-weight: 800;
+      color: #1e293b;
+      margin-bottom: 12px;
+    }
+    .hero-desc {
+      font-size: 0.875rem;
+      color: #64748b;
+      line-height: 1.6;
+    }
+
+    /* ACTIONS AREA */
+    .action-area {
+      width: 100%;
+      max-width: 580px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 64px;
+    }
+    .search-box {
+      width: 100%;
+      background-color: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 16px;
+      padding: 6px;
+      display: flex;
+      align-items: center;
+    }
+    .search-input {
+      flex: 1;
+      background: transparent;
+      border: none;
+      padding: 12px 16px;
+      font-size: 0.875rem;
+      outline: none;
+      color: #334155;
+    }
+    .check-btn {
+      background-color: #fed7aa;
+      color: #c2410c;
+      font-size: 0.875rem;
+      font-weight: 700;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 12px;
+      cursor: pointer;
+    }
+    .button-row {
+      display: flex;
+      gap: 12px;
+      width: 100%;
+      justify-content: center;
+    }
+    .portal-btn {
+      flex: 1;
+      background-color: #ea580c;
+      color: #ffffff;
+      font-size: 0.875rem;
+      font-weight: 800;
+      border: none;
+      padding: 14px 20px;
+      border-radius: 14px;
+      cursor: pointer;
+      box-shadow: 0 10px 20px rgba(234, 88, 12, 0.2);
+    }
+    .events-btn {
+      flex: 1;
+      background-color: #ffffff;
+      color: #1e293b;
+      border: 1px solid #e2e8f0;
+      font-size: 0.875rem;
+      font-weight: 700;
+      padding: 14px 20px;
+      border-radius: 14px;
+      cursor: pointer;
+    }
+
+    /* ANALYTICS SECTION */
+    .analytics-section {
+      width: 100%;
+      max-width: 1100px;
+    }
+    .analytics-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+    .analytics-title {
+      font-size: 0.75rem;
+      font-weight: 900;
+      color: #475569;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .analytics-stats {
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: #64748b;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .id-badge {
+      background-color: #ecfdf5;
+      color: #047857;
+      border: 1px solid #a7f3d0;
+      padding: 4px 10px;
+      border-radius: 9999px;
+    }
+
+    /* CARDS GRID */
+    .course-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 16px;
+    }
+    @media (max-width: 1024px) {
+      .course-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+    .course-card {
+      background-color: #ffffff;
+      border: 1px solid #f1f5f9;
+      border-radius: 20px;
+      padding: 20px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      min-height: 170px;
+    }
+    .card-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .course-badge {
+      font-size: 0.65rem;
+      font-weight: 900;
+      padding: 2px 8px;
+      border-radius: 6px;
+    }
+    .bsba-badge { background-color: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; }
+    .bscrim-badge { background-color: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }
+    .bsa-badge { background-color: #fffbeb; color: #b45309; border: 1px solid #fde68a; }
+    .beed-badge { background-color: #faf5ff; color: #6d28d9; border: 1px solid #e9d5ff; }
+    .bsam-badge { background-color: #f0fdf4; color: #047857; border: 1px solid #bbf7d0; }
+    
+    .count-val {
+      font-size: 2rem;
+      font-weight: 900;
+      color: #0f172a;
+      margin: 8px 0 2px 0;
+    }
+    .course-name {
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: #64748b;
+      margin-bottom: 16px;
+    }
+    .card-bottom {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.68rem;
+      color: #94a3b8;
+      border-top: 1px solid #f8fafc;
+      padding-top: 8px;
+    }
+    .id-ready {
+      color: #059669;
+      font-weight: 700;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- HEADER NAVBAR -->
+  <header class="header">
+    <div class="header-content">
+      <a href="#" class="logo-text">ACETRACK 3.0</a>
+      <div class="nav-links">
+        <a href="#" class="nav-item">About</a>
+        <a href="#" class="nav-item">Events</a>
+        <a href="#" class="nav-item">Members</a>
+        <button class="login-btn">➔ Login</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN CONTENT -->
+  <main class="main-container">
+    
+    <!-- TOP STATUS BADGES -->
+    <div class="status-row">
+      <div class="status-badge">
+        <span class="live-dot"></span> <span style="color: #10b981;">LIVE PHT</span>
+        <span style="color: #d1d5db;">|</span>
+        <span id="clock">🕒 Loading...</span>
+        <span style="color: #d1d5db;">|</span>
+        <span>📅 Tuesday, October 20, 2026</span>
+      </div>
+      <div class="status-badge">
+        🛡️ Official ACES Portal
+      </div>
+    </div>
+
+    <!-- HERO SECTION -->
+    <section class="hero-section">
+      <div class="logo-container">
+        <svg width="220" height="220" viewBox="0 0 100 100">
+          <circle cx="50" cy="50" r="48" fill="#FFFFFF" stroke="#000000" stroke-width="4" />
+          <path d="M 50 2 L 50 98 M 2 50 L 98 50" stroke="#000000" stroke-width="2" />
+          <rect x="8" y="8" width="42" height="42" fill="#EA580C" />
+          <rect x="50" y="50" width="42" height="42" fill="#EA580C" />
+          <rect x="50" y="8" width="42" height="42" fill="#000000" />
+          <rect x="8" y="50" width="42" height="42" fill="#000000" />
+          <circle cx="50" cy="50" r="22" fill="#FFFFFF" stroke="#000000" stroke-width="2" />
+          <path id="circlePath" d="M 16 50 A 34 34 0 1 1 84 50 A 34 34 0 1 1 16 50" fill="none" />
+          <text font-size="6" font-weight="900" fill="#000000">
+            <textPath href="#circlePath" startOffset="50%" text-anchor="middle">
+              ASSOCIATION OF COMPUTING AND ENGINEERING STUDENTS
+            </textPath>
+          </text>
+        </svg>
+      </div>
+      <div class="tag-badge">✨ EMPOWERING FUTURE LEADERS</div>
+      <h1 class="hero-title">ACES</h1>
+      <h2 class="hero-subtitle">Association of Computing and Engineering Students</h2>
+      <p class="hero-desc">
+        Uniting students across computing, engineering, and technology disciplines.<br />
+        Innovate, collaborate, and excel together.
+      </p>
+    </section>
+
+    <!-- ACTION CONTROLS AREA -->
+    <section class="action-area">
+      <div class="search-box">
+        <input type="text" placeholder="Search Student ID (e.g. 2024-00123)..." class="search-input" />
+        <button class="check-btn">🔍 Check Record</button>
+      </div>
+      <div class="button-row">
+        <button class="portal-btn">➔ Access Member Portal</button>
+        <button class="events-btn">Explore Events ➔</button>
+      </div>
+    </section>
+
+    <!-- DEPARTMENT CARDS -->
+    <section class="analytics-section">
+      <div class="analytics-header">
+        <div class="analytics-title">👥 DEPARTMENT MEMBERS BY COURSE</div>
+        <div class="analytics-stats">
+          <span>Total Members: <strong>0</strong></span>
+          <span>•</span>
+          <span class="id-badge">Digital IDs: <strong>0 (0%)</strong></span>
+        </div>
+      </div>
+
+      <div class="course-grid">
+        <!-- BSBA -->
+        <div class="course-card">
+          <div class="card-top">
+            <span class="course-badge bsba-badge">BSBA</span>
+            <span>💼</span>
+          </div>
+          <div>
+            <div class="count-val">0</div>
+            <div class="course-name">Business Administration</div>
+          </div>
+          <div class="card-bottom">
+            <span>Enrolled Active</span>
+            <span class="id-ready">ID Ready 0</span>
+          </div>
+        </div>
+
+        <!-- BSCRIM -->
+        <div class="course-card">
+          <div class="card-top">
+            <span class="course-badge bscrim-badge">BSCRIM</span>
+            <span>🛡️</span>
+          </div>
+          <div>
+            <div class="count-val">0</div>
+            <div class="course-name">Criminology</div>
+          </div>
+          <div class="card-bottom">
+            <span>Enrolled Active</span>
+            <span class="id-ready">ID Ready 0</span>
+          </div>
+        </div>
+
+        <!-- BSA -->
+        <div class="course-card">
+          <div class="card-top">
+            <span class="course-badge bsa-badge">BSA</span>
+            <span>🏛️</span>
+          </div>
+          <div>
+            <div class="count-val">0</div>
+            <div class="course-name">Accountancy</div>
+          </div>
+          <div class="card-bottom">
+            <span>Enrolled Active</span>
+            <span class="id-ready">ID Ready 0</span>
+          </div>
+        </div>
+
+        <!-- BEED -->
+        <div class="course-card">
+          <div class="card-top">
+            <span class="course-badge beed-badge">BEED</span>
+            <span>🎓</span>
+          </div>
+          <div>
+            <div class="count-val">0</div>
+            <div class="course-name">Elementary Education</div>
+          </div>
+          <div class="card-bottom">
+            <span>Enrolled Active</span>
+            <span class="id-ready">ID Ready 0</span>
+          </div>
+        </div>
+
+        <!-- BSAM -->
+        <div class="course-card">
+          <div class="card-top">
+            <span class="course-badge bsam-badge">BSAM</span>
+            <span>🌾</span>
+          </div>
+          <div>
+            <div class="count-val">0</div>
+            <div class="course-name">Agribusiness Management</div>
+          </div>
+          <div class="card-bottom">
+            <span>Enrolled Active</span>
+            <span class="id-ready">ID Ready 0</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <script>
+    // Live Clock Script
+    function updateTime() {
+      const now = new Date();
+      const timeString = now.toLocaleTimeString('en-US', { timeZone: 'Asia/Manila' });
+      document.getElementById('clock').innerHTML = '🕒 ' + timeString;
+    }
+    setInterval(updateTime, 1000);
+    updateTime();
+  </script>
+
+</body>
+</html>
