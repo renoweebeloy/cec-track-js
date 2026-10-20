@@ -62,3 +62,10 @@ export default function StudentDashboard() {
     </div>
   );
 }
+
+// Gi-add ni aron dili mag-pre-render / static collection ang Vercel sa build phase
+export async function getServerSideProps() {
+  return {
+    props: {},
+  };
+}
