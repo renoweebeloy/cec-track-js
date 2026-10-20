@@ -400,38 +400,182 @@
   align-items: center;
   justify-content: center;
   min-height: 100vh;
-  background-color: #fafafa;
-  font-family: sans-serif;
-  padding: 1rem;
+  background-color: #ffffff;
+  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  padding: 1.5rem;
 }
 
 .loginCard {
   width: 100%;
-  max-width: 28rem; 
-  padding: 2rem;
-  background-color: #ffffff;
-  border-radius: 0.5rem;
-  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-  box-sizing: border-box;
+  max-width: 24rem;
+  padding: 1rem 0;
+  background-color: transparent;
 }
 
-.loginHeader { margin-bottom: 2rem; }
-.loginTitle { font-size: 2.25rem; font-weight: 800; color: #111827; line-height: 1.25; margin: 0; }
-.loginTitleHighlight { color: #15803d; }
-.loginSubtitle { margin-top: 0.5rem; font-size: 0.875rem; color: #6b7280; }
-.loginForm { display: flex; flex-direction: column; gap: 1.25rem; }
-.inputGroup { display: flex; flex-direction: column; }
-.inputLabel { display: block; margin-bottom: 0.25rem; font-size: 0.75rem; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em; }
-.inputWrapper { position: relative; display: flex; align-items: center; }
-.inputIconLeft { position: absolute; left: 0.75rem; color: #9ca3af; pointer-events: none; display: flex; align-items: center; }
-.loginInput { width: 100%; padding: 0.75rem 0.75rem 0.75rem 2.5rem; font-size: 0.875rem; background-color: #eff6ff; border: 1px solid #dbeafe; border-radius: 0.5rem; outline: none; transition: all 0.2s; box-sizing: border-box; }
-.loginInput:focus { border-color: #22c55e; box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.2); }
-.passwordToggle { position: absolute; right: 0.75rem; background: none; border: none; color: #9ca3af; cursor: pointer; display: flex; align-items: center; padding: 0; }
-.passwordToggle:hover { color: #4b5563; }
-.forgotPasswordWrapper { display: flex; justify-content: flex-end; }
-.forgotPasswordBtn { background: none; border: none; font-size: 0.75rem; font-weight: 600; color: #15803d; cursor: pointer; padding: 0; }
-.forgotPasswordBtn:hover { text-decoration: underline; }
-.submitBtn { width: 100%; padding: 0.75rem; margin-top: 1rem; font-size: 0.875rem; font-weight: 700; color: #ffffff; background-color: #15803d; border: none; border-radius: 0.5rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); cursor: pointer; transition: background-color 0.2s; }
-.submitBtn:hover { background-color: #166534; }
+.loginHeader {
+  margin-bottom: 2rem;
+}
 
-.alertMessage { margin-top: 1rem; padding: 0.75rem; font-size: 0.875rem; text-align: center; color: #dc2626; background-color: #fef2f2; border: 1px solid #fee2e2; border-radius: 0.25rem; }
+.loginTitle {
+  font-size: 2.5rem;
+  font-weight: 900;
+  color: #0f172a;
+  line-height: 1.15;
+  margin: 0;
+  letter-spacing: -0.025em;
+}
+
+.loginTitleHighlight {
+  color: #15803d; /* Green accent */
+}
+
+.loginSubtitle {
+  margin-top: 0.75rem;
+  font-size: 0.875rem;
+  color: #64748b;
+}
+
+.loginForm {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.inputGroup {
+  display: flex;
+  flex-direction: column;
+}
+
+.inputLabel {
+  display: block;
+  margin-bottom: 0.35rem;
+  font-size: 0.7rem;
+  font-weight: 800;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.inputWrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.inputIconLeft {
+  position: absolute;
+  left: 0.85rem;
+  color: #94a3b8;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+}
+
+.loginInput {
+  width: 100%;
+  padding: 0.85rem 0.85rem 0.85rem 2.6rem;
+  font-size: 0.875rem;
+  background-color: #eff6ff; /* Soft blue input fill */
+  border: 1px solid #dbeafe;
+  border-radius: 0.75rem;
+  outline: none;
+  transition: all 0.2s;
+  box-sizing: border-box;
+  color: #1e293b;
+}
+
+.loginInput:focus {
+  border-color: #15803d;
+  box-shadow: 0 0 0 2px rgba(21, 128, 61, 0.15);
+}
+
+.passwordToggle {
+  position: absolute;
+  right: 0.85rem;
+  background: none;
+  border: none;
+  color: #94a3b8;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  padding: 0;
+}
+
+.passwordToggle:hover {
+  color: #475569;
+}
+
+.forgotPasswordWrapper {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: -0.25rem;
+}
+
+.forgotPasswordBtn {
+  background: none;
+  border: none;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #15803d;
+  cursor: pointer;
+  padding: 0;
+}
+
+.forgotPasswordBtn:hover {
+  text-decoration: underline;
+}
+
+.submitBtn {
+  width: 100%;
+  padding: 0.9rem;
+  margin-top: 0.5rem;
+  font-size: 0.9rem;
+  font-weight: 800;
+  color: #ffffff;
+  background-color: #15803d;
+  border: none;
+  border-radius: 0.75rem;
+  box-shadow: 0 4px 12px rgba(21, 128, 61, 0.25);
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.submitBtn:hover {
+  background-color: #166534;
+}
+
+.alertMessage {
+  margin-top: 1rem;
+  padding: 0.75rem;
+  font-size: 0.85rem;
+  text-align: center;
+  color: #dc2626;
+  background-color: #fef2f2;
+  border: 1px solid #fee2e2;
+  border-radius: 0.5rem;
+}
+
+.backLinkWrapper {
+  margin-top: 2.5rem;
+}
+
+.backLink {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.825rem;
+  font-weight: 700;
+  color: #64748b;
+  text-decoration: none;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.backLink:hover {
+  color: #0f172a;
+}
+
+.backIcon {
+  margin-right: 0.35rem;
+  display: inline-block;
+  vertical-align: middle;
+}
