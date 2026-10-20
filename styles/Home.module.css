@@ -358,3 +358,187 @@
   color: #059669;
   font-weight: 700;
 }
+/* --- LOGIN PAGE STYLES --- */
+.loginContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  background-color: #fafafa;
+  font-family: sans-serif;
+  padding: 1rem;
+}
+
+.loginCard {
+  width: 100%;
+  max-width: 28rem; /* equivalent to max-w-md */
+  padding: 2rem;
+  background-color: #ffffff;
+  border-radius: 0.5rem;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+}
+
+.loginHeader {
+  margin-bottom: 2rem;
+}
+
+.loginTitle {
+  font-size: 2.25rem;
+  font-weight: 800;
+  color: #111827; /* gray-900 */
+  line-height: 1.25;
+  margin: 0;
+}
+
+.loginTitleHighlight {
+  color: #15803d; /* green-700 */
+}
+
+.loginSubtitle {
+  margin-top: 0.5rem;
+  font-size: 0.875rem;
+  color: #6b7280; /* gray-500 */
+}
+
+.loginForm {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.inputGroup {
+  display: flex;
+  flex-direction: column;
+}
+
+.inputLabel {
+  display: block;
+  margin-bottom: 0.25rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.inputWrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.inputIconLeft {
+  position: absolute;
+  left: 0.75rem;
+  color: #9ca3af;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+}
+
+.loginInput {
+  width: 100%;
+  padding: 0.75rem 0.75rem 0.75rem 2.5rem; /* space for left icon */
+  font-size: 0.875rem;
+  background-color: #eff6ff; /* blue-50 */
+  border: 1px solid #dbeafe; /* blue-100 */
+  border-radius: 0.5rem;
+  outline: none;
+  transition: all 0.2s;
+  box-sizing: border-box;
+}
+
+.loginInput:focus {
+  border-color: #22c55e;
+  box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.2);
+}
+
+.passwordToggle {
+  position: absolute;
+  right: 0.75rem;
+  background: none;
+  border: none;
+  color: #9ca3af;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  padding: 0;
+}
+
+.passwordToggle:hover {
+  color: #4b5563;
+}
+
+.forgotPasswordWrapper {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.forgotPasswordBtn {
+  background: none;
+  border: none;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #15803d; /* green-700 */
+  cursor: pointer;
+  padding: 0;
+}
+
+.forgotPasswordBtn:hover {
+  text-decoration: underline;
+}
+
+.submitBtn {
+  width: 100%;
+  padding: 0.75rem;
+  margin-top: 1rem;
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: #ffffff;
+  background-color: #15803d;
+  border: none;
+  border-radius: 0.5rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.submitBtn:hover {
+  background-color: #166534; /* green-800 */
+}
+
+.alertMessage {
+  margin-top: 1rem;
+  padding: 0.75rem;
+  font-size: 0.875rem;
+  text-align: center;
+  color: #dc2626; /* red-600 */
+  background-color: #fef2f2; /* red-50 */
+  border: 1px solid #fee2e2; /* red-100 */
+  border-radius: 0.25rem;
+}
+
+.backLinkWrapper {
+  margin-top: 2rem;
+}
+
+.backLink {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #6b7280;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.backLink:hover {
+  color: #1f2937;
+}
+
+.backIcon {
+  width: 1rem;
+  height: 1rem;
+  margin-right: 0.25rem;
+}
