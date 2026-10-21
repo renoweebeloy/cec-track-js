@@ -16,8 +16,9 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  // Data Privacy Modal State para sa mga Estudyante
+  // Data Privacy Modal & Checkbox States
   const [showPrivacyModal, setShowPrivacyModal] = useState(false);
+  const [hasAgreedTerms, setHasAgreedTerms] = useState(false);
 
   // ========================================================
   // LOGIN SUBMIT HANDLER (Direct Database Password Auth)
@@ -43,7 +44,6 @@ export default function Login() {
         .eq('email', cleanEmail)
         .single();
 
-      // Kung wala sa profiles o inactive ang status
       if (profileErr || !profile || (profile.status && profile.status.toLowerCase() === 'inactive')) {
         throw new Error('Invalid credentials.');
       }
@@ -52,7 +52,6 @@ export default function Login() {
       const validDbPassword = profile.password || profile.school_id;
       const isPasswordCorrect = validDbPassword && validDbPassword.trim() === cleanPassword;
 
-      // Subukang mag-sign in din sa Supabase Auth kung sakaling may active auth record
       try {
         await supabase.auth.signInWithPassword({
           email: cleanEmail,
@@ -62,12 +61,11 @@ export default function Login() {
         // Huwag i-block kung nabigo ang auth session basta tama ang database password
       }
 
-      // Kung hindi tugma ang inilagay na password
       if (!isPasswordCorrect) {
         throw new Error('Invalid credentials.');
       }
 
-      // 3. I-save ang mahahalagang session data sa SessionStorage
+      // 3. I-save ang session data sa SessionStorage
       const userRole = profile.role || 'student';
       sessionStorage.setItem('cec_role', userRole);
       sessionStorage.setItem('cec_user_email', profile.email);
@@ -77,16 +75,14 @@ export default function Login() {
 
       // 4. Role & Password Verification Routing
       if (userRole === 'admin') {
-        // Ang Admin ay didiretso agad sa Admin Dashboard
         router.push('/admin');
       } else if (profile.must_change_password) {
-        // Kung unang login ng Student o Staff, kailangan nilang magpalit ng password
         router.push('/update-password');
       } else if (userRole === 'staff') {
-        // Kung nakapagpalit na ng password ang Staff, dadalhin sa Admin/Staff command center
         router.push('/admin');
       } else {
-        // Para sa mga estudyanteng nakapagpalit na ng password, buksan ang privacy agreement
+        // Para sa mga estudyante: buksan ang Data Privacy Notice modal bago pumasok
+        setHasAgreedTerms(false);
         setShowPrivacyModal(true);
       }
     } catch (err) {
@@ -98,6 +94,7 @@ export default function Login() {
   };
 
   const handleAgreePrivacy = () => {
+    if (!hasAgreedTerms) return;
     setShowPrivacyModal(false);
     router.push('/dashboard');
   };
@@ -184,7 +181,7 @@ export default function Login() {
           </p>
         </div>
 
-        {/* Form Inputs */}
+        {/* Credentials Form */}
         <form onSubmit={handleLogin} className={styles.loginForm}>
           {/* Email Address */}
           <div className={styles.inputGroup}>
@@ -300,14 +297,16 @@ export default function Login() {
         </div>
       </div>
 
-      {/* RA 10173 Student Data Privacy Modal */}
+      {/* ======================================================== */}
+      {/* DATA PRIVACY NOTICE MODAL (4 TERMS + CHECKBOX) */}
+      {/* ======================================================== */}
       {showPrivacyModal && (
         <div
           style={{
             position: 'fixed',
             inset: 0,
-            backgroundColor: 'rgba(15, 23, 42, 0.65)',
-            backdropFilter: 'blur(4px)',
+            backgroundColor: 'rgba(15, 23, 42, 0.7)',
+            backdropFilter: 'blur(5px)',
             zIndex: 100,
             display: 'flex',
             alignItems: 'center',
@@ -319,74 +318,260 @@ export default function Login() {
             style={{
               backgroundColor: '#ffffff',
               width: '100%',
-              maxWidth: '460px',
-              borderRadius: '24px',
+              maxWidth: '560px',
+              maxHeight: '92vh',
+              overflowY: 'auto',
+              borderRadius: '26px',
               padding: '24px',
-              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
               display: 'flex',
               flexDirection: 'column',
-              gap: '16px',
+              gap: '18px',
+              boxSizing: 'border-box',
             }}
           >
+            {/* Modal Header */}
             <div
               style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: '12px',
+                gap: '14px',
                 borderBottom: '1px solid #f1f5f9',
-                paddingBottom: '12px',
+                paddingBottom: '14px',
               }}
             >
               <div
                 style={{
-                  width: '40px',
-                  height: '40px',
-                  borderRadius: '12px',
+                  width: '44px',
+                  height: '44px',
+                  borderRadius: '14px',
                   backgroundColor: '#dcfce7',
                   color: '#15803d',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  fontSize: '1.25rem',
+                  fontSize: '1.35rem',
+                  flexShrink: 0,
                 }}
               >
                 🛡️
               </div>
               <div>
-                <h3 style={{ fontSize: '1.1rem', fontWeight: 900, color: '#0f172a', margin: 0 }}>
+                <h3
+                  style={{
+                    fontSize: '1.2rem',
+                    fontWeight: 900,
+                    color: '#0f172a',
+                    margin: 0,
+                  }}
+                >
                   Data Privacy Notice
                 </h3>
-                <span style={{ fontSize: '0.7rem', fontWeight: 800, color: '#15803d', textTransform: 'uppercase' }}>
-                  RA 10173 Compliance • Official Policy
+                <span
+                  style={{
+                    fontSize: '0.72rem',
+                    fontWeight: 900,
+                    color: '#15803d',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.04em',
+                  }}
+                >
+                  RA 10173 COMPLIANCE • OFFICIAL POLICY
                 </span>
               </div>
             </div>
 
-            <p style={{ fontSize: '0.82rem', color: '#64748b', lineHeight: 1.5, margin: 0 }}>
-              By logging into CEC TRACK, you confirm that personal information, attendance records, and generated QR credentials remain private and confidential. Sharing Digital IDs for proxy attendance is strictly prohibited.
-            </p>
+            {/* Apat (4) na Detalyadong Patakaran */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              {/* 1. Confidentiality */}
+              <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+                <div
+                  style={{
+                    width: '24px',
+                    height: '24px',
+                    borderRadius: '50%',
+                    backgroundColor: '#ffedd5',
+                    color: '#ea580c',
+                    fontWeight: 900,
+                    fontSize: '0.75rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                    marginTop: '2px',
+                  }}
+                >
+                  1
+                </div>
+                <div>
+                  <h4 style={{ margin: '0 0 3px 0', fontSize: '0.88rem', fontWeight: 900, color: '#0f172a' }}>
+                    Confidentiality &amp; Non-Disclosure
+                  </h4>
+                  <p style={{ margin: 0, fontSize: '0.78rem', color: '#64748b', lineHeight: 1.45 }}>
+                    You agree that all member directories, attendance logs, voting ballots, and internal organization materials accessible via CECTRACK are strictly confidential.
+                  </p>
+                </div>
+              </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '8px' }}>
+              {/* 2. Personal Data Protection */}
+              <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+                <div
+                  style={{
+                    width: '24px',
+                    height: '24px',
+                    borderRadius: '50%',
+                    backgroundColor: '#ffedd5',
+                    color: '#ea580c',
+                    fontWeight: 900,
+                    fontSize: '0.75rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                    marginTop: '2px',
+                  }}
+                >
+                  2
+                </div>
+                <div>
+                  <h4 style={{ margin: '0 0 3px 0', fontSize: '0.88rem', fontWeight: 900, color: '#0f172a' }}>
+                    Personal Data Protection (No Sharing)
+                  </h4>
+                  <p style={{ margin: 0, fontSize: '0.78rem', color: '#64748b', lineHeight: 1.45 }}>
+                    You must not screenshot, scrape, share, or disclose any personal details (names, student IDs, contact numbers, or emails) of fellow students or officers with external parties.
+                  </p>
+                </div>
+              </div>
+
+              {/* 3. Digital ID & QR Security */}
+              <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+                <div
+                  style={{
+                    width: '24px',
+                    height: '24px',
+                    borderRadius: '50%',
+                    backgroundColor: '#ffedd5',
+                    color: '#ea580c',
+                    fontWeight: 900,
+                    fontSize: '0.75rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                    marginTop: '2px',
+                  }}
+                >
+                  3
+                </div>
+                <div>
+                  <h4 style={{ margin: '0 0 3px 0', fontSize: '0.88rem', fontWeight: 900, color: '#0f172a' }}>
+                    Digital ID &amp; QR Code Security
+                  </h4>
+                  <p style={{ margin: 0, fontSize: '0.78rem', color: '#64748b', lineHeight: 1.45 }}>
+                    Your Digital ID and generated QR code are strictly personal. Sharing or presenting another student&apos;s QR code for proxy attendance is considered a violation.
+                  </p>
+                </div>
+              </div>
+
+              {/* 4. Account Integrity */}
+              <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+                <div
+                  style={{
+                    width: '24px',
+                    height: '24px',
+                    borderRadius: '50%',
+                    backgroundColor: '#ffedd5',
+                    color: '#ea580c',
+                    fontWeight: 900,
+                    fontSize: '0.75rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                    marginTop: '2px',
+                  }}
+                >
+                  4
+                </div>
+                <div>
+                  <h4 style={{ margin: '0 0 3px 0', fontSize: '0.88rem', fontWeight: 900, color: '#0f172a' }}>
+                    Account Integrity &amp; Accountability
+                  </h4>
+                  <p style={{ margin: 0, fontSize: '0.78rem', color: '#64748b', lineHeight: 1.45 }}>
+                    You are solely responsible for activities occurring under your credentials. Any deliberate breach may result in suspension of portal access and disciplinary review.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Checkbox Agreement Section */}
+            <label
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px',
+                backgroundColor: '#f8fafc',
+                border: '1px solid #e2e8f0',
+                borderRadius: '16px',
+                padding: '12px 14px',
+                cursor: 'pointer',
+                marginTop: '4px',
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={hasAgreedTerms}
+                onChange={(e) => setHasAgreedTerms(e.target.checked)}
+                style={{
+                  width: '18px',
+                  height: '18px',
+                  cursor: 'pointer',
+                  accentColor: '#15803d',
+                  flexShrink: 0,
+                }}
+              />
+              <span
+                style={{
+                  fontSize: '0.8rem',
+                  fontWeight: 800,
+                  color: '#0f172a',
+                  lineHeight: 1.4,
+                  userSelect: 'none',
+                }}
+              >
+                I have read, understood, and agree to abide by the Data Privacy and Non-Disclosure Policy.
+              </span>
+            </label>
+
+            {/* Action Buttons */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               <button
                 type="button"
                 onClick={handleAgreePrivacy}
+                disabled={!hasAgreedTerms}
                 style={{
                   width: '100%',
                   padding: '12px',
-                  backgroundColor: '#15803d',
+                  backgroundColor: hasAgreedTerms ? '#15803d' : '#cbd5e1',
                   color: '#ffffff',
-                  borderRadius: '12px',
+                  borderRadius: '14px',
                   border: 'none',
-                  fontWeight: 800,
-                  cursor: 'pointer',
-                  fontSize: '0.875rem',
+                  fontWeight: 900,
+                  cursor: hasAgreedTerms ? 'pointer' : 'not-allowed',
+                  fontSize: '0.9rem',
+                  transition: 'background-color 0.2s ease',
+                  boxShadow: hasAgreedTerms ? '0 4px 12px rgba(21, 128, 61, 0.2)' : 'none',
                 }}
               >
                 ✓ Agree &amp; Enter Portal
               </button>
+
               <button
                 type="button"
-                onClick={() => setShowPrivacyModal(false)}
+                onClick={() => {
+                  setShowPrivacyModal(false);
+                  setHasAgreedTerms(false);
+                }}
                 style={{
                   width: '100%',
                   padding: '10px',
@@ -396,7 +581,7 @@ export default function Login() {
                   border: 'none',
                   fontWeight: 700,
                   cursor: 'pointer',
-                  fontSize: '0.8rem',
+                  fontSize: '0.85rem',
                 }}
               >
                 Cancel
