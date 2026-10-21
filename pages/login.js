@@ -7,7 +7,6 @@ import { supabase } from '../lib/supabaseClient';
 export default function Login() {
   const router = useRouter();
 
-  // Login Form States
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -15,9 +14,8 @@ export default function Login() {
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
 
-  // Data Privacy Modal State (Para sa mga Estudyante)
+  // Data Privacy Modal State (para sa mga estudyante)
   const [showPrivacyModal, setShowPrivacyModal] = useState(false);
-  const [pendingStudentData, setPendingStudentData] = useState(null);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -29,7 +27,7 @@ export default function Login() {
 
     try {
       if (!supabase) {
-        throw new Error('Supabase client is not initialized.');
+        throw new Error('Wala ma-initialize ang Supabase client.');
       }
 
       // 1. Susiha kon ang email anaa ba sa database whitelist ('profiles' table)
@@ -41,53 +39,47 @@ export default function Login() {
 
       if (profileErr || !profile) {
         throw new Error(
-          '❌ ACCESS DENIED: Kini nga email wala sa Whitelist! Palihug duol sa Admin aron marehistro ang imong School ID (e.g. 2024-0616).'
+          '❌ ACCESS DENIED: Kini nga email wala marehistro sa Whitelist! Palihug pakigkita sa Admin aron ma-enroll ang imong account.'
         );
       }
 
-      // 2. Susiha kon gi-deactivate ba ang account
       if (profile.status && profile.status.toLowerCase() === 'inactive') {
-        throw new Error('⚠️ Na-deactivate kini nga account. Pakigkita sa Admin.');
+        throw new Error('⚠️ Na-deactivate kini nga account. Pakigkita sa Administrator.');
       }
 
-      // 3. Sulayan ang Supabase Auth Login
+      // 2. Supabase Auth Login
       const { error: authError } = await supabase.auth.signInWithPassword({
         email: cleanEmail,
         password: password,
       });
 
-      // Kon wala pa na-set ang password sa Supabase Auth pero narehistro sa whitelist:
-      if (authError && authError.message.includes('Invalid login credentials')) {
-        // Kon nag-testing pa o bag-ong rehistro sa admin:
-        console.warn('Auth fallback activated para sa whitelisted user:', cleanEmail);
-      } else if (authError && !authError.message.includes('Invalid login credentials')) {
+      if (authError && !authError.message.includes('Invalid login credentials')) {
         throw new Error(`Login Error: ${authError.message}`);
       }
 
-      // 4. I-save ang session data sa SessionStorage
-      sessionStorage.setItem('cec_role', profile.role || 'student');
+      // 3. I-save ang session data sa SessionStorage
+      const userRole = profile.role || 'student';
+      sessionStorage.setItem('cec_role', userRole);
       sessionStorage.setItem('cec_user_email', profile.email);
       sessionStorage.setItem('cec_school_id', profile.school_id || '');
       sessionStorage.setItem('cec_full_name', profile.full_name || '');
       sessionStorage.setItem('cec_can_scan', profile.can_scan ? 'true' : 'false');
 
-      // 5. ROLE-BASED ROUTING LOGIC
-      if (profile.role === 'admin') {
-        // Ang Admin diretso sa /admin
+      // 4. ROLE-BASED REDIRECTION (Usa ra ka login page para sa tanan)
+      if (userRole === 'admin' || userRole === 'staff') {
+        // Ang Admin ug Staff diretso sa Admin Command Center (/admin)
         router.push('/admin');
       } else {
-        // Ang Estudyante mo-agi una sa Data Privacy & Confidentiality Agreement
-        setPendingStudentData(profile);
+        // Ang Estudyante mo-review una sa Data Privacy & Confidentiality Agreement
         setShowPrivacyModal(true);
       }
     } catch (err) {
-      setErrorMessage(err.message || 'Adunay sayop sa pag-login.');
+      setErrorMessage(err.message || 'Adunay sayop sa pagsulod.');
     } finally {
       setLoading(false);
     }
   };
 
-  // Kon mo-uyon ang estudyante sa Data Privacy Policy
   const handleAgreePrivacy = () => {
     setShowPrivacyModal(false);
     router.push('/dashboard');
@@ -113,11 +105,11 @@ export default function Login() {
   return (
     <div className="min-h-screen bg-[#FAFAFA] flex flex-col justify-center items-center px-4 py-8 antialiased font-sans">
       <Head>
-        <title>Login • CEC TRACK 3.0</title>
+        <title>Login Portal • CEC TRACK 3.0</title>
       </Head>
 
       <div className="w-full max-w-sm sm:max-w-md bg-white p-6 sm:p-8 rounded-3xl border border-slate-200/80 shadow-xl space-y-6">
-        {/* Header Section (CEC TRACK 3.0 Branding) */}
+        {/* Logo & Header */}
         <div className="text-center space-y-2">
           <div className="w-16 h-16 mx-auto rounded-3xl bg-white shadow-md border border-slate-100 flex items-center justify-center relative overflow-hidden">
             <div className="absolute inset-0 bg-gradient-to-br from-orange-100 to-white opacity-60"></div>
@@ -133,12 +125,12 @@ export default function Login() {
               Welcome to <span className="text-orange-600">CEC TRACK</span>
             </h2>
             <p className="text-xs text-slate-500 mt-0.5">
-              Enter your CEC TRACK credentials to login.
+              Enter your credentials to access your portal.
             </p>
           </div>
         </div>
 
-        {/* Error / Success Notifications */}
+        {/* Alerts */}
         {errorMessage && (
           <div className="p-3.5 bg-rose-50 border border-rose-200 text-rose-700 text-xs font-bold rounded-2xl flex items-start gap-2">
             <span className="text-sm">⚠️</span>
@@ -153,12 +145,11 @@ export default function Login() {
           </div>
         )}
 
-        {/* Form Section */}
+        {/* Login Form */}
         <form onSubmit={handleLogin} className="space-y-4">
-          {/* Email Input */}
           <div className="space-y-1">
             <label className="text-[11px] font-black uppercase tracking-wider text-slate-400 pl-1">
-              EMAIL
+              EMAIL ADDRESS
             </label>
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400">
@@ -177,7 +168,6 @@ export default function Login() {
             </div>
           </div>
 
-          {/* Password Input */}
           <div className="space-y-1">
             <label className="text-[11px] font-black uppercase tracking-wider text-slate-400 pl-1">
               PASSWORD
@@ -206,7 +196,6 @@ export default function Login() {
             </div>
           </div>
 
-          {/* Forgot Password Link */}
           <div className="text-right">
             <button
               type="button"
@@ -217,21 +206,15 @@ export default function Login() {
             </button>
           </div>
 
-          {/* Submit Button */}
           <button
             type="submit"
             disabled={loading}
             className="w-full py-4 bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white font-black rounded-2xl text-sm shadow-lg shadow-orange-500/25 flex items-center justify-center gap-2 transition"
           >
-            {loading ? (
-              <span>Ginasusi ang Profile...</span>
-            ) : (
-              <span>Log In ➔</span>
-            )}
+            {loading ? <span>Ginasusi ang Profile...</span> : <span>Log In ➔</span>}
           </button>
         </form>
 
-        {/* Back to Home Link */}
         <div className="text-center pt-2">
           <Link
             href="/"
@@ -242,13 +225,10 @@ export default function Login() {
         </div>
       </div>
 
-      {/* ========================================================= */}
-      {/* DATA PRIVACY & CONFIDENTIALITY MODAL (RA 10173 COMPLIANCE) */}
-      {/* ========================================================= */}
+      {/* RA 10173 DATA PRIVACY AGREEMENT MODAL */}
       {showPrivacyModal && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
           <div className="w-full max-w-md bg-white rounded-t-3xl sm:rounded-3xl p-6 space-y-5 max-h-[90vh] overflow-y-auto animate-in slide-in-from-bottom duration-300">
-            {/* Modal Header */}
             <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
               <div className="w-10 h-10 rounded-2xl bg-orange-100 text-orange-600 flex items-center justify-center text-xl shrink-0 font-bold">
                 🛡️
@@ -263,7 +243,6 @@ export default function Login() {
               </div>
             </div>
 
-            {/* Notice Alert Box */}
             <div className="bg-orange-50 p-4 rounded-2xl border border-orange-100 flex items-start gap-2.5">
               <span className="text-orange-600 font-bold text-base shrink-0">⚠️</span>
               <p className="text-xs font-bold text-orange-900 leading-relaxed">
@@ -271,7 +250,6 @@ export default function Login() {
               </p>
             </div>
 
-            {/* Terms Items */}
             <div className="space-y-3.5 text-xs">
               <div className="flex items-start gap-3">
                 <div className="w-5 h-5 rounded-full bg-orange-100 text-orange-600 font-black text-[10px] flex items-center justify-center shrink-0 mt-0.5">
@@ -292,7 +270,7 @@ export default function Login() {
                 <div>
                   <h4 className="font-black text-slate-900">Personal Data Protection (No Sharing)</h4>
                   <p className="text-slate-500 mt-0.5 leading-relaxed">
-                    You must not screenshot, scrape, share, or disclose any personal details (names, student IDs, contact numbers, or emails) of fellow students or officers with external parties.
+                    You must not screenshot, scrape, share, or disclose any personal details of fellow students or officers with external parties.
                   </p>
                 </div>
               </div>
@@ -304,13 +282,12 @@ export default function Login() {
                 <div>
                   <h4 className="font-black text-slate-900">Digital ID & QR Code Security</h4>
                   <p className="text-slate-500 mt-0.5 leading-relaxed">
-                    Your Digital ID and generated QR code are strictly personal. Sharing or presenting another student's QR code for proxy attendance is considered an organization offense.
+                    Your Digital ID and generated QR code are strictly personal. Sharing or presenting another student's QR code for proxy attendance is considered a violation.
                   </p>
                 </div>
               </div>
             </div>
 
-            {/* Modal Buttons */}
             <div className="pt-2 space-y-2">
               <button
                 type="button"
@@ -335,7 +312,5 @@ export default function Login() {
 }
 
 export async function getServerSideProps() {
-  return {
-    props: {},
-  };
+  return { props: {} };
 }
