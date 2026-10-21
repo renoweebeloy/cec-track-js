@@ -248,7 +248,6 @@ export default function AdminDashboard() {
       if (eventsData) {
         const now = new Date();
 
-        // AUTOMATIC INACTIVE: When date and time out pass, marks as inactive
         const validatedEvents = await Promise.all(
           eventsData.map(async (ev) => {
             try {
@@ -853,14 +852,14 @@ export default function AdminDashboard() {
   const isAdmin = userRole === 'admin';
 
   return (
-    <div className={styles.container} style={{ paddingBottom: 0 }}>
+    <div className={styles.container} style={{ paddingBottom: 0, overflowX: 'hidden', maxWidth: '100vw' }}>
       <Head>
         <title>CEC TRACK • {isAdmin ? 'Admin Portal' : 'Staff Portal'}</title>
         <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
         <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js" async />
       </Head>
 
-      {/* TOP HEADER */}
+      {/* TOP HEADER: RESPONSIVE SINGLE ROW NA HINDI LUMALAGPAS SA SCREEN NG CP */}
       <header
         style={{
           position: 'sticky',
@@ -870,31 +869,34 @@ export default function AdminDashboard() {
           borderBottom: '1px solid #e2e8f0',
           boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
           width: '100%',
+          boxSizing: 'border-box',
         }}
       >
         <div
           style={{
             maxWidth: '1280px',
             margin: '0 auto',
-            padding: '12px 16px',
+            padding: '8px 10px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            gap: '12px',
+            gap: '6px',
             boxSizing: 'border-box',
+            width: '100%',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          {/* LEFT: HAMBURGER & BRAND */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, flexShrink: 1 }}>
             <button
               onClick={() => setIsSidebarOpen(!isSidebarOpen)}
               aria-label="Toggle Navigation Menu"
               style={{
-                width: '44px',
-                height: '44px',
-                borderRadius: '14px',
+                width: '38px',
+                height: '38px',
+                borderRadius: '12px',
                 backgroundColor: '#f1f5f9',
                 border: '1px solid #e2e8f0',
-                fontSize: '1.35rem',
+                fontSize: '1.2rem',
                 fontWeight: 900,
                 color: '#0f172a',
                 cursor: 'pointer',
@@ -907,21 +909,30 @@ export default function AdminDashboard() {
               {isSidebarOpen ? '✕' : '☰'}
             </button>
 
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{ fontSize: '1.25rem', fontWeight: 900, color: '#15803d', letterSpacing: '-0.025em' }}>
+            <div style={{ minWidth: 0, overflow: 'hidden' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                <span
+                  style={{
+                    fontSize: '1.05rem',
+                    fontWeight: 900,
+                    color: '#15803d',
+                    letterSpacing: '-0.025em',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
                   CEC TRACK
                 </span>
                 <span
                   style={{
-                    fontSize: '0.7rem',
+                    fontSize: '0.62rem',
                     fontWeight: 900,
-                    padding: '2px 8px',
+                    padding: '2px 6px',
                     borderRadius: '9999px',
                     backgroundColor: isAdmin ? '#dcfce7' : '#eff6ff',
                     color: isAdmin ? '#15803d' : '#1d4ed8',
                     border: `1px solid ${isAdmin ? '#bbf7d0' : '#bfdbfe'}`,
                     textTransform: 'uppercase',
+                    whiteSpace: 'nowrap',
                   }}
                 >
                   {isAdmin ? 'Admin' : 'Staff'}
@@ -930,22 +941,35 @@ export default function AdminDashboard() {
             </div>
           </div>
 
+          {/* RIGHT: COMPACT CAMPUS BADGE */}
           <div
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: '8px',
+              gap: '6px',
               backgroundColor: '#f0fdf4',
               border: '1px solid #bbf7d0',
-              borderRadius: '14px',
-              padding: '8px 14px',
+              borderRadius: '12px',
+              padding: '6px 10px',
               boxShadow: '0 1px 2px rgba(21, 128, 61, 0.06)',
               flexShrink: 0,
+              maxWidth: '145px',
             }}
           >
-            <span style={{ fontSize: '1rem' }}>📍</span>
-            <span style={{ fontSize: '0.85rem', fontWeight: 800, color: '#15803d', letterSpacing: '-0.01em', lineHeight: 1.2 }}>
-              Cateel Extension Campus
+            <span style={{ fontSize: '0.85rem' }}>📍</span>
+            <span
+              style={{
+                fontSize: '0.75rem',
+                fontWeight: 800,
+                color: '#15803d',
+                letterSpacing: '-0.01em',
+                lineHeight: 1.15,
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+              }}
+            >
+              Cateel Campus
             </span>
           </div>
         </div>
@@ -973,15 +997,15 @@ export default function AdminDashboard() {
             top: 0,
             bottom: 0,
             left: 0,
-            width: '290px',
-            maxWidth: '85vw',
+            width: '280px',
+            maxWidth: '82vw',
             backgroundColor: '#ffffff',
             borderRight: '1px solid #e2e8f0',
             zIndex: 100,
             display: 'flex',
             flexDirection: 'column',
             justifyContent: 'space-between',
-            padding: '24px 18px',
+            padding: '20px 16px',
             boxShadow: isSidebarOpen ? '6px 0 25px rgba(0,0,0,0.15)' : 'none',
             transform: isSidebarOpen ? 'translateX(0)' : 'translateX(-100%)',
             transition: 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
@@ -990,10 +1014,10 @@ export default function AdminDashboard() {
           }}
         >
           <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', paddingBottom: '16px', borderBottom: '1px solid #f1f5f9' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', paddingBottom: '14px', borderBottom: '1px solid #f1f5f9' }}>
               <div>
-                <h2 style={{ fontSize: '1.35rem', fontWeight: 900, color: '#15803d', margin: 0 }}>Portal Menu</h2>
-                <span style={{ fontSize: '0.72rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                <h2 style={{ fontSize: '1.25rem', fontWeight: 900, color: '#15803d', margin: 0 }}>Portal Menu</h2>
+                <span style={{ fontSize: '0.68rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                   {isAdmin ? 'Administrator Access' : 'Staff Officer Access'}
                 </span>
               </div>
@@ -1002,11 +1026,11 @@ export default function AdminDashboard() {
                 style={{
                   background: 'none',
                   border: 'none',
-                  fontSize: '1.25rem',
+                  fontSize: '1.2rem',
                   fontWeight: 900,
                   color: '#64748b',
                   cursor: 'pointer',
-                  padding: '6px',
+                  padding: '4px',
                 }}
               >
                 ✕
@@ -1017,7 +1041,7 @@ export default function AdminDashboard() {
               <button
                 onClick={() => { setActiveTab('profile'); setIsSidebarOpen(false); }}
                 className={activeTab === 'profile' ? `${styles.portalNavLink} ${styles.portalNavLinkActive}` : styles.portalNavLink}
-                style={{ fontSize: '0.95rem', padding: '14px 16px' }}
+                style={{ fontSize: '0.92rem', padding: '12px 14px' }}
               >
                 <span>👤</span>
                 <span>System Overview</span>
@@ -1026,7 +1050,7 @@ export default function AdminDashboard() {
               <button
                 onClick={() => { setActiveTab('add-student'); setIsSidebarOpen(false); }}
                 className={activeTab === 'add-student' ? `${styles.portalNavLink} ${styles.portalNavLinkActive}` : styles.portalNavLink}
-                style={{ fontSize: '0.95rem', padding: '14px 16px' }}
+                style={{ fontSize: '0.92rem', padding: '12px 14px' }}
               >
                 <span>🎓</span>
                 <span>Add Student</span>
@@ -1036,7 +1060,7 @@ export default function AdminDashboard() {
                 <button
                   onClick={() => { setActiveTab('add-staff'); setIsSidebarOpen(false); }}
                   className={activeTab === 'add-staff' ? `${styles.portalNavLink} ${styles.portalNavLinkActive}` : styles.portalNavLink}
-                  style={{ fontSize: '0.95rem', padding: '14px 16px' }}
+                  style={{ fontSize: '0.92rem', padding: '12px 14px' }}
                 >
                   <span>🛡️</span>
                   <span>Manage Staff &amp; Scanners</span>
@@ -1046,7 +1070,7 @@ export default function AdminDashboard() {
               <button
                 onClick={() => { setActiveTab('add-event'); setIsSidebarOpen(false); }}
                 className={activeTab === 'add-event' ? `${styles.portalNavLink} ${styles.portalNavLinkActive}` : styles.portalNavLink}
-                style={{ fontSize: '0.95rem', padding: '14px 16px' }}
+                style={{ fontSize: '0.92rem', padding: '12px 14px' }}
               >
                 <span>📅</span>
                 <span>Manage Events</span>
@@ -1055,7 +1079,7 @@ export default function AdminDashboard() {
               <button
                 onClick={() => { setActiveTab('scan-qr'); setIsSidebarOpen(false); }}
                 className={activeTab === 'scan-qr' ? `${styles.portalNavLink} ${styles.portalNavLinkActive}` : styles.portalNavLink}
-                style={{ fontSize: '0.95rem', padding: '14px 16px' }}
+                style={{ fontSize: '0.92rem', padding: '12px 14px' }}
               >
                 <span>📷</span>
                 <span>Scan QR &amp; Quick Log</span>
@@ -1063,11 +1087,11 @@ export default function AdminDashboard() {
             </nav>
           </div>
 
-          <div style={{ borderTop: '1px solid #f1f5f9', paddingTop: '18px', marginTop: '20px' }}>
+          <div style={{ borderTop: '1px solid #f1f5f9', paddingTop: '16px', marginTop: '16px' }}>
             <button
               onClick={handleSignOut}
               className={styles.portalNavLink}
-              style={{ color: '#b91c1c', fontWeight: 900, fontSize: '0.95rem', padding: '14px 16px' }}
+              style={{ color: '#b91c1c', fontWeight: 900, fontSize: '0.92rem', padding: '12px 14px' }}
             >
               <span>➔</span>
               <span>Sign Out</span>
@@ -1076,12 +1100,12 @@ export default function AdminDashboard() {
         </aside>
 
         {/* MAIN BODY VIEWPORT */}
-        <main className={styles.portalContentArea} style={{ padding: '20px 16px' }}>
-          <div style={{ marginBottom: '20px' }}>
-            <h1 style={{ fontSize: '1.65rem', fontWeight: 900, color: '#0f172a', margin: '0 0 4px 0' }}>
+        <main className={styles.portalContentArea} style={{ padding: '16px 12px', width: '100%', boxSizing: 'border-box' }}>
+          <div style={{ marginBottom: '18px' }}>
+            <h1 style={{ fontSize: '1.45rem', fontWeight: 900, color: '#0f172a', margin: '0 0 4px 0' }}>
               Command Center
             </h1>
-            <p style={{ fontSize: '0.88rem', color: '#64748b', margin: 0, fontWeight: 600 }}>
+            <p style={{ fontSize: '0.82rem', color: '#64748b', margin: 0, fontWeight: 600 }}>
               {isAdmin ? 'Official Administration & Attendance Hub' : 'Staff QR Attendance Verification Hub'}
             </p>
           </div>
@@ -1090,12 +1114,12 @@ export default function AdminDashboard() {
             <div
               className={styles.alertMessage}
               style={{
-                marginBottom: '1.25rem',
-                fontSize: '0.9rem',
+                marginBottom: '1rem',
+                fontSize: '0.85rem',
                 color: notification.type === 'error' ? '#b91c1c' : '#15803d',
                 backgroundColor: notification.type === 'error' ? '#fef2f2' : '#f0fdf4',
                 borderColor: notification.type === 'error' ? '#fee2e2' : '#bbf7d0',
-                padding: '12px 16px',
+                padding: '10px 14px',
               }}
             >
               {notification.message}
@@ -1106,40 +1130,40 @@ export default function AdminDashboard() {
           {activeTab === 'profile' && (
             <div>
               <div className={styles.attendanceStatsGrid}>
-                <div className={styles.attStatCard} style={{ padding: '20px' }}>
-                  <span className={styles.attStatLabel} style={{ fontSize: '0.8rem' }}>Enrolled Students</span>
-                  <div className={styles.attStatValue} style={{ fontSize: '2.2rem' }}>{students.length}</div>
+                <div className={styles.attStatCard} style={{ padding: '16px' }}>
+                  <span className={styles.attStatLabel} style={{ fontSize: '0.75rem' }}>Enrolled Students</span>
+                  <div className={styles.attStatValue} style={{ fontSize: '1.8rem' }}>{students.length}</div>
                 </div>
 
-                <div className={styles.attStatCard} style={{ padding: '20px' }}>
-                  <span className={styles.attStatLabel} style={{ fontSize: '0.8rem' }}>Authorized Staff</span>
-                  <div className={`${styles.attStatValue} ${styles.attGreenText}`} style={{ fontSize: '2.2rem' }}>
+                <div className={styles.attStatCard} style={{ padding: '16px' }}>
+                  <span className={styles.attStatLabel} style={{ fontSize: '0.75rem' }}>Authorized Staff</span>
+                  <div className={`${styles.attStatValue} ${styles.attGreenText}`} style={{ fontSize: '1.8rem' }}>
                     {staffList.length}
                   </div>
                 </div>
 
-                <div className={styles.attStatCard} style={{ padding: '20px' }}>
-                  <span className={styles.attStatLabel} style={{ fontSize: '0.8rem' }}>Active Events</span>
-                  <div className={`${styles.attStatValue} ${styles.attGreenText}`} style={{ fontSize: '2.2rem' }}>
+                <div className={styles.attStatCard} style={{ padding: '16px' }}>
+                  <span className={styles.attStatLabel} style={{ fontSize: '0.75rem' }}>Active Events</span>
+                  <div className={`${styles.attStatValue} ${styles.attGreenText}`} style={{ fontSize: '1.8rem' }}>
                     {events.filter((e) => e.status === 'active').length}
                   </div>
                 </div>
 
-                <div className={styles.attStatCard} style={{ padding: '20px' }}>
-                  <span className={styles.attStatLabel} style={{ fontSize: '0.8rem' }}>Total Events</span>
-                  <div className={styles.attStatValue} style={{ fontSize: '2.2rem' }}>{events.length}</div>
+                <div className={styles.attStatCard} style={{ padding: '16px' }}>
+                  <span className={styles.attStatLabel} style={{ fontSize: '0.75rem' }}>Total Events</span>
+                  <div className={styles.attStatValue} style={{ fontSize: '1.8rem' }}>{events.length}</div>
                 </div>
               </div>
 
               <div className={styles.adminFormCard}>
-                <h3 className={styles.analyticsTitle} style={{ fontSize: '0.85rem', marginBottom: '16px' }}>
+                <h3 className={styles.analyticsTitle} style={{ fontSize: '0.85rem', marginBottom: '14px' }}>
                   Students Distribution by Course
                 </h3>
                 <div className={styles.courseGrid}>
                   {courses.map((c) => {
                     const count = students.filter((s) => s.course === c.code).length;
                     return (
-                      <div key={c.code} className={styles.courseCard} style={{ minHeight: '140px' }}>
+                      <div key={c.code} className={styles.courseCard} style={{ minHeight: '130px' }}>
                         <div className={styles.cardTop}>
                           <span className={`${styles.badge} ${c.badge}`}>{c.code}</span>
                         </div>
@@ -1155,16 +1179,16 @@ export default function AdminDashboard() {
 
           {/* TAB 2: ADD STUDENT */}
           {activeTab === 'add-student' && (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '24px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))', gap: '20px' }}>
               {isAdmin && (
                 <div className={styles.adminFormCard}>
-                  <h3 className={styles.analyticsTitle} style={{ fontSize: '0.9rem', marginBottom: '16px' }}>
+                  <h3 className={styles.analyticsTitle} style={{ fontSize: '0.9rem', marginBottom: '14px' }}>
                     Add Student
                   </h3>
 
                   <form onSubmit={handleAddStudent} className={styles.loginForm}>
                     <div className={styles.inputGroup}>
-                      <label className={styles.inputLabel} style={{ fontSize: '0.78rem' }}>School ID (Format: 2024-0616) *</label>
+                      <label className={styles.inputLabel} style={{ fontSize: '0.75rem' }}>School ID (Format: 2024-0616) *</label>
                       <input
                         type="text"
                         placeholder="e.g. 2024-0616"
@@ -1172,45 +1196,45 @@ export default function AdminDashboard() {
                         onChange={(e) => setStudentId(e.target.value)}
                         pattern="\d{4}-\d{4,5}"
                         className={styles.loginInput}
-                        style={{ padding: '12px 14px', fontSize: '0.95rem' }}
+                        style={{ padding: '10px 12px', fontSize: '0.9rem' }}
                         required
                       />
                     </div>
 
                     <div className={styles.inputGroup}>
-                      <label className={styles.inputLabel} style={{ fontSize: '0.78rem' }}>Full Name *</label>
+                      <label className={styles.inputLabel} style={{ fontSize: '0.75rem' }}>Full Name *</label>
                       <input
                         type="text"
                         placeholder="e.g. Juan Dela Cruz"
                         value={studentName}
                         onChange={(e) => setStudentName(e.target.value)}
                         className={styles.loginInput}
-                        style={{ padding: '12px 14px', fontSize: '0.95rem' }}
+                        style={{ padding: '10px 12px', fontSize: '0.9rem' }}
                         required
                       />
                     </div>
 
                     <div className={styles.inputGroup}>
-                      <label className={styles.inputLabel} style={{ fontSize: '0.78rem' }}>Student Email Address *</label>
+                      <label className={styles.inputLabel} style={{ fontSize: '0.75rem' }}>Student Email Address *</label>
                       <input
                         type="email"
                         placeholder="e.g. student@dorsu.edu.ph"
                         value={studentEmail}
                         onChange={(e) => setStudentEmail(e.target.value)}
                         className={styles.loginInput}
-                        style={{ padding: '12px 14px', fontSize: '0.95rem' }}
+                        style={{ padding: '10px 12px', fontSize: '0.9rem' }}
                         required
                       />
                     </div>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                       <div className={styles.inputGroup}>
-                        <label className={styles.inputLabel} style={{ fontSize: '0.78rem' }}>Course</label>
+                        <label className={styles.inputLabel} style={{ fontSize: '0.75rem' }}>Course</label>
                         <select
                           value={studentCourse}
                           onChange={(e) => setStudentCourse(e.target.value)}
                           className={styles.loginInput}
-                          style={{ padding: '12px 14px', fontSize: '0.95rem' }}
+                          style={{ padding: '10px 12px', fontSize: '0.9rem' }}
                         >
                           {courses.map((c) => (
                             <option key={c.code} value={c.code}>{c.code}</option>
@@ -1219,12 +1243,12 @@ export default function AdminDashboard() {
                       </div>
 
                       <div className={styles.inputGroup}>
-                        <label className={styles.inputLabel} style={{ fontSize: '0.78rem' }}>Year Level</label>
+                        <label className={styles.inputLabel} style={{ fontSize: '0.75rem' }}>Year Level</label>
                         <select
                           value={studentYear}
                           onChange={(e) => setStudentYear(e.target.value)}
                           className={styles.loginInput}
-                          style={{ padding: '12px 14px', fontSize: '0.95rem' }}
+                          style={{ padding: '10px 12px', fontSize: '0.9rem' }}
                         >
                           <option value="1st Year">1st Year</option>
                           <option value="2nd Year">2nd Year</option>
@@ -1235,12 +1259,12 @@ export default function AdminDashboard() {
                     </div>
 
                     <div className={styles.inputGroup}>
-                      <label className={styles.inputLabel} style={{ fontSize: '0.78rem' }}>Section (A - K) *</label>
+                      <label className={styles.inputLabel} style={{ fontSize: '0.75rem' }}>Section (A - K) *</label>
                       <select
                         value={studentSection}
                         onChange={(e) => setStudentSection(e.target.value)}
                         className={styles.loginInput}
-                        style={{ padding: '12px 14px', fontSize: '0.95rem' }}
+                        style={{ padding: '10px 12px', fontSize: '0.9rem' }}
                       >
                         {sectionsList.map((sec) => (
                           <option key={sec} value={sec}>{sec}</option>
@@ -1248,27 +1272,29 @@ export default function AdminDashboard() {
                       </select>
                     </div>
 
-                    <button type="submit" disabled={loading} className={styles.adminPrimaryBtn} style={{ minHeight: '48px', fontSize: '0.95rem' }}>
-                      {loading ? 'Saving Record...' : 'Add Student ➔'}
+                    <button type="submit" disabled={loading} className={styles.adminPrimaryBtn} style={{ minHeight: '44px', fontSize: '0.9rem' }}>
+                      {loading ? 'Saving...' : 'Add Student ➔'}
                     </button>
                   </form>
                 </div>
               )}
 
               <div className={styles.adminFormCard}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '8px' }}>
-                  <h3 className={styles.analyticsTitle} style={{ fontSize: '0.9rem', margin: 0 }}>
-                    Enrolled Students ({filteredStudents.length})
-                  </h3>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '8px' }}>
+                  <div>
+                    <h3 className={styles.analyticsTitle} style={{ fontSize: '0.9rem', margin: 0 }}>
+                      Enrolled Students ({filteredStudents.length})
+                    </h3>
+                  </div>
 
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <input
                       type="text"
-                      placeholder="🔍 Search student..."
+                      placeholder="🔍 Search..."
                       value={searchStudentQuery}
                       onChange={(e) => setSearchStudentQuery(e.target.value)}
                       className={styles.loginInput}
-                      style={{ width: '150px', padding: '8px 12px', fontSize: '0.85rem' }}
+                      style={{ width: '130px', padding: '6px 10px', fontSize: '0.8rem' }}
                     />
 
                     {isAdmin && students.length > 0 && (
@@ -1280,18 +1306,14 @@ export default function AdminDashboard() {
                           backgroundColor: '#fee2e2',
                           color: '#b91c1c',
                           border: '1px solid #fecaca',
-                          borderRadius: '10px',
-                          padding: '8px 12px',
-                          fontSize: '0.8rem',
+                          borderRadius: '8px',
+                          padding: '6px 10px',
+                          fontSize: '0.75rem',
                           fontWeight: 900,
                           cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '4px',
-                          transition: 'all 0.2s ease',
                         }}
                       >
-                        <span>🗑️</span> Remove All
+                        🗑️ All
                       </button>
                     )}
                   </div>
@@ -1310,7 +1332,7 @@ export default function AdminDashboard() {
                     <tbody>
                       {filteredStudents.length === 0 ? (
                         <tr>
-                          <td colSpan={isAdmin ? 4 : 3} style={{ textAlign: 'center', padding: '24px', color: '#94a3b8' }}>
+                          <td colSpan={isAdmin ? 4 : 3} style={{ textAlign: 'center', padding: '20px', color: '#94a3b8' }}>
                             No student records found.
                           </td>
                         </tr>
@@ -1320,11 +1342,11 @@ export default function AdminDashboard() {
                             <td style={{ fontWeight: 800 }}>{st.school_id}</td>
                             <td>
                               <div style={{ fontWeight: 700 }}>{st.full_name}</div>
-                              <div style={{ fontSize: '0.72rem', color: '#64748b' }}>{st.email}</div>
+                              <div style={{ fontSize: '0.7rem', color: '#64748b' }}>{st.email}</div>
                             </td>
                             <td>
                               <span className={styles.idBadge}>{st.course}</span>
-                              <div style={{ fontSize: '0.72rem', color: '#15803d', fontWeight: 800, marginTop: '2px' }}>
+                              <div style={{ fontSize: '0.7rem', color: '#15803d', fontWeight: 800, marginTop: '2px' }}>
                                 {st.section || 'Section A'} • {st.year_level || '1st Year'}
                               </div>
                             </td>
@@ -1332,7 +1354,7 @@ export default function AdminDashboard() {
                               <td style={{ textAlign: 'right' }}>
                                 <button
                                   onClick={() => handleDeleteUser(st.id, st.school_id)}
-                                  style={{ background: 'none', border: 'none', color: '#b91c1c', fontWeight: 800, cursor: 'pointer', padding: '6px' }}
+                                  style={{ background: 'none', border: 'none', color: '#b91c1c', fontWeight: 800, cursor: 'pointer', padding: '4px' }}
                                 >
                                   Remove
                                 </button>
@@ -1350,61 +1372,58 @@ export default function AdminDashboard() {
 
           {/* TAB 3: MANAGE STAFF */}
           {activeTab === 'add-staff' && isAdmin && (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '24px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))', gap: '20px' }}>
               <div className={styles.adminFormCard}>
-                <h3 className={styles.analyticsTitle} style={{ fontSize: '0.9rem', marginBottom: '16px' }}>
+                <h3 className={styles.analyticsTitle} style={{ fontSize: '0.9rem', marginBottom: '14px' }}>
                   Authorize Staff / Student Scanner
                 </h3>
 
                 <form onSubmit={handleAddStaff} className={styles.loginForm}>
                   <div className={styles.inputGroup}>
-                    <label className={styles.inputLabel} style={{ fontSize: '0.78rem' }}>Staff / Student Name *</label>
+                    <label className={styles.inputLabel} style={{ fontSize: '0.75rem' }}>Staff / Student Name *</label>
                     <input
                       type="text"
-                      placeholder="e.g. Officer Maria Santos or Renowee Beloy"
+                      placeholder="e.g. Maria Santos"
                       value={staffName}
                       onChange={(e) => setStaffName(e.target.value)}
                       className={styles.loginInput}
-                      style={{ padding: '12px 14px', fontSize: '0.95rem' }}
+                      style={{ padding: '10px 12px', fontSize: '0.9rem' }}
                       required
                     />
                   </div>
 
                   <div className={styles.inputGroup}>
-                    <label className={styles.inputLabel} style={{ fontSize: '0.78rem' }}>Registered Email Address *</label>
+                    <label className={styles.inputLabel} style={{ fontSize: '0.75rem' }}>Registered Email Address *</label>
                     <input
                       type="email"
-                      placeholder="e.g. renowee.beloy@dorsu.edu.ph"
+                      placeholder="e.g. maria@dorsu.edu.ph"
                       value={staffEmail}
                       onChange={(e) => setStaffEmail(e.target.value)}
                       className={styles.loginInput}
-                      style={{ padding: '12px 14px', fontSize: '0.95rem' }}
+                      style={{ padding: '10px 12px', fontSize: '0.9rem' }}
                       required
                     />
-                    <small style={{ fontSize: '0.72rem', color: '#64748b', marginTop: '4px', display: 'block' }}>
-                      Entering an existing student email will safely grant them scanner access without creating duplicate accounts.
-                    </small>
                   </div>
 
                   <div className={styles.inputGroup}>
-                    <label className={styles.inputLabel} style={{ fontSize: '0.78rem' }}>Designation / Title</label>
+                    <label className={styles.inputLabel} style={{ fontSize: '0.75rem' }}>Designation / Title</label>
                     <input
                       type="text"
                       value={staffRole}
                       onChange={(e) => setStaffRole(e.target.value)}
                       className={styles.loginInput}
-                      style={{ padding: '12px 14px', fontSize: '0.95rem' }}
+                      style={{ padding: '10px 12px', fontSize: '0.9rem' }}
                     />
                   </div>
 
-                  <button type="submit" disabled={loading} className={styles.adminPrimaryBtn} style={{ minHeight: '48px', fontSize: '0.95rem' }}>
+                  <button type="submit" disabled={loading} className={styles.adminPrimaryBtn} style={{ minHeight: '44px', fontSize: '0.9rem' }}>
                     {loading ? 'Authorizing...' : 'Authorize Scanner Privilege ➔'}
                   </button>
                 </form>
               </div>
 
               <div className={styles.adminFormCard}>
-                <h3 className={styles.analyticsTitle} style={{ fontSize: '0.9rem', marginBottom: '16px' }}>
+                <h3 className={styles.analyticsTitle} style={{ fontSize: '0.9rem', marginBottom: '14px' }}>
                   Authorized Scanners ({staffList.length})
                 </h3>
                 <div className={styles.adminTableWrapper}>
@@ -1424,7 +1443,7 @@ export default function AdminDashboard() {
                           <td>
                             <button
                               onClick={() => handleDeleteUser(st.id, st.full_name)}
-                              style={{ background: 'none', border: 'none', color: '#b91c1c', fontWeight: 800, cursor: 'pointer', padding: '6px' }}
+                              style={{ background: 'none', border: 'none', color: '#b91c1c', fontWeight: 800, cursor: 'pointer', padding: '4px' }}
                             >
                               Revoke
                             </button>
@@ -1438,13 +1457,13 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          {/* TAB 4: MANAGE EVENTS (WITH EDIT & AUTO INACTIVE) */}
+          {/* TAB 4: MANAGE EVENTS */}
           {activeTab === 'add-event' && (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '24px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))', gap: '20px' }}>
               <div className={styles.adminFormCard} ref={formRef}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
                   <h3 className={styles.analyticsTitle} style={{ fontSize: '0.9rem', margin: 0 }}>
-                    {editingEventId ? 'Edit / Update Event' : 'Publish New Event'}
+                    {editingEventId ? 'Edit Event' : 'Publish New Event'}
                   </h3>
                   {editingEventId && (
                     <button
@@ -1453,22 +1472,22 @@ export default function AdminDashboard() {
                       style={{
                         background: 'none',
                         border: '1px solid #cbd5e1',
-                        borderRadius: '8px',
-                        padding: '4px 10px',
-                        fontSize: '0.75rem',
+                        borderRadius: '6px',
+                        padding: '3px 8px',
+                        fontSize: '0.72rem',
                         fontWeight: 800,
                         color: '#64748b',
                         cursor: 'pointer',
                       }}
                     >
-                      ✕ Cancel Edit
+                      ✕ Cancel
                     </button>
                   )}
                 </div>
 
                 <form onSubmit={handleSaveEvent} className={styles.loginForm}>
                   <div className={styles.inputGroup}>
-                    <label className={styles.inputLabel} style={{ fontSize: '0.78rem' }}>Event Poster / Picture</label>
+                    <label className={styles.inputLabel} style={{ fontSize: '0.75rem' }}>Event Poster</label>
                     <input
                       type="file"
                       ref={eventImageInputRef}
@@ -1480,17 +1499,16 @@ export default function AdminDashboard() {
                       onClick={() => eventImageInputRef.current?.click()}
                       style={{
                         border: '2px dashed #cbd5e1',
-                        borderRadius: '16px',
-                        padding: '16px',
+                        borderRadius: '14px',
+                        padding: '12px',
                         textAlign: 'center',
                         cursor: 'pointer',
                         backgroundColor: '#f8fafc',
                         position: 'relative',
-                        overflow: 'hidden',
                       }}
                     >
                       {compressingImage ? (
-                        <div style={{ padding: '20px 0', color: '#15803d', fontWeight: 800, fontSize: '0.85rem' }}>
+                        <div style={{ padding: '14px 0', color: '#15803d', fontWeight: 800, fontSize: '0.8rem' }}>
                           ⚡ Optimizing picture...
                         </div>
                       ) : eventImage ? (
@@ -1498,20 +1516,17 @@ export default function AdminDashboard() {
                           <img
                             src={eventImage}
                             alt="Event Preview"
-                            style={{ maxHeight: '140px', width: 'auto', borderRadius: '12px', margin: '0 auto', display: 'block' }}
+                            style={{ maxHeight: '120px', width: 'auto', borderRadius: '10px', margin: '0 auto', display: 'block' }}
                           />
-                          <span style={{ fontSize: '0.72rem', color: '#15803d', fontWeight: 800, display: 'block', marginTop: '6px' }}>
-                            Click to change picture (Optimized)
+                          <span style={{ fontSize: '0.68rem', color: '#15803d', fontWeight: 800, display: 'block', marginTop: '4px' }}>
+                            Click to change picture
                           </span>
                         </div>
                       ) : (
                         <div>
-                          <span style={{ fontSize: '1.8rem', display: 'block', marginBottom: '4px' }}>🖼️</span>
-                          <span style={{ fontSize: '0.82rem', fontWeight: 800, color: '#15803d' }}>
-                            + Click to upload Event Picture
-                          </span>
-                          <span style={{ fontSize: '0.72rem', color: '#94a3b8', display: 'block', marginTop: '2px' }}>
-                            PNG, JPG, or JPEG banner image
+                          <span style={{ fontSize: '1.5rem', display: 'block', marginBottom: '2px' }}>🖼️</span>
+                          <span style={{ fontSize: '0.78rem', fontWeight: 800, color: '#15803d' }}>
+                            + Upload Event Picture
                           </span>
                         </div>
                       )}
@@ -1519,37 +1534,37 @@ export default function AdminDashboard() {
                   </div>
 
                   <div className={styles.inputGroup}>
-                    <label className={styles.inputLabel} style={{ fontSize: '0.78rem' }}>Event Title *</label>
+                    <label className={styles.inputLabel} style={{ fontSize: '0.75rem' }}>Event Title *</label>
                     <input
                       type="text"
                       value={eventTitle}
                       onChange={(e) => setEventTitle(e.target.value)}
                       className={styles.loginInput}
-                      style={{ padding: '12px 14px', fontSize: '0.95rem' }}
+                      style={{ padding: '10px 12px', fontSize: '0.9rem' }}
                       required
                     />
                   </div>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                     <div className={styles.inputGroup}>
-                      <label className={styles.inputLabel} style={{ fontSize: '0.78rem' }}>Location *</label>
+                      <label className={styles.inputLabel} style={{ fontSize: '0.75rem' }}>Location *</label>
                       <input
                         type="text"
                         value={eventLocation}
                         onChange={(e) => setEventLocation(e.target.value)}
                         className={styles.loginInput}
-                        style={{ padding: '12px 14px', fontSize: '0.95rem' }}
+                        style={{ padding: '10px 12px', fontSize: '0.9rem' }}
                         required
                       />
                     </div>
 
                     <div className={styles.inputGroup}>
-                      <label className={styles.inputLabel} style={{ fontSize: '0.78rem' }}>Mode</label>
+                      <label className={styles.inputLabel} style={{ fontSize: '0.75rem' }}>Mode</label>
                       <select
                         value={eventStatus}
                         onChange={(e) => setEventStatus(e.target.value)}
                         className={styles.loginInput}
-                        style={{ padding: '12px 14px', fontSize: '0.95rem' }}
+                        style={{ padding: '10px 12px', fontSize: '0.9rem' }}
                       >
                         <option value="active">Active (Open)</option>
                         <option value="inactive">Inactive (Closed)</option>
@@ -1558,67 +1573,67 @@ export default function AdminDashboard() {
                   </div>
 
                   <div className={styles.inputGroup}>
-                    <label className={styles.inputLabel} style={{ fontSize: '0.78rem' }}>Event Date *</label>
+                    <label className={styles.inputLabel} style={{ fontSize: '0.75rem' }}>Event Date *</label>
                     <input
                       type="date"
                       value={eventDate}
                       onChange={(e) => setEventDate(e.target.value)}
                       className={styles.loginInput}
-                      style={{ padding: '12px 14px', fontSize: '0.95rem' }}
+                      style={{ padding: '10px 12px', fontSize: '0.9rem' }}
                       required
                     />
                   </div>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                     <div className={styles.inputGroup}>
-                      <label className={styles.inputLabel} style={{ fontSize: '0.78rem' }}>Time In *</label>
+                      <label className={styles.inputLabel} style={{ fontSize: '0.75rem' }}>Time In *</label>
                       <input
                         type="time"
                         value={timeIn}
                         onChange={(e) => setTimeIn(e.target.value)}
                         className={styles.loginInput}
-                        style={{ padding: '12px 14px', fontSize: '0.95rem' }}
+                        style={{ padding: '10px 12px', fontSize: '0.9rem' }}
                         required
                       />
                     </div>
 
                     <div className={styles.inputGroup}>
-                      <label className={styles.inputLabel} style={{ fontSize: '0.78rem' }}>Time Out *</label>
+                      <label className={styles.inputLabel} style={{ fontSize: '0.75rem' }}>Time Out *</label>
                       <input
                         type="time"
                         value={timeOut}
                         onChange={(e) => setTimeOut(e.target.value)}
                         className={styles.loginInput}
-                        style={{ padding: '12px 14px', fontSize: '0.95rem' }}
+                        style={{ padding: '10px 12px', fontSize: '0.9rem' }}
                         required
                       />
                     </div>
                   </div>
 
                   <div className={styles.inputGroup}>
-                    <label className={styles.inputLabel} style={{ fontSize: '0.78rem' }}>Description</label>
+                    <label className={styles.inputLabel} style={{ fontSize: '0.75rem' }}>Description</label>
                     <textarea
                       rows="2"
                       value={eventDesc}
                       onChange={(e) => setEventDesc(e.target.value)}
                       className={styles.loginInput}
-                      style={{ padding: '12px 14px', fontSize: '0.95rem' }}
-                      placeholder="Brief event details..."
+                      style={{ padding: '10px 12px', fontSize: '0.9rem' }}
+                      placeholder="Brief details..."
                     />
                   </div>
 
-                  <div style={{ display: 'flex', gap: '10px' }}>
+                  <div style={{ display: 'flex', gap: '8px' }}>
                     <button
                       type="submit"
                       disabled={loading || compressingImage}
                       className={styles.adminPrimaryBtn}
-                      style={{ flex: 1, minHeight: '48px', fontSize: '0.95rem' }}
+                      style={{ flex: 1, minHeight: '44px', fontSize: '0.9rem' }}
                     >
                       {loading
                         ? 'Saving...'
                         : editingEventId
-                        ? '💾 Save Event Changes ➔'
-                        : 'Publish Official Event ➔'}
+                        ? '💾 Save Changes ➔'
+                        : 'Publish Event ➔'}
                     </button>
                     {editingEventId && (
                       <button
@@ -1628,8 +1643,8 @@ export default function AdminDashboard() {
                           backgroundColor: '#f1f5f9',
                           color: '#475569',
                           border: '1px solid #cbd5e1',
-                          borderRadius: '14px',
-                          padding: '0 18px',
+                          borderRadius: '12px',
+                          padding: '0 14px',
                           fontWeight: 800,
                           cursor: 'pointer',
                         }}
@@ -1642,7 +1657,7 @@ export default function AdminDashboard() {
               </div>
 
               <div className={styles.adminFormCard}>
-                <h3 className={styles.analyticsTitle} style={{ fontSize: '0.9rem', marginBottom: '16px' }}>
+                <h3 className={styles.analyticsTitle} style={{ fontSize: '0.9rem', marginBottom: '14px' }}>
                   Published Events ({filteredEvents.length})
                 </h3>
                 <div className={styles.adminTableWrapper}>
@@ -1666,19 +1681,19 @@ export default function AdminDashboard() {
                                 <img
                                   src={ev.image_url}
                                   alt="Event"
-                                  style={{ width: '44px', height: '44px', borderRadius: '10px', objectFit: 'cover' }}
+                                  style={{ width: '40px', height: '40px', borderRadius: '8px', objectFit: 'cover' }}
                                 />
                               ) : (
                                 <div
                                   style={{
-                                    width: '44px',
-                                    height: '44px',
-                                    borderRadius: '10px',
+                                    width: '40px',
+                                    height: '40px',
+                                    borderRadius: '8px',
                                     backgroundColor: '#f1f5f9',
                                     display: 'flex',
                                     alignItems: 'center',
                                     justifyContent: 'center',
-                                    fontSize: '1.2rem',
+                                    fontSize: '1.1rem',
                                   }}
                                 >
                                   📅
@@ -1687,13 +1702,13 @@ export default function AdminDashboard() {
                             </td>
                             <td>
                               <div style={{ fontWeight: 800 }}>{ev.title}</div>
-                              <div style={{ fontSize: '0.72rem', color: '#15803d', fontWeight: 700 }}>
+                              <div style={{ fontSize: '0.7rem', color: '#15803d', fontWeight: 700 }}>
                                 📍 {ev.location || 'FaCET Facade'}
                               </div>
                             </td>
                             <td>
                               <div>{ev.date}</div>
-                              <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
+                              <div style={{ fontSize: '0.7rem', color: '#64748b' }}>
                                 {ev.time_in} - {ev.time_out}
                               </div>
                             </td>
@@ -1710,7 +1725,7 @@ export default function AdminDashboard() {
                             </td>
                             {isAdmin && (
                               <td style={{ textAlign: 'right' }}>
-                                <div style={{ display: 'inline-flex', gap: '8px' }}>
+                                <div style={{ display: 'inline-flex', gap: '6px' }}>
                                   <button
                                     onClick={() => handleStartEditEvent(ev)}
                                     style={{
@@ -1720,9 +1735,9 @@ export default function AdminDashboard() {
                                       color: '#15803d',
                                       fontWeight: 800,
                                       cursor: 'pointer',
-                                      padding: '4px 8px',
-                                      borderRadius: '8px',
-                                      fontSize: '0.75rem',
+                                      padding: '3px 6px',
+                                      borderRadius: '6px',
+                                      fontSize: '0.72rem',
                                     }}
                                   >
                                     Edit
@@ -1735,8 +1750,8 @@ export default function AdminDashboard() {
                                       color: '#b91c1c',
                                       fontWeight: 800,
                                       cursor: 'pointer',
-                                      padding: '4px 6px',
-                                      fontSize: '0.75rem',
+                                      padding: '3px 4px',
+                                      fontSize: '0.72rem',
                                     }}
                                   >
                                     Delete
@@ -1756,41 +1771,41 @@ export default function AdminDashboard() {
 
           {/* TAB 5: SCAN QR & QUICK LOG */}
           {activeTab === 'scan-qr' && (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '24px' }}>
-              <div className={styles.adminFormCard} style={{ textAlign: 'center', padding: '36px 20px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))', gap: '20px' }}>
+              <div className={styles.adminFormCard} style={{ textAlign: 'center', padding: '28px 16px' }}>
                 <div
                   style={{
-                    width: '64px',
-                    height: '64px',
-                    borderRadius: '20px',
+                    width: '56px',
+                    height: '56px',
+                    borderRadius: '18px',
                     backgroundColor: '#dcfce7',
                     color: '#15803d',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    fontSize: '2rem',
-                    margin: '0 auto 16px auto',
+                    fontSize: '1.8rem',
+                    margin: '0 auto 12px auto',
                     border: '1px solid #bbf7d0',
                   }}
                 >
                   📷
                 </div>
-                <h3 className={styles.analyticsTitle} style={{ justifyContent: 'center', fontSize: '1.2rem', marginBottom: '8px' }}>
+                <h3 className={styles.analyticsTitle} style={{ justifyContent: 'center', fontSize: '1.1rem', marginBottom: '6px' }}>
                   Live Camera QR Scanner
                 </h3>
-                <p style={{ fontSize: '0.88rem', color: '#64748b', marginBottom: '24px', lineHeight: 1.5 }}>
+                <p style={{ fontSize: '0.82rem', color: '#64748b', marginBottom: '18px', lineHeight: 1.45 }}>
                   Scan student QR codes to verify profiles and record official attendance.
                 </p>
 
-                <div style={{ marginBottom: '16px' }}>
-                  <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 800, color: '#334155', marginBottom: '6px' }}>
+                <div style={{ marginBottom: '14px', textAlign: 'left' }}>
+                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: '#334155', marginBottom: '6px' }}>
                     Active Event Schedule Target:
                   </label>
                   <select
                     value={selectedEventId}
                     onChange={(e) => setSelectedEventId(e.target.value)}
                     className={styles.loginInput}
-                    style={{ padding: '10px 14px', fontSize: '0.9rem' }}
+                    style={{ padding: '8px 12px', fontSize: '0.88rem' }}
                   >
                     {events.map((ev) => (
                       <option key={ev.id} value={ev.id}>
@@ -1804,7 +1819,7 @@ export default function AdminDashboard() {
                   type="button"
                   onClick={startCameraScanner}
                   className={styles.submitBtn}
-                  style={{ minHeight: '50px', fontSize: '1rem', fontWeight: 900 }}
+                  style={{ minHeight: '46px', fontSize: '0.92rem', fontWeight: 900 }}
                 >
                   📷 Launch Camera Scanner ➔
                 </button>
@@ -1812,28 +1827,28 @@ export default function AdminDashboard() {
 
               {/* MANUAL CHECK-IN */}
               <div className={styles.adminFormCard}>
-                <h3 className={styles.analyticsTitle} style={{ fontSize: '1rem', marginBottom: '12px' }}>
+                <h3 className={styles.analyticsTitle} style={{ fontSize: '0.95rem', marginBottom: '10px' }}>
                   Manual School ID Check-in
                 </h3>
-                <p style={{ fontSize: '0.82rem', color: '#64748b', marginBottom: '16px' }}>
+                <p style={{ fontSize: '0.8rem', color: '#64748b', marginBottom: '14px' }}>
                   For students without smartphones or during low camera lighting conditions.
                 </p>
 
                 <form onSubmit={handleManualScanSubmit} className={styles.loginForm}>
                   <div className={styles.inputGroup}>
-                    <label className={styles.inputLabel} style={{ fontSize: '0.78rem' }}>School ID (e.g. 2024-0616) *</label>
+                    <label className={styles.inputLabel} style={{ fontSize: '0.75rem' }}>School ID (e.g. 2024-0616) *</label>
                     <input
                       type="text"
                       placeholder="e.g. 2024-0616"
                       value={manualStudentId}
                       onChange={(e) => setManualStudentId(e.target.value)}
                       className={styles.loginInput}
-                      style={{ padding: '12px 14px', fontSize: '0.95rem' }}
+                      style={{ padding: '10px 12px', fontSize: '0.9rem' }}
                       required
                     />
                   </div>
 
-                  <button type="submit" className={styles.adminPrimaryBtn} style={{ minHeight: '48px', fontSize: '0.95rem' }}>
+                  <button type="submit" className={styles.adminPrimaryBtn} style={{ minHeight: '44px', fontSize: '0.9rem' }}>
                     ✓ Mark as Present
                   </button>
                 </form>
@@ -1842,8 +1857,8 @@ export default function AdminDashboard() {
                   <div
                     className={styles.alertMessage}
                     style={{
-                      marginTop: '14px',
-                      fontSize: '0.9rem',
+                      marginTop: '12px',
+                      fontSize: '0.85rem',
                       color: scanLogMsg.type === 'error' ? '#b91c1c' : scanLogMsg.type === 'warning' ? '#b45309' : '#15803d',
                       backgroundColor: scanLogMsg.type === 'error' ? '#fef2f2' : scanLogMsg.type === 'warning' ? '#fefce8' : '#f0fdf4',
                     }}
@@ -1869,24 +1884,24 @@ export default function AdminDashboard() {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            padding: '16px',
+            padding: '12px',
           }}
         >
           <div
             style={{
               backgroundColor: '#ffffff',
               width: '100%',
-              maxWidth: '460px',
-              borderRadius: '28px',
-              padding: '24px 20px',
+              maxWidth: '420px',
+              borderRadius: '24px',
+              padding: '20px 16px',
               boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
-              position: 'relative',
               textAlign: 'center',
+              boxSizing: 'border-box',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginBottom: '16px' }}>
-              <span style={{ fontSize: '1.25rem' }}>📷</span>
-              <h3 style={{ fontSize: '1.2rem', fontWeight: 900, color: '#15803d', margin: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginBottom: '14px' }}>
+              <span style={{ fontSize: '1.2rem' }}>📷</span>
+              <h3 style={{ fontSize: '1.1rem', fontWeight: 900, color: '#15803d', margin: 0 }}>
                 Scan Student QR Code
               </h3>
             </div>
@@ -1895,11 +1910,11 @@ export default function AdminDashboard() {
               style={{
                 position: 'relative',
                 width: '100%',
-                maxWidth: '380px',
-                height: '320px',
+                maxWidth: '340px',
+                height: '280px',
                 margin: '0 auto',
                 backgroundColor: '#0f172a',
-                borderRadius: '20px',
+                borderRadius: '18px',
                 overflow: 'hidden',
                 display: 'flex',
                 alignItems: 'center',
@@ -1908,15 +1923,15 @@ export default function AdminDashboard() {
             >
               <div id="interactive-qr-reader" style={{ width: '100%', height: '100%' }} />
 
-              <div style={{ position: 'absolute', width: '210px', height: '210px', pointerEvents: 'none', boxSizing: 'border-box' }}>
-                <div style={{ position: 'absolute', top: 0, left: 0, width: '32px', height: '32px', borderTop: '4px solid #ffffff', borderLeft: '4px solid #ffffff', borderTopLeftRadius: '8px' }} />
-                <div style={{ position: 'absolute', top: 0, right: 0, width: '32px', height: '32px', borderTop: '4px solid #ffffff', borderRight: '4px solid #ffffff', borderTopRightRadius: '8px' }} />
-                <div style={{ position: 'absolute', bottom: 0, left: 0, width: '32px', height: '32px', borderBottom: '4px solid #ffffff', borderLeft: '4px solid #ffffff', borderBottomLeftRadius: '8px' }} />
-                <div style={{ position: 'absolute', bottom: 0, right: 0, width: '32px', height: '32px', borderBottom: '4px solid #ffffff', borderRight: '4px solid #ffffff', borderBottomRightRadius: '8px' }} />
+              <div style={{ position: 'absolute', width: '180px', height: '180px', pointerEvents: 'none', boxSizing: 'border-box' }}>
+                <div style={{ position: 'absolute', top: 0, left: 0, width: '28px', height: '28px', borderTop: '4px solid #ffffff', borderLeft: '4px solid #ffffff', borderTopLeftRadius: '6px' }} />
+                <div style={{ position: 'absolute', top: 0, right: 0, width: '28px', height: '28px', borderTop: '4px solid #ffffff', borderRight: '4px solid #ffffff', borderTopRightRadius: '6px' }} />
+                <div style={{ position: 'absolute', bottom: 0, left: 0, width: '28px', height: '28px', borderBottom: '4px solid #ffffff', borderLeft: '4px solid #ffffff', borderBottomLeftRadius: '6px' }} />
+                <div style={{ position: 'absolute', bottom: 0, right: 0, width: '28px', height: '28px', borderBottom: '4px solid #ffffff', borderRight: '4px solid #ffffff', borderBottomRightRadius: '6px' }} />
               </div>
             </div>
 
-            <div style={{ marginTop: '12px', marginBottom: '14px' }}>
+            <div style={{ marginTop: '10px', marginBottom: '12px' }}>
               <button
                 type="button"
                 onClick={async () => {
@@ -1934,8 +1949,8 @@ export default function AdminDashboard() {
                   backgroundColor: '#f1f5f9',
                   border: '1px solid #cbd5e1',
                   borderRadius: '8px',
-                  padding: '6px 14px',
-                  fontSize: '0.8rem',
+                  padding: '6px 12px',
+                  fontSize: '0.78rem',
                   fontWeight: 800,
                   color: '#475569',
                   cursor: 'pointer',
@@ -1950,15 +1965,14 @@ export default function AdminDashboard() {
               onClick={closeCameraModal}
               style={{
                 width: '100%',
-                padding: '14px',
+                padding: '12px',
                 backgroundColor: '#ef4444',
                 color: '#ffffff',
                 border: 'none',
-                borderRadius: '16px',
-                fontSize: '0.95rem',
+                borderRadius: '14px',
+                fontSize: '0.9rem',
                 fontWeight: 900,
                 cursor: 'pointer',
-                boxShadow: '0 4px 12px rgba(239, 68, 68, 0.25)',
               }}
             >
               Close Camera
@@ -1979,18 +1993,19 @@ export default function AdminDashboard() {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            padding: '16px',
+            padding: '12px',
           }}
         >
           <div
             style={{
               backgroundColor: '#ffffff',
               width: '100%',
-              maxWidth: '400px',
-              borderRadius: '28px',
-              padding: '24px',
+              maxWidth: '380px',
+              borderRadius: '24px',
+              padding: '20px 16px',
               boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.3)',
               textAlign: 'center',
+              boxSizing: 'border-box',
             }}
           >
             <span
@@ -1998,14 +2013,14 @@ export default function AdminDashboard() {
                 display: 'inline-block',
                 backgroundColor: '#dcfce7',
                 color: '#15803d',
-                fontSize: '0.72rem',
+                fontSize: '0.68rem',
                 fontWeight: 900,
-                padding: '4px 14px',
+                padding: '4px 12px',
                 borderRadius: '9999px',
                 border: '1px solid #bbf7d0',
                 textTransform: 'uppercase',
                 letterSpacing: '0.05em',
-                marginBottom: '16px',
+                marginBottom: '12px',
               }}
             >
               ✓ QR Code Verified
@@ -2013,12 +2028,12 @@ export default function AdminDashboard() {
 
             <div
               style={{
-                width: '94px',
-                height: '94px',
-                borderRadius: '24px',
+                width: '84px',
+                height: '84px',
+                borderRadius: '20px',
                 backgroundColor: '#f1f5f9',
                 border: '3px solid #15803d',
-                margin: '0 auto 12px auto',
+                margin: '0 auto 10px auto',
                 overflow: 'hidden',
                 display: 'flex',
                 alignItems: 'center',
@@ -2029,26 +2044,25 @@ export default function AdminDashboard() {
               {scannedStudentData.avatar_url ? (
                 <img src={scannedStudentData.avatar_url} alt={scannedStudentData.full_name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
               ) : (
-                <span style={{ fontSize: '2.5rem' }}>👤</span>
+                <span style={{ fontSize: '2.2rem' }}>👤</span>
               )}
             </div>
 
-            <h2 style={{ fontSize: '1.35rem', fontWeight: 900, color: '#0f172a', margin: '0 0 4px 0' }}>
+            <h2 style={{ fontSize: '1.25rem', fontWeight: 900, color: '#0f172a', margin: '0 0 4px 0' }}>
               {scannedStudentData.full_name}
             </h2>
 
             <div
               style={{
-                fontSize: '1.1rem',
+                fontSize: '1rem',
                 fontWeight: 900,
                 color: '#15803d',
                 backgroundColor: '#f0fdf4',
                 border: '1px solid #bbf7d0',
-                borderRadius: '12px',
-                padding: '6px 14px',
+                borderRadius: '10px',
+                padding: '5px 12px',
                 display: 'inline-block',
-                margin: '8px auto 16px auto',
-                letterSpacing: '0.04em',
+                margin: '6px auto 14px auto',
               }}
             >
               ID: {scannedStudentData.school_id}
@@ -2058,19 +2072,19 @@ export default function AdminDashboard() {
               style={{
                 backgroundColor: '#f8fafc',
                 border: '1px solid #e2e8f0',
-                borderRadius: '18px',
-                padding: '14px 16px',
-                marginBottom: '20px',
+                borderRadius: '16px',
+                padding: '12px 14px',
+                marginBottom: '16px',
                 textAlign: 'left',
                 display: 'flex',
                 flexDirection: 'column',
-                gap: '10px',
-                fontSize: '0.85rem',
+                gap: '8px',
+                fontSize: '0.82rem',
               }}
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ color: '#64748b', fontWeight: 700 }}>Course:</span>
-                <span className={styles.idBadge} style={{ fontSize: '0.75rem' }}>
+                <span className={styles.idBadge} style={{ fontSize: '0.72rem' }}>
                   {scannedStudentData.course}
                 </span>
               </div>
@@ -2090,12 +2104,12 @@ export default function AdminDashboard() {
                 disabled={confirmingAttendance}
                 style={{
                   width: '100%',
-                  padding: '14px',
+                  padding: '12px',
                   backgroundColor: '#15803d',
                   color: '#ffffff',
                   border: 'none',
-                  borderRadius: '16px',
-                  fontSize: '0.95rem',
+                  borderRadius: '14px',
+                  fontSize: '0.9rem',
                   fontWeight: 900,
                   cursor: 'pointer',
                   boxShadow: '0 4px 12px rgba(21, 128, 61, 0.25)',
@@ -2121,8 +2135,8 @@ export default function AdminDashboard() {
                   backgroundColor: '#f1f5f9',
                   color: '#475569',
                   border: 'none',
-                  borderRadius: '14px',
-                  fontSize: '0.85rem',
+                  borderRadius: '12px',
+                  fontSize: '0.82rem',
                   fontWeight: 800,
                   cursor: 'pointer',
                 }}
