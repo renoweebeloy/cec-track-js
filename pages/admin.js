@@ -35,15 +35,15 @@ export default function AdminDashboard() {
   const [staffEmail, setStaffEmail] = useState('');
   const [staffRole, setStaffRole] = useState('Staff Officer');
 
-  // 3. Event States (Adunay Picture Upload)
+  // 3. Event States (Blangko na ang Title ug Location, walay FaCET Facade)
   const [eventTitle, setEventTitle] = useState('');
-  const [eventLocation, setEventLocation] = useState('FaCET Facade');
+  const [eventLocation, setEventLocation] = useState(''); // Blangko na ang default location
   const [eventDesc, setEventDesc] = useState('');
   const [eventDate, setEventDate] = useState('');
   const [timeIn, setTimeIn] = useState('08:00');
   const [timeOut, setTimeOut] = useState('17:00');
   const [eventStatus, setEventStatus] = useState('active');
-  const [eventImage, setEventImage] = useState(''); // Base64 Event Banner
+  const [eventImage, setEventImage] = useState('');
 
   // 4. Manual Attendance Logger States
   const [manualStudentId, setManualStudentId] = useState('');
@@ -459,9 +459,7 @@ export default function AdminDashboard() {
     }
   };
 
-  // ========================================================
-  // AUTHORIZE STAFF / SCANNER (SOLUSYON SA DUPLICATE EMAIL ERROR)
-  // ========================================================
+  // AUTHORIZE STAFF / SCANNER
   const handleAddStaff = async (e) => {
     e.preventDefault();
     if (userRole !== 'admin') {
@@ -473,7 +471,6 @@ export default function AdminDashboard() {
     const cleanEmail = staffEmail.trim().toLowerCase();
 
     try {
-      // 1. Susiha kon rehistrado na ba ang maong email sa database
       const { data: existingUser } = await supabase
         .from('profiles')
         .select('id, full_name, email, role, can_scan')
@@ -481,7 +478,6 @@ export default function AdminDashboard() {
         .maybeSingle();
 
       if (existingUser) {
-        // KON NAA NA DAAN: I-UPDATE LAMANG ANG IYANG CAN_SCAN UG ROLE ARON DILI MO-ERROR OG DUPLICATE
         const { error: updateError } = await supabase
           .from('profiles')
           .update({
@@ -499,7 +495,6 @@ export default function AdminDashboard() {
           `Account upgraded! ${existingUser.full_name} (${cleanEmail}) now has scanning clearance on their dashboard.`
         );
       } else {
-        // KON BAG-O PA NGA EMAIL: MAG-INSERT OG BAG-ONG STAFF ACCOUNT
         const generatedStaffId = `STAFF-${Math.floor(1000 + Math.random() * 9000)}`;
         const { error: insertError } = await supabase.from('profiles').insert([
           {
@@ -534,9 +529,7 @@ export default function AdminDashboard() {
     }
   };
 
-  // ========================================================
   // EVENT IMAGE UPLOAD HANDLER
-  // ========================================================
   const handleEventImageUpload = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -553,7 +546,7 @@ export default function AdminDashboard() {
     reader.readAsDataURL(file);
   };
 
-  // ADD EVENT (WITH PICTURE SUPPORT)
+  // ADD EVENT (Blangko na ang Title ug Location inig human og publish)
   const handleAddEvent = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -567,7 +560,7 @@ export default function AdminDashboard() {
         time_out: timeOut,
         description: eventDesc.trim(),
         status: eventStatus,
-        image_url: eventImage || null, // Naka-save ang Event Picture
+        image_url: eventImage || null,
       },
     ]);
 
@@ -578,6 +571,7 @@ export default function AdminDashboard() {
     } else {
       showNotify('success', `Official event "${eventTitle}" published successfully with poster.`);
       setEventTitle('');
+      setEventLocation(''); // Pabiling blangko
       setEventDesc('');
       setEventDate('');
       setTimeIn('08:00');
@@ -1117,7 +1111,6 @@ export default function AdminDashboard() {
                 </div>
               )}
 
-              {/* Enrolled Students Table */}
               <div className={styles.adminFormCard}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '8px' }}>
                   <div>
@@ -1303,7 +1296,7 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          {/* TAB 4: MANAGE EVENTS (WITH PICTURE UPLOAD) */}
+          {/* TAB 4: MANAGE EVENTS (BLANGKO NA ANG TITLE UG LOCATION) */}
           {activeTab === 'add-event' && (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '24px' }}>
               <div className={styles.adminFormCard}>
@@ -1312,7 +1305,7 @@ export default function AdminDashboard() {
                 </h3>
 
                 <form onSubmit={handleAddEvent} className={styles.loginForm}>
-                  {/* EVENT PICTURE UPLOAD */}
+                  {/* Event Picture Banner Upload */}
                   <div className={styles.inputGroup}>
                     <label className={styles.inputLabel} style={{ fontSize: '0.78rem' }}>Event Poster / Picture</label>
                     <input
@@ -1360,11 +1353,11 @@ export default function AdminDashboard() {
                     </div>
                   </div>
 
+                  {/* EVENT TITLE (BLANGKO, WALAY TEXT O PLACEHOLDER) */}
                   <div className={styles.inputGroup}>
                     <label className={styles.inputLabel} style={{ fontSize: '0.78rem' }}>Event Title *</label>
                     <input
                       type="text"
-                      placeholder="e.g. Siglakas (Day 2)"
                       value={eventTitle}
                       onChange={(e) => setEventTitle(e.target.value)}
                       className={styles.loginInput}
@@ -1374,14 +1367,16 @@ export default function AdminDashboard() {
                   </div>
 
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                    {/* LOCATION (BLANGKO, GITANGTANG ANG 'FaCET Facade') */}
                     <div className={styles.inputGroup}>
-                      <label className={styles.inputLabel} style={{ fontSize: '0.78rem' }}>Location</label>
+                      <label className={styles.inputLabel} style={{ fontSize: '0.78rem' }}>Location *</label>
                       <input
                         type="text"
                         value={eventLocation}
                         onChange={(e) => setEventLocation(e.target.value)}
                         className={styles.loginInput}
                         style={{ padding: '12px 14px', fontSize: '0.95rem' }}
+                        required
                       />
                     </div>
 
