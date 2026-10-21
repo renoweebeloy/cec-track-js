@@ -9,7 +9,7 @@ export default function Home() {
   const [currentTime, setCurrentTime] = useState('');
   const [currentDate, setCurrentDate] = useState('');
 
-  // Dynamic Course Counts galing sa Database
+  // Dynamic Course Counts gikan sa Database
   const [counts, setCounts] = useState({
     BSBA: 0,
     BSCRIM: 0,
@@ -18,6 +18,10 @@ export default function Home() {
     BSAM: 0,
     total: 0,
   });
+
+  // Dynamic Events gikan sa Admin
+  const [events, setEvents] = useState([]);
+  const [eventsLoading, setEventsLoading] = useState(true);
 
   // Search ID Check States
   const [searchId, setSearchId] = useState('');
@@ -52,17 +56,17 @@ export default function Home() {
     return () => clearInterval(timer);
   }, []);
 
-  // Kumuha ng Live Student Counts mula sa Supabase
-  const fetchAnalytics = async () => {
+  // Fetch Student Analytics ug Official Events gikan sa Supabase
+  const fetchData = async () => {
     if (!supabase) return;
     try {
-      const { data } = await supabase
+      // 1. Fetch profiles analytics
+      const { data: profilesData } = await supabase
         .from('profiles')
         .select('course, role, status');
 
-      if (data) {
-        // Mga estudyante lamang (hindi kasama ang staff o admin)
-        const studentMembers = data.filter((p) => p.role !== 'admin' && p.role !== 'staff');
+      if (profilesData) {
+        const studentMembers = profilesData.filter((p) => p.role !== 'admin' && p.role !== 'staff');
 
         setCounts({
           BSBA: studentMembers.filter((s) => s.course === 'BSBA').length,
@@ -73,13 +77,26 @@ export default function Home() {
           total: studentMembers.length,
         });
       }
+
+      // 2. Fetch official events nga gi-publish ni Admin
+      setEventsLoading(true);
+      const { data: eventsData } = await supabase
+        .from('events')
+        .select('*')
+        .order('date', { ascending: false });
+
+      if (eventsData) {
+        setEvents(eventsData);
+      }
     } catch (err) {
-      console.error('Error fetching course analytics:', err);
+      console.error('Error fetching landing page data:', err);
+    } finally {
+      setEventsLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchAnalytics();
+    fetchData();
   }, []);
 
   // Quick Verification ng Student ID
@@ -123,21 +140,27 @@ export default function Home() {
     }
   };
 
+  const scrollToEvents = () => {
+    const el = document.getElementById('events-section');
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
   return (
-    <div className={styles.container}>
+    <div className={styles.container} style={{ paddingBottom: 0 }}>
       <Head>
         <title>CECTRACK • Cateel Extension Campus</title>
         <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
       </Head>
 
-      {/* Header: Tinanggal ang About, Events, Members — Malinis na Logo at Login Button */}
+      {/* Header */}
       <header className={styles.header}>
         <div className={styles.headerContent} style={{ justifyContent: 'space-between' }}>
           <button onClick={() => router.push('/')} className={styles.logoText}>
             CECTRACK
           </button>
 
-          {/* Direktang Login Button (Swak sa Mobile at Desktop) */}
           <div>
             <button
               onClick={() => router.push('/login')}
@@ -151,7 +174,7 @@ export default function Home() {
       </header>
 
       <main className={styles.main}>
-        {/* Status Row: Pinaliit ang font at nilagyan ng tamang espasyo para sa CP screen */}
+        {/* Status Row */}
         <div
           style={{
             width: '100%',
@@ -166,7 +189,6 @@ export default function Home() {
             boxSizing: 'border-box',
           }}
         >
-          {/* Live Clock Badge */}
           <div
             style={{
               display: 'inline-flex',
@@ -194,7 +216,6 @@ export default function Home() {
             <span>📅 {currentDate || 'Oct 21, 2026'}</span>
           </div>
 
-          {/* Official Portal Badge na may kaunting space */}
           <div
             style={{
               display: 'inline-flex',
@@ -267,7 +288,7 @@ export default function Home() {
             <button onClick={() => router.push('/login')} className={styles.portalBtn}>
               ➔ Access Member Portal
             </button>
-            <button onClick={() => router.push('/login')} className={styles.eventsBtn}>
+            <button onClick={scrollToEvents} className={styles.eventsBtn}>
               Explore Events ➔
             </button>
           </div>
@@ -370,9 +391,229 @@ export default function Home() {
             </div>
           </div>
         </section>
+
+        {/* ======================================================== */}
+        {/* NEW: OFFICIAL EVENTS SECTION (CONNECTED TO ADMIN JS) */}
+        {/* ======================================================== */}
+        <section className={styles.analyticsSection} id="events-section" style={{ marginTop: '40px' }}>
+          <div className={styles.analyticsHeader}>
+            <div className={styles.analyticsTitle}>
+              📅 UPCOMING &amp; OFFICIAL CAMPUS EVENTS
+            </div>
+            <div className={styles.analyticsStats}>
+              <span>Total Events: <strong>{events.length}</strong></span>
+              <span>•</span>
+              <span className={styles.idBadge} style={{ backgroundColor: '#dcfce7', color: '#15803d' }}>
+                Active: <strong>{events.filter((e) => e.status === 'active').length}</strong>
+              </span>
+            </div>
+          </div>
+
+          {eventsLoading ? (
+            <div style={{ textAlign: 'center', padding: '36px', color: '#64748b', fontWeight: 700 }}>
+              Loading official events...
+            </div>
+          ) : events.length === 0 ? (
+            <div
+              style={{
+                textAlign: 'center',
+                padding: '40px 20px',
+                backgroundColor: '#ffffff',
+                border: '1px solid #e2e8f0',
+                borderRadius: '20px',
+                color: '#64748b',
+              }}
+            >
+              <div style={{ fontSize: '2.5rem', marginBottom: '8px' }}>📅</div>
+              <h4 style={{ margin: '0 0 4px 0', fontSize: '1rem', fontWeight: 900, color: '#0f172a' }}>
+                No Published Events Yet
+              </h4>
+              <p style={{ margin: 0, fontSize: '0.82rem' }}>
+                Check back soon for upcoming assemblies and college activities published by administrators.
+              </p>
+            </div>
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '22px' }}>
+              {events.map((ev) => {
+                const isActive = ev.status === 'active';
+                return (
+                  <div
+                    key={ev.id}
+                    style={{
+                      backgroundColor: '#ffffff',
+                      border: '1px solid #e2e8f0',
+                      borderRadius: '20px',
+                      overflow: 'hidden',
+                      boxShadow: '0 4px 12px rgba(0,0,0,0.03)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'space-between',
+                      transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+                    }}
+                  >
+                    {/* Event Banner Image kon aduna man gani gi-upload si admin */}
+                    {ev.image_url ? (
+                      <div style={{ width: '100%', height: '160px', overflow: 'hidden', backgroundColor: '#f1f5f9' }}>
+                        <img
+                          src={ev.image_url}
+                          alt={ev.title}
+                          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                        />
+                      </div>
+                    ) : (
+                      <div
+                        style={{
+                          width: '100%',
+                          height: '90px',
+                          backgroundColor: '#f8fafc',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: '2rem',
+                          borderBottom: '1px solid #f1f5f9',
+                        }}
+                      >
+                        📅
+                      </div>
+                    )}
+
+                    <div style={{ padding: '20px', flexGrow: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                      <div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                          <span
+                            className={styles.idBadge}
+                            style={{
+                              backgroundColor: isActive ? '#dcfce7' : '#f1f5f9',
+                              color: isActive ? '#15803d' : '#64748b',
+                              fontSize: '0.68rem',
+                            }}
+                          >
+                            {isActive ? '● ACTIVE (OPEN)' : 'CLOSED'}
+                          </span>
+                          <span style={{ fontSize: '0.78rem', fontWeight: 800, color: '#94a3b8' }}>
+                            {ev.date}
+                          </span>
+                        </div>
+
+                        <h3 style={{ margin: '0 0 6px 0', fontSize: '1.15rem', fontWeight: 900, color: '#0f172a', lineHeight: 1.3 }}>
+                          {ev.title}
+                        </h3>
+
+                        {ev.location && (
+                          <div style={{ fontSize: '0.8rem', color: '#15803d', fontWeight: 800, marginBottom: '8px' }}>
+                            📍 {ev.location}
+                          </div>
+                        )}
+
+                        <div style={{ fontSize: '0.78rem', color: '#64748b', display: 'flex', gap: '12px', fontWeight: 700, marginBottom: '10px' }}>
+                          <span>In: {ev.time_in || '08:00'}</span>
+                          <span>Out: {ev.time_out || '17:00'}</span>
+                        </div>
+
+                        <p style={{ margin: 0, fontSize: '0.82rem', color: '#64748b', lineHeight: 1.5 }}>
+                          {ev.description || 'No description provided.'}
+                        </p>
+                      </div>
+
+                      <div style={{ marginTop: '16px', paddingTop: '14px', borderTop: '1px solid #f1f5f9' }}>
+                        <button
+                          onClick={() => router.push('/login')}
+                          style={{
+                            width: '100%',
+                            padding: '10px',
+                            backgroundColor: '#f8fafc',
+                            border: '1px solid #e2e8f0',
+                            borderRadius: '12px',
+                            color: '#15803d',
+                            fontSize: '0.82rem',
+                            fontWeight: 900,
+                            cursor: 'pointer',
+                          }}
+                        >
+                          Check Attendance In Portal ➔
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </section>
       </main>
 
-      {/* Result Modal kapag nag-check ng Student ID */}
+      {/* ======================================================== */}
+      {/* FOOTER SUBAY SA SCREENSHOT (2026 CEC TRACK, WALAY MADE WITH) */}
+      {/* ======================================================== */}
+      <footer
+        style={{
+          backgroundColor: '#030712',
+          color: '#94a3b8',
+          borderTop: '1px solid #111827',
+          padding: '24px 20px',
+          marginTop: '70px',
+          width: '100%',
+          boxSizing: 'border-box',
+        }}
+      >
+        <div
+          style={{
+            maxWidth: '1200px',
+            margin: '0 auto',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: '16px',
+          }}
+        >
+          {/* Left: 2026 CEC TRACK */}
+          <div
+            style={{
+              fontSize: '0.8rem',
+              fontWeight: 800,
+              color: '#64748b',
+              letterSpacing: '0.04em',
+            }}
+          >
+            © 2026 CEC TRACK. ALL RIGHTS RESERVED.
+          </div>
+
+          {/* Right: Policy Links & Official Badge */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '18px',
+              flexWrap: 'wrap',
+              fontSize: '0.75rem',
+              fontWeight: 800,
+              letterSpacing: '0.05em',
+            }}
+          >
+            <span style={{ cursor: 'pointer', color: '#94a3b8' }}>PRIVACY POLICY</span>
+            <span style={{ cursor: 'pointer', color: '#94a3b8' }}>TERMS OF USE</span>
+            <span style={{ cursor: 'pointer', color: '#94a3b8' }}>ACCESSIBILITY</span>
+            <span
+              style={{
+                border: '1px solid #10b981',
+                color: '#10b981',
+                backgroundColor: 'rgba(16, 185, 129, 0.08)',
+                padding: '4px 12px',
+                borderRadius: '9999px',
+                fontSize: '0.7rem',
+                fontWeight: 900,
+                letterSpacing: '0.06em',
+                boxShadow: '0 0 10px rgba(16, 185, 129, 0.25)',
+              }}
+            >
+              OFFICIAL PORTAL
+            </span>
+          </div>
+        </div>
+      </footer>
+
+      {/* Modal Result Record Check */}
       {searchModal.open && (
         <div
           style={{
