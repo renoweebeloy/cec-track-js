@@ -9,6 +9,7 @@ export default function AdminDashboard() {
   const router = useRouter();
   const scannerRef = useRef(null);
   const eventImageInputRef = useRef(null);
+  const formRef = useRef(null);
 
   // Authentication & Security Guard States
   const [isAuthorized, setIsAuthorized] = useState(false);
@@ -22,7 +23,7 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(false);
   const [notification, setNotification] = useState({ type: '', message: '' });
 
-  // 1. Student States (Section A to K and Juan Dela Cruz placeholder)
+  // 1. Student States
   const [studentId, setStudentId] = useState('');
   const [studentName, setStudentName] = useState('');
   const [studentEmail, setStudentEmail] = useState('');
@@ -35,7 +36,8 @@ export default function AdminDashboard() {
   const [staffEmail, setStaffEmail] = useState('');
   const [staffRole, setStaffRole] = useState('Staff Officer');
 
-  // 3. Event States (With Image Compression)
+  // 3. Event States (Publishing & Editing)
+  const [editingEventId, setEditingEventId] = useState(null); // ID kon nag-edit og event
   const [eventTitle, setEventTitle] = useState('');
   const [eventLocation, setEventLocation] = useState('');
   const [eventDesc, setEventDesc] = useState('');
@@ -164,6 +166,9 @@ export default function AdminDashboard() {
     verifyPortalAccess();
   }, [router]);
 
+  // ========================================================
+  // FETCH ALL DATA & AUTOMATICALLY DEACTIVATE EXPIRED EVENTS
+  // ========================================================
   const fetchAllData = async () => {
     if (!supabase) return;
     setLoading(true);
@@ -184,9 +189,41 @@ export default function AdminDashboard() {
         .order('date', { ascending: false });
 
       if (eventsData) {
-        setEvents(eventsData);
-        if (eventsData.length > 0 && !selectedEventId) {
-          setSelectedEventId(eventsData[0].id);
+        const now = new Date();
+
+        // AUTOMATIC INACTIVE LOGIC:
+        // Kon ang Event Date ug Time Out milabay na, awtomatikong i-update sa database ngadto sa 'inactive'
+        const validatedEvents = await Promise.all(
+          eventsData.map(async (ev) => {
+            try {
+              if (ev.date) {
+                const timeParts = (ev.time_out || '23:59').split(':');
+                const hours = parseInt(timeParts[0], 10) || 0;
+                const minutes = parseInt(timeParts[1], 10) || 0;
+
+                const eventEndDateTime = new Date(ev.date);
+                eventEndDateTime.setHours(hours, minutes, 0, 0);
+
+                if (now >= eventEndDateTime && ev.status === 'active') {
+                  // Awtomatikong i-update sa Supabase
+                  await supabase
+                    .from('events')
+                    .update({ status: 'inactive' })
+                    .eq('id', ev.id);
+
+                  return { ...ev, status: 'inactive' };
+                }
+              }
+            } catch (checkErr) {
+              console.warn('Error checking event expiration:', checkErr);
+            }
+            return ev;
+          })
+        );
+
+        setEvents(validatedEvents);
+        if (validatedEvents.length > 0 && !selectedEventId) {
+          setSelectedEventId(validatedEvents[0].id);
         }
       }
     } catch (err) {
@@ -205,7 +242,7 @@ export default function AdminDashboard() {
   };
 
   // ========================================================
-  // AUTOMATIC IMAGE COMPRESSOR (PREVENTS DATABASE TIMEOUT)
+  // AUTOMATIC IMAGE COMPRESSOR (PREVENTS TIMEOUTS)
   // ========================================================
   const handleEventImageUpload = (e) => {
     const file = e.target.files?.[0];
@@ -222,7 +259,6 @@ export default function AdminDashboard() {
     reader.onload = (event) => {
       const img = new Image();
       img.onload = () => {
-        // Compress using Canvas: scales down resolution and optimizes quality
         const canvas = document.createElement('canvas');
         const MAX_WIDTH = 800;
         const MAX_HEIGHT = 600;
@@ -246,11 +282,10 @@ export default function AdminDashboard() {
         const ctx = canvas.getContext('2d');
         ctx.drawImage(img, 0, 0, width, height);
 
-        // Compresses multi-megabyte photo down to ~40KB-70KB
         const compressedBase64 = canvas.toDataURL('image/jpeg', 0.7);
         setEventImage(compressedBase64);
         setCompressingImage(false);
-        showNotify('success', 'Image optimized and ready for publishing.');
+        showNotify('success', 'Image successfully optimized!');
       };
       img.src = event.target.result;
     };
@@ -258,9 +293,41 @@ export default function AdminDashboard() {
   };
 
   // ========================================================
-  // ADD EVENT (FAST & TIMEOUT-FREE INSERTION)
+  // START EDITING AN EVENT (POPULATES FORM)
   // ========================================================
-  const handleAddEvent = async (e) => {
+  const handleStartEditEvent = (ev) => {
+    setEditingEventId(ev.id);
+    setEventTitle(ev.title || '');
+    setEventLocation(ev.location || '');
+    setEventDate(ev.date || '');
+    setTimeIn(ev.time_in || '08:00');
+    setTimeOut(ev.time_out || '17:00');
+    setEventStatus(ev.status || 'active');
+    setEventDesc(ev.description || '');
+    setEventImage(ev.image_url || '');
+
+    // Hapsay nga i-scroll pataas padulong sa form
+    if (formRef.current) {
+      formRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
+  const handleCancelEditEvent = () => {
+    setEditingEventId(null);
+    setEventTitle('');
+    setEventLocation('');
+    setEventDate('');
+    setTimeIn('08:00');
+    setTimeOut('17:00');
+    setEventStatus('active');
+    setEventDesc('');
+    setEventImage('');
+  };
+
+  // ========================================================
+  // SAVE / PUBLISH / UPDATE EVENT
+  // ========================================================
+  const handleSaveEvent = async (e) => {
     e.preventDefault();
     if (compressingImage) {
       showNotify('error', 'Please wait until image optimization completes.');
@@ -270,34 +337,40 @@ export default function AdminDashboard() {
     setLoading(true);
 
     try {
-      const { error } = await supabase.from('events').insert([
-        {
-          title: eventTitle.trim(),
-          location: eventLocation.trim(),
-          date: eventDate,
-          time_in: timeIn,
-          time_out: timeOut,
-          description: eventDesc.trim() || 'Official College Event',
-          status: eventStatus,
-          image_url: eventImage || null,
-        },
-      ]);
+      const eventPayload = {
+        title: eventTitle.trim(),
+        location: eventLocation.trim(),
+        date: eventDate,
+        time_in: timeIn,
+        time_out: timeOut,
+        description: eventDesc.trim() || 'Official College Event',
+        status: eventStatus,
+        image_url: eventImage || null,
+      };
 
-      if (error) {
-        throw new Error(error.message);
+      if (editingEventId) {
+        // UPDATE EXISTING EVENT
+        const { error } = await supabase
+          .from('events')
+          .update(eventPayload)
+          .eq('id', editingEventId);
+
+        if (error) throw new Error(error.message);
+        showNotify('success', `Event "${eventTitle}" updated successfully!`);
+      } else {
+        // PUBLISH NEW EVENT
+        const { error } = await supabase
+          .from('events')
+          .insert([eventPayload]);
+
+        if (error) throw new Error(error.message);
+        showNotify('success', `Official event "${eventTitle}" published successfully!`);
       }
 
-      showNotify('success', `Official event "${eventTitle}" published successfully!`);
-      setEventTitle('');
-      setEventLocation('');
-      setEventDesc('');
-      setEventDate('');
-      setTimeIn('08:00');
-      setTimeOut('17:00');
-      setEventImage('');
+      handleCancelEditEvent();
       fetchAllData();
     } catch (err) {
-      showNotify('error', `Error publishing event: ${err.message}`);
+      showNotify('error', `Error saving event: ${err.message}`);
     } finally {
       setLoading(false);
     }
@@ -770,7 +843,6 @@ export default function AdminDashboard() {
             boxSizing: 'border-box',
           }}
         >
-          {/* Left: Hamburger Button and Brand */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <button
               onClick={() => setIsSidebarOpen(!isSidebarOpen)}
@@ -817,7 +889,6 @@ export default function AdminDashboard() {
             </div>
           </div>
 
-          {/* Right: Cateel Extension Campus Badge */}
           <div
             style={{
               display: 'flex',
@@ -1342,15 +1413,38 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          {/* TAB 4: MANAGE EVENTS (WITH REAL-TIME IMAGE COMPRESSOR) */}
+          {/* ======================================================== */}
+          {/* TAB 4: MANAGE EVENTS (WITH FULL EDITING & AUTO INACTIVE) */}
+          {/* ======================================================== */}
           {activeTab === 'add-event' && (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '24px' }}>
-              <div className={styles.adminFormCard}>
-                <h3 className={styles.analyticsTitle} style={{ fontSize: '0.9rem', marginBottom: '16px' }}>
-                  Publish New Event
-                </h3>
+              {/* Event Creation & Edit Form */}
+              <div className={styles.adminFormCard} ref={formRef}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                  <h3 className={styles.analyticsTitle} style={{ fontSize: '0.9rem', margin: 0 }}>
+                    {editingEventId ? 'Edit / Update Event' : 'Publish New Event'}
+                  </h3>
+                  {editingEventId && (
+                    <button
+                      type="button"
+                      onClick={handleCancelEditEvent}
+                      style={{
+                        background: 'none',
+                        border: '1px solid #cbd5e1',
+                        borderRadius: '8px',
+                        padding: '4px 10px',
+                        fontSize: '0.75rem',
+                        fontWeight: 800,
+                        color: '#64748b',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      ✕ Cancel Edit
+                    </button>
+                  )}
+                </div>
 
-                <form onSubmit={handleAddEvent} className={styles.loginForm}>
+                <form onSubmit={handleSaveEvent} className={styles.loginForm}>
                   {/* Event Picture Banner Upload */}
                   <div className={styles.inputGroup}>
                     <label className={styles.inputLabel} style={{ fontSize: '0.78rem' }}>Event Poster / Picture</label>
@@ -1376,7 +1470,7 @@ export default function AdminDashboard() {
                     >
                       {compressingImage ? (
                         <div style={{ padding: '20px 0', color: '#15803d', fontWeight: 800, fontSize: '0.85rem' }}>
-                          ⚡ Optimizing picture for fast saving...
+                          ⚡ Optimizing picture...
                         </div>
                       ) : eventImage ? (
                         <div style={{ position: 'relative' }}>
@@ -1396,7 +1490,7 @@ export default function AdminDashboard() {
                             + Click to upload Event Picture
                           </span>
                           <span style={{ fontSize: '0.72rem', color: '#94a3b8', display: 'block', marginTop: '2px' }}>
-                            Automatically compressed to prevent timeouts
+                            PNG, JPG, or JPEG banner image
                           </span>
                         </div>
                       )}
@@ -1494,12 +1588,41 @@ export default function AdminDashboard() {
                     />
                   </div>
 
-                  <button type="submit" disabled={loading || compressingImage} className={styles.adminPrimaryBtn} style={{ minHeight: '48px', fontSize: '0.95rem' }}>
-                    {loading ? 'Publishing...' : 'Publish Official Event ➔'}
-                  </button>
+                  <div style={{ display: 'flex', gap: '10px' }}>
+                    <button
+                      type="submit"
+                      disabled={loading || compressingImage}
+                      className={styles.adminPrimaryBtn}
+                      style={{ flex: 1, minHeight: '48px', fontSize: '0.95rem' }}
+                    >
+                      {loading
+                        ? 'Saving...'
+                        : editingEventId
+                        ? '💾 Save Event Changes ➔'
+                        : 'Publish Official Event ➔'}
+                    </button>
+                    {editingEventId && (
+                      <button
+                        type="button"
+                        onClick={handleCancelEditEvent}
+                        style={{
+                          backgroundColor: '#f1f5f9',
+                          color: '#475569',
+                          border: '1px solid #cbd5e1',
+                          borderRadius: '14px',
+                          padding: '0 18px',
+                          fontWeight: 800,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        Cancel
+                      </button>
+                    )}
+                  </div>
                 </form>
               </div>
 
+              {/* Published Events Table with Edit and Delete Actions */}
               <div className={styles.adminFormCard}>
                 <h3 className={styles.analyticsTitle} style={{ fontSize: '0.9rem', marginBottom: '16px' }}>
                   Published Events ({filteredEvents.length})
@@ -1512,66 +1635,100 @@ export default function AdminDashboard() {
                         <th>Title</th>
                         <th>Schedule</th>
                         <th>Status</th>
-                        {isAdmin && <th>Action</th>}
+                        {isAdmin && <th style={{ textAlign: 'right' }}>Action</th>}
                       </tr>
                     </thead>
                     <tbody>
-                      {filteredEvents.map((ev) => (
-                        <tr key={ev.id}>
-                          <td>
-                            {ev.image_url ? (
-                              <img
-                                src={ev.image_url}
-                                alt="Event"
-                                style={{ width: '44px', height: '44px', borderRadius: '10px', objectFit: 'cover' }}
-                              />
-                            ) : (
-                              <div
+                      {filteredEvents.map((ev) => {
+                        const isActive = ev.status === 'active';
+                        return (
+                          <tr key={ev.id} style={{ backgroundColor: editingEventId === ev.id ? '#f0fdf4' : 'transparent' }}>
+                            <td>
+                              {ev.image_url ? (
+                                <img
+                                  src={ev.image_url}
+                                  alt="Event"
+                                  style={{ width: '44px', height: '44px', borderRadius: '10px', objectFit: 'cover' }}
+                                />
+                              ) : (
+                                <div
+                                  style={{
+                                    width: '44px',
+                                    height: '44px',
+                                    borderRadius: '10px',
+                                    backgroundColor: '#f1f5f9',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    fontSize: '1.2rem',
+                                  }}
+                                >
+                                  📅
+                                </div>
+                              )}
+                            </td>
+                            <td>
+                              <div style={{ fontWeight: 800 }}>{ev.title}</div>
+                              <div style={{ fontSize: '0.72rem', color: '#15803d', fontWeight: 700 }}>
+                                📍 {ev.location || 'FaCET Facade'}
+                              </div>
+                            </td>
+                            <td>
+                              <div>{ev.date}</div>
+                              <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
+                                {ev.time_in} - {ev.time_out}
+                              </div>
+                            </td>
+                            <td>
+                              <span
+                                className={styles.idBadge}
                                 style={{
-                                  width: '44px',
-                                  height: '44px',
-                                  borderRadius: '10px',
-                                  backgroundColor: '#f1f5f9',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                  fontSize: '1.2rem',
+                                  backgroundColor: isActive ? '#dcfce7' : '#f1f5f9',
+                                  color: isActive ? '#15803d' : '#64748b',
                                 }}
                               >
-                                📅
-                              </div>
-                            )}
-                          </td>
-                          <td style={{ fontWeight: 800 }}>{ev.title}</td>
-                          <td>
-                            <div>{ev.date}</div>
-                            <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
-                              {ev.time_in} - {ev.time_out}
-                            </div>
-                          </td>
-                          <td>
-                            <span
-                              className={styles.idBadge}
-                              style={{
-                                backgroundColor: ev.status === 'active' ? '#dcfce7' : '#f1f5f9',
-                                color: ev.status === 'active' ? '#15803d' : '#64748b',
-                              }}
-                            >
-                              {ev.status.toUpperCase()}
-                            </span>
-                          </td>
-                          {isAdmin && (
-                            <td>
-                              <button
-                                onClick={() => handleDeleteEvent(ev.id, ev.title)}
-                                style={{ background: 'none', border: 'none', color: '#b91c1c', fontWeight: 800, cursor: 'pointer', padding: '6px' }}
-                              >
-                                Delete
-                              </button>
+                                {isActive ? 'ACTIVE' : 'INACTIVE'}
+                              </span>
                             </td>
-                          )}
-                        </tr>
-                      ))}
+                            {isAdmin && (
+                              <td style={{ textAlign: 'right' }}>
+                                <div style={{ display: 'inline-flex', gap: '8px' }}>
+                                  <button
+                                    onClick={() => handleStartEditEvent(ev)}
+                                    style={{
+                                      background: 'none',
+                                      border: '1px solid #bbf7d0',
+                                      backgroundColor: '#f0fdf4',
+                                      color: '#15803d',
+                                      fontWeight: 800,
+                                      cursor: 'pointer',
+                                      padding: '4px 8px',
+                                      borderRadius: '8px',
+                                      fontSize: '0.75rem',
+                                    }}
+                                  >
+                                    Edit
+                                  </button>
+                                  <button
+                                    onClick={() => handleDeleteEvent(ev.id, ev.title)}
+                                    style={{
+                                      background: 'none',
+                                      border: 'none',
+                                      color: '#b91c1c',
+                                      fontWeight: 800,
+                                      cursor: 'pointer',
+                                      padding: '4px 6px',
+                                      fontSize: '0.75rem',
+                                    }}
+                                  >
+                                    Delete
+                                  </button>
+                                </div>
+                              </td>
+                            )}
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -1619,7 +1776,7 @@ export default function AdminDashboard() {
                   >
                     {events.map((ev) => (
                       <option key={ev.id} value={ev.id}>
-                        {ev.title} ({ev.date})
+                        {ev.title} ({ev.date}) - {ev.status?.toUpperCase()}
                       </option>
                     ))}
                   </select>
