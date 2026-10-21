@@ -8,6 +8,7 @@ import styles from '../styles/Home.module.css';
 export default function AdminDashboard() {
   const router = useRouter();
   const scannerRef = useRef(null);
+  const eventImageInputRef = useRef(null);
 
   // Authentication & Security Guard States
   const [isAuthorized, setIsAuthorized] = useState(false);
@@ -34,7 +35,7 @@ export default function AdminDashboard() {
   const [staffEmail, setStaffEmail] = useState('');
   const [staffRole, setStaffRole] = useState('Staff Officer');
 
-  // 3. Event States
+  // 3. Event States (Adunay Picture Upload)
   const [eventTitle, setEventTitle] = useState('');
   const [eventLocation, setEventLocation] = useState('FaCET Facade');
   const [eventDesc, setEventDesc] = useState('');
@@ -42,6 +43,7 @@ export default function AdminDashboard() {
   const [timeIn, setTimeIn] = useState('08:00');
   const [timeOut, setTimeOut] = useState('17:00');
   const [eventStatus, setEventStatus] = useState('active');
+  const [eventImage, setEventImage] = useState(''); // Base64 Event Banner
 
   // 4. Manual Attendance Logger States
   const [manualStudentId, setManualStudentId] = useState('');
@@ -71,7 +73,6 @@ export default function AdminDashboard() {
     { code: 'BSA', name: 'Bachelor of Science in Accountancy', badge: styles.bsaBadge },
   ];
 
-  // List of Sections from Section A to Section K
   const sectionsList = [
     'Section A',
     'Section B',
@@ -93,7 +94,6 @@ export default function AdminDashboard() {
     }, 4500);
   };
 
-  // Dynamic loading of Html5Qrcode Library via CDN
   useEffect(() => {
     if (typeof window !== 'undefined' && !window.Html5Qrcode) {
       const script = document.createElement('script');
@@ -174,7 +174,7 @@ export default function AdminDashboard() {
 
       if (profilesData) {
         setStudents(profilesData.filter((p) => p.role === 'student' || (!p.role && p.role !== 'admin' && p.role !== 'staff')));
-        setStaffList(profilesData.filter((p) => p.role === 'staff'));
+        setStaffList(profilesData.filter((p) => p.role === 'staff' || p.can_scan === true));
       }
 
       const { data: eventsData } = await supabase
@@ -261,7 +261,7 @@ export default function AdminDashboard() {
     setScannedStudentData(null);
   };
 
-  // QR CODE DETECTION WITH STRICT DUPLICATE DENIAL
+  // QR CODE DETECTION WITH DUPLICATE CHECK
   const handleQrCodeDetected = async (decodedText) => {
     if (!decodedText || showVerifyModal) return;
 
@@ -274,7 +274,6 @@ export default function AdminDashboard() {
     const cleanSchoolId = decodedText.trim();
 
     try {
-      // 1. Look up student in profiles table
       const { data: student, error } = await supabase
         .from('profiles')
         .select('school_id, full_name, course, year_level, section, avatar_url')
@@ -291,7 +290,6 @@ export default function AdminDashboard() {
         return;
       }
 
-      // 2. DUPLICATE CHECK: Verify if student already checked in for this event
       const { data: existingAttendance } = await supabase
         .from('attendance')
         .select('id, time_in')
@@ -316,7 +314,6 @@ export default function AdminDashboard() {
         return;
       }
 
-      // 3. Display verification modal (School ID only, no email)
       setScannedStudentData(student);
       setShowVerifyModal(true);
     } catch (err) {
@@ -324,7 +321,6 @@ export default function AdminDashboard() {
     }
   };
 
-  // CONFIRM ATTENDANCE ACTION
   const handleConfirmAttendance = async () => {
     if (!scannedStudentData || !selectedEventId) return;
 
@@ -373,9 +369,7 @@ export default function AdminDashboard() {
     }
   };
 
-  // ========================================================
-  // ADD STUDENT (Section A-K & School ID as Password)
-  // ========================================================
+  // ADD STUDENT
   const handleAddStudent = async (e) => {
     e.preventDefault();
 
@@ -426,9 +420,7 @@ export default function AdminDashboard() {
     }
   };
 
-  // ========================================================
-  // REMOVE ALL STUDENTS (With Confirmation Dialog)
-  // ========================================================
+  // REMOVE ALL STUDENTS
   const handleRemoveAllStudents = async () => {
     if (userRole !== 'admin') {
       alert('Only administrators are authorized to remove student records.');
@@ -467,7 +459,9 @@ export default function AdminDashboard() {
     }
   };
 
-  // ADD STAFF
+  // ========================================================
+  // AUTHORIZE STAFF / SCANNER (SOLUSYON SA DUPLICATE EMAIL ERROR)
+  // ========================================================
   const handleAddStaff = async (e) => {
     e.preventDefault();
     if (userRole !== 'admin') {
@@ -476,33 +470,60 @@ export default function AdminDashboard() {
     }
 
     setLoading(true);
-    const generatedStaffId = `STAFF-${Math.floor(1000 + Math.random() * 9000)}`;
+    const cleanEmail = staffEmail.trim().toLowerCase();
 
     try {
-      const cleanEmail = staffEmail.trim().toLowerCase();
-      const defaultPassword = generatedStaffId;
+      // 1. Susiha kon rehistrado na ba ang maong email sa database
+      const { data: existingUser } = await supabase
+        .from('profiles')
+        .select('id, full_name, email, role, can_scan')
+        .eq('email', cleanEmail)
+        .maybeSingle();
 
-      const { error: profileError } = await supabase.from('profiles').insert([
-        {
-          school_id: generatedStaffId,
-          full_name: staffName.trim(),
-          email: cleanEmail,
-          password: defaultPassword,
-          role: 'staff',
-          can_scan: true,
-          status: 'Active',
-          must_change_password: true,
-        },
-      ]);
+      if (existingUser) {
+        // KON NAA NA DAAN: I-UPDATE LAMANG ANG IYANG CAN_SCAN UG ROLE ARON DILI MO-ERROR OG DUPLICATE
+        const { error: updateError } = await supabase
+          .from('profiles')
+          .update({
+            can_scan: true,
+            role: 'staff',
+          })
+          .eq('email', cleanEmail);
 
-      if (profileError) {
-        throw new Error(`Database Error: ${profileError.message}`);
+        if (updateError) {
+          throw new Error(updateError.message);
+        }
+
+        showNotify(
+          'success',
+          `Account upgraded! ${existingUser.full_name} (${cleanEmail}) now has scanning clearance on their dashboard.`
+        );
+      } else {
+        // KON BAG-O PA NGA EMAIL: MAG-INSERT OG BAG-ONG STAFF ACCOUNT
+        const generatedStaffId = `STAFF-${Math.floor(1000 + Math.random() * 9000)}`;
+        const { error: insertError } = await supabase.from('profiles').insert([
+          {
+            school_id: generatedStaffId,
+            full_name: staffName.trim(),
+            email: cleanEmail,
+            password: generatedStaffId,
+            role: 'staff',
+            can_scan: true,
+            status: 'Active',
+            must_change_password: true,
+          },
+        ]);
+
+        if (insertError) {
+          throw new Error(insertError.message);
+        }
+
+        showNotify(
+          'success',
+          `Staff officer ${staffName} registered successfully! Default password: ${generatedStaffId}`
+        );
       }
 
-      showNotify(
-        'success',
-        `Staff officer ${staffName} registered successfully! Default password: ${defaultPassword}`
-      );
       setStaffName('');
       setStaffEmail('');
       fetchAllData();
@@ -513,7 +534,26 @@ export default function AdminDashboard() {
     }
   };
 
-  // ADD EVENT
+  // ========================================================
+  // EVENT IMAGE UPLOAD HANDLER
+  // ========================================================
+  const handleEventImageUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      showNotify('error', 'Please select a valid image file (PNG, JPG, JPEG).');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      setEventImage(event.target.result);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // ADD EVENT (WITH PICTURE SUPPORT)
   const handleAddEvent = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -527,6 +567,7 @@ export default function AdminDashboard() {
         time_out: timeOut,
         description: eventDesc.trim(),
         status: eventStatus,
+        image_url: eventImage || null, // Naka-save ang Event Picture
       },
     ]);
 
@@ -535,12 +576,13 @@ export default function AdminDashboard() {
     if (error) {
       showNotify('error', `Error publishing event: ${error.message}`);
     } else {
-      showNotify('success', `Official event "${eventTitle}" published successfully.`);
+      showNotify('success', `Official event "${eventTitle}" published successfully with poster.`);
       setEventTitle('');
       setEventDesc('');
       setEventDate('');
       setTimeIn('08:00');
       setTimeOut('17:00');
+      setEventImage('');
       fetchAllData();
     }
   };
@@ -855,7 +897,7 @@ export default function AdminDashboard() {
                   style={{ fontSize: '0.95rem', padding: '14px 16px' }}
                 >
                   <span>🛡️</span>
-                  <span>Manage Staff</span>
+                  <span>Manage Staff &amp; Scanners</span>
                 </button>
               )}
 
@@ -1019,7 +1061,6 @@ export default function AdminDashboard() {
                       />
                     </div>
 
-                    {/* Course & Year Level */}
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                       <div className={styles.inputGroup}>
                         <label className={styles.inputLabel} style={{ fontSize: '0.78rem' }}>Course</label>
@@ -1053,7 +1094,6 @@ export default function AdminDashboard() {
                       </div>
                     </div>
 
-                    {/* Section A to Section K */}
                     <div className={styles.inputGroup}>
                       <label className={styles.inputLabel} style={{ fontSize: '0.78rem' }}>Section (A - K) *</label>
                       <select
@@ -1077,7 +1117,7 @@ export default function AdminDashboard() {
                 </div>
               )}
 
-              {/* Enrolled Students Table with Search & Remove All */}
+              {/* Enrolled Students Table */}
               <div className={styles.adminFormCard}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '8px' }}>
                   <div>
@@ -1115,7 +1155,6 @@ export default function AdminDashboard() {
                           gap: '4px',
                           transition: 'all 0.2s ease',
                         }}
-                        title="Delete all enrolled student records"
                       >
                         <span>🗑️</span> Remove All
                       </button>
@@ -1174,20 +1213,20 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          {/* TAB 3: MANAGE STAFF */}
+          {/* TAB 3: MANAGE STAFF & SCANNERS */}
           {activeTab === 'add-staff' && isAdmin && (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '24px' }}>
               <div className={styles.adminFormCard}>
                 <h3 className={styles.analyticsTitle} style={{ fontSize: '0.9rem', marginBottom: '16px' }}>
-                  Add Staff Officer
+                  Authorize Staff / Student Scanner
                 </h3>
 
                 <form onSubmit={handleAddStaff} className={styles.loginForm}>
                   <div className={styles.inputGroup}>
-                    <label className={styles.inputLabel} style={{ fontSize: '0.78rem' }}>Staff Full Name *</label>
+                    <label className={styles.inputLabel} style={{ fontSize: '0.78rem' }}>Staff / Student Name *</label>
                     <input
                       type="text"
-                      placeholder="e.g. Officer Maria Santos"
+                      placeholder="e.g. Officer Maria Santos or Renowee Beloy"
                       value={staffName}
                       onChange={(e) => setStaffName(e.target.value)}
                       className={styles.loginInput}
@@ -1197,16 +1236,19 @@ export default function AdminDashboard() {
                   </div>
 
                   <div className={styles.inputGroup}>
-                    <label className={styles.inputLabel} style={{ fontSize: '0.78rem' }}>Staff Email Address *</label>
+                    <label className={styles.inputLabel} style={{ fontSize: '0.78rem' }}>Registered Email Address *</label>
                     <input
                       type="email"
-                      placeholder="e.g. staff.maria@dorsu.edu.ph"
+                      placeholder="e.g. renowee.beloy@dorsu.edu.ph"
                       value={staffEmail}
                       onChange={(e) => setStaffEmail(e.target.value)}
                       className={styles.loginInput}
                       style={{ padding: '12px 14px', fontSize: '0.95rem' }}
                       required
                     />
+                    <small style={{ fontSize: '0.72rem', color: '#64748b', marginTop: '4px', display: 'block' }}>
+                      Entering an existing student email will safely grant them scanner access without creating duplicate accounts.
+                    </small>
                   </div>
 
                   <div className={styles.inputGroup}>
@@ -1221,14 +1263,14 @@ export default function AdminDashboard() {
                   </div>
 
                   <button type="submit" disabled={loading} className={styles.adminPrimaryBtn} style={{ minHeight: '48px', fontSize: '0.95rem' }}>
-                    {loading ? 'Saving...' : 'Authorize Staff Scanner ➔'}
+                    {loading ? 'Authorizing...' : 'Authorize Scanner Privilege ➔'}
                   </button>
                 </form>
               </div>
 
               <div className={styles.adminFormCard}>
                 <h3 className={styles.analyticsTitle} style={{ fontSize: '0.9rem', marginBottom: '16px' }}>
-                  Authorized Staff Members ({staffList.length})
+                  Authorized Scanners ({staffList.length})
                 </h3>
                 <div className={styles.adminTableWrapper}>
                   <table className={styles.adminTable}>
@@ -1261,7 +1303,7 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          {/* TAB 4: MANAGE EVENTS */}
+          {/* TAB 4: MANAGE EVENTS (WITH PICTURE UPLOAD) */}
           {activeTab === 'add-event' && (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '24px' }}>
               <div className={styles.adminFormCard}>
@@ -1270,6 +1312,54 @@ export default function AdminDashboard() {
                 </h3>
 
                 <form onSubmit={handleAddEvent} className={styles.loginForm}>
+                  {/* EVENT PICTURE UPLOAD */}
+                  <div className={styles.inputGroup}>
+                    <label className={styles.inputLabel} style={{ fontSize: '0.78rem' }}>Event Poster / Picture</label>
+                    <input
+                      type="file"
+                      ref={eventImageInputRef}
+                      onChange={handleEventImageUpload}
+                      accept="image/*"
+                      style={{ display: 'none' }}
+                    />
+                    <div
+                      onClick={() => eventImageInputRef.current?.click()}
+                      style={{
+                        border: '2px dashed #cbd5e1',
+                        borderRadius: '16px',
+                        padding: '16px',
+                        textAlign: 'center',
+                        cursor: 'pointer',
+                        backgroundColor: '#f8fafc',
+                        position: 'relative',
+                        overflow: 'hidden',
+                      }}
+                    >
+                      {eventImage ? (
+                        <div style={{ position: 'relative' }}>
+                          <img
+                            src={eventImage}
+                            alt="Event Preview"
+                            style={{ maxHeight: '140px', width: 'auto', borderRadius: '12px', margin: '0 auto', display: 'block' }}
+                          />
+                          <span style={{ fontSize: '0.72rem', color: '#15803d', fontWeight: 800, display: 'block', marginTop: '6px' }}>
+                            Click to change picture
+                          </span>
+                        </div>
+                      ) : (
+                        <div>
+                          <span style={{ fontSize: '1.8rem', display: 'block', marginBottom: '4px' }}>🖼️</span>
+                          <span style={{ fontSize: '0.82rem', fontWeight: 800, color: '#15803d' }}>
+                            + Click to upload Event Picture
+                          </span>
+                          <span style={{ fontSize: '0.72rem', color: '#94a3b8', display: 'block', marginTop: '2px' }}>
+                            PNG, JPG, or JPEG banner image
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
                   <div className={styles.inputGroup}>
                     <label className={styles.inputLabel} style={{ fontSize: '0.78rem' }}>Event Title *</label>
                     <input
@@ -1373,6 +1463,7 @@ export default function AdminDashboard() {
                   <table className={styles.adminTable}>
                     <thead>
                       <tr>
+                        <th>Poster</th>
                         <th>Title</th>
                         <th>Schedule</th>
                         <th>Status</th>
@@ -1382,6 +1473,30 @@ export default function AdminDashboard() {
                     <tbody>
                       {filteredEvents.map((ev) => (
                         <tr key={ev.id}>
+                          <td>
+                            {ev.image_url ? (
+                              <img
+                                src={ev.image_url}
+                                alt="Event"
+                                style={{ width: '44px', height: '44px', borderRadius: '10px', objectFit: 'cover' }}
+                              />
+                            ) : (
+                              <div
+                                style={{
+                                  width: '44px',
+                                  height: '44px',
+                                  borderRadius: '10px',
+                                  backgroundColor: '#f1f5f9',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  fontSize: '1.2rem',
+                                }}
+                              >
+                                📅
+                              </div>
+                            )}
+                          </td>
                           <td style={{ fontWeight: 800 }}>{ev.title}</td>
                           <td>
                             <div>{ev.date}</div>
@@ -1522,9 +1637,7 @@ export default function AdminDashboard() {
         </main>
       </div>
 
-      {/* ========================================================= */}
       {/* 1. CAMERA SCANNER MODAL POPUP */}
-      {/* ========================================================= */}
       {isCameraModalOpen && (
         <div
           style={{
@@ -1575,7 +1688,6 @@ export default function AdminDashboard() {
             >
               <div id="interactive-qr-reader" style={{ width: '100%', height: '100%' }} />
 
-              {/* White Viewfinder Corners Overlay [ ] */}
               <div
                 style={{
                   position: 'absolute',
@@ -1643,9 +1755,7 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      {/* ========================================================= */}
-      {/* 2. SCANNED VERIFICATION MODAL (SCHOOL ID ONLY - NO EMAIL) */}
-      {/* ========================================================= */}
+      {/* 2. SCANNED VERIFICATION MODAL */}
       {showVerifyModal && scannedStudentData && (
         <div
           style={{
@@ -1689,7 +1799,6 @@ export default function AdminDashboard() {
               ✓ QR Code Verified
             </span>
 
-            {/* Student Photo */}
             <div
               style={{
                 width: '94px',
@@ -1716,12 +1825,10 @@ export default function AdminDashboard() {
               )}
             </div>
 
-            {/* Student Full Name */}
             <h2 style={{ fontSize: '1.35rem', fontWeight: 900, color: '#0f172a', margin: '0 0 4px 0' }}>
               {scannedStudentData.full_name}
             </h2>
 
-            {/* School ID Display (No Email) */}
             <div
               style={{
                 fontSize: '1.1rem',
@@ -1739,7 +1846,6 @@ export default function AdminDashboard() {
               ID: {scannedStudentData.school_id}
             </div>
 
-            {/* Course, Year Level & Section */}
             <div
               style={{
                 backgroundColor: '#f8fafc',
@@ -1769,7 +1875,6 @@ export default function AdminDashboard() {
               </div>
             </div>
 
-            {/* Actions: OK & Cancel */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               <button
                 type="button"
