@@ -26,7 +26,7 @@ export default function StudentDashboard() {
     section: 'Section A',
     year_level: '3rd Year',
     avatar_url: '',
-    can_scan: false, // Scanning clearance
+    can_scan: false,
   });
 
   // Events & Attendance States
@@ -35,7 +35,7 @@ export default function StudentDashboard() {
   const [attendanceFilter, setAttendanceFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Scanning Clearance States sa Dashboard
+  // Scanning Clearance States
   const [selectedEventId, setSelectedEventId] = useState('');
   const [isCameraModalOpen, setIsCameraModalOpen] = useState(false);
   const [isScannerRunning, setIsScannerRunning] = useState(false);
@@ -50,6 +50,63 @@ export default function StudentDashboard() {
       setNotification({ type: '', message: '' });
     }, 4500);
   };
+
+  // ========================================================
+  // 5-MINUTE AUTOMATIC SESSION TIMEOUT & BROWSER CLOSURE GUARD
+  // ========================================================
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const FIVE_MINUTES_MS = 5 * 60 * 1000;
+
+    const checkSessionActivity = async () => {
+      const lastActive = localStorage.getItem('cec_last_active_time');
+      const now = Date.now();
+
+      if (lastActive) {
+        const timeElapsed = now - parseInt(lastActive, 10);
+        if (timeElapsed > FIVE_MINUTES_MS) {
+          sessionStorage.clear();
+          localStorage.removeItem('cec_last_active_time');
+
+          if (supabase) {
+            try {
+              await supabase.auth.signOut();
+            } catch (e) {}
+          }
+
+          alert('Your session has expired due to 5 minutes of inactivity or browser closure. Please log in again.');
+          router.replace('/login');
+          return;
+        }
+      }
+
+      localStorage.setItem('cec_last_active_time', now.toString());
+    };
+
+    checkSessionActivity();
+
+    const updateActivity = () => {
+      localStorage.setItem('cec_last_active_time', Date.now().toString());
+    };
+
+    window.addEventListener('mousemove', updateActivity);
+    window.addEventListener('keydown', updateActivity);
+    window.addEventListener('click', updateActivity);
+    window.addEventListener('scroll', updateActivity);
+    window.addEventListener('touchstart', updateActivity);
+
+    const intervalTimer = setInterval(checkSessionActivity, 10000);
+
+    return () => {
+      window.removeEventListener('mousemove', updateActivity);
+      window.removeEventListener('keydown', updateActivity);
+      window.removeEventListener('click', updateActivity);
+      window.removeEventListener('scroll', updateActivity);
+      window.removeEventListener('touchstart', updateActivity);
+      clearInterval(intervalTimer);
+    };
+  }, [router]);
 
   useEffect(() => {
     if (typeof window !== 'undefined' && !window.Html5Qrcode) {
@@ -104,7 +161,7 @@ export default function StudentDashboard() {
         }
       }
 
-      // Kumuha ng events (lakip na ang imahe)
+      // Fetch official events
       const { data: eventsData } = await supabase
         .from('events')
         .select('*')
@@ -117,7 +174,7 @@ export default function StudentDashboard() {
         }
       }
 
-      // Kumuha ng attendance logs
+      // Fetch attendance records
       const { data: logsData } = await supabase
         .from('attendance')
         .select('*')
@@ -133,7 +190,6 @@ export default function StudentDashboard() {
     }
   };
 
-  // PHOTO UPLOAD
   const handlePhotoUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -169,7 +225,6 @@ export default function StudentDashboard() {
     reader.readAsDataURL(file);
   };
 
-  // DOWNLOAD OFFICIAL ID
   const handleDownloadIdCard = async () => {
     if (!idCardRef.current) return;
     setDownloadingId(true);
@@ -208,9 +263,6 @@ export default function StudentDashboard() {
     }
   };
 
-  // ========================================================
-  // DASHBOARD SCANNER ACTIONS (AVAILABLE KUNG CAN_SCAN = TRUE)
-  // ========================================================
   const startCameraScanner = async () => {
     if (!selectedEventId) {
       showNotify('error', 'Please choose an active event schedule first.');
@@ -365,6 +417,7 @@ export default function StudentDashboard() {
     if (supabase) await supabase.auth.signOut();
     if (typeof window !== 'undefined') {
       sessionStorage.clear();
+      localStorage.removeItem('cec_last_active_time');
     }
     router.replace('/');
   };
@@ -420,7 +473,6 @@ export default function StudentDashboard() {
             boxSizing: 'border-box',
           }}
         >
-          {/* Left: Hamburger & Brand */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <button
               onClick={() => setIsSidebarOpen(!isSidebarOpen)}
@@ -470,7 +522,6 @@ export default function StudentDashboard() {
             </div>
           </div>
 
-          {/* Right: Student Profile Badge */}
           <div
             style={{
               display: 'flex',
@@ -573,9 +624,7 @@ export default function StudentDashboard() {
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', paddingBottom: '16px', borderBottom: '1px solid #f1f5f9' }}>
               <div>
-                <h2 style={{ fontSize: '1.35rem', fontWeight: 900, color: '#15803d', margin: 0 }}>
-                  Portal
-                </h2>
+                <h2 style={{ fontSize: '1.35rem', fontWeight: 900, color: '#15803d', margin: 0 }}>Portal</h2>
                 <span style={{ fontSize: '0.72rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                   STUDENT ACCESS
                 </span>
@@ -624,7 +673,6 @@ export default function StudentDashboard() {
                 <span>Events</span>
               </button>
 
-              {/* KINI MO-GAWAS LAMANG KON GIHATAGAN OG CLEARANCE SA ADMIN NGA MAKAPAG-SCAN */}
               {profile.can_scan && (
                 <button
                   onClick={() => { setActiveTab('scan-attendance'); setIsSidebarOpen(false); }}
@@ -741,7 +789,6 @@ export default function StudentDashboard() {
                       backgroundColor: '#ffffff',
                     }}
                   >
-                    {/* CEC- TRACK HEADER BADGE */}
                     <div
                       style={{
                         position: 'absolute',
@@ -780,7 +827,6 @@ export default function StudentDashboard() {
                       </span>
                     </div>
 
-                    {/* PHOTO UPLOAD */}
                     <div
                       onClick={() => fileInputRef.current?.click()}
                       className={styles.idPhotoWrap}
@@ -1027,7 +1073,7 @@ export default function StudentDashboard() {
                 <table className={styles.adminTable}>
                   <thead>
                     <tr>
-                      <th>Event & Location</th>
+                      <th>Event &amp; Location</th>
                       <th>Date</th>
                       <th>Time In</th>
                       <th>Time Out</th>
@@ -1076,7 +1122,7 @@ export default function StudentDashboard() {
             </div>
           )}
 
-          {/* TAB 3: EVENTS (NAGPAKITA NA OG EVENT POSTER PICTURE) */}
+          {/* TAB 3: EVENTS */}
           {activeTab === 'events' && (
             <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '12px' }}>
@@ -1120,28 +1166,12 @@ export default function StudentDashboard() {
                           overflow: 'hidden',
                         }}
                       >
-                        {/* Event Picture Banner */}
                         {ev.image_url ? (
                           <div style={{ width: '100%', height: '170px', overflow: 'hidden', backgroundColor: '#f1f5f9' }}>
-                            <img
-                              src={ev.image_url}
-                              alt={ev.title}
-                              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                            />
+                            <img src={ev.image_url} alt={ev.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                           </div>
                         ) : (
-                          <div
-                            style={{
-                              width: '100%',
-                              height: '100px',
-                              backgroundColor: '#f8fafc',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              fontSize: '2rem',
-                              borderBottom: '1px solid #f1f5f9',
-                            }}
-                          >
+                          <div style={{ width: '100%', height: '100px', backgroundColor: '#f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2rem', borderBottom: '1px solid #f1f5f9' }}>
                             📅
                           </div>
                         )}
@@ -1185,7 +1215,7 @@ export default function StudentDashboard() {
             </div>
           )}
 
-          {/* TAB 4: SCAN ATTENDANCE (STUDENT SCANNER TAB) */}
+          {/* TAB 4: SCAN ATTENDANCE */}
           {activeTab === 'scan-attendance' && profile.can_scan && (
             <div style={{ maxWidth: '600px', margin: '0 auto' }}>
               <div className={styles.adminFormCard} style={{ textAlign: 'center', padding: '36px 20px' }}>
@@ -1313,7 +1343,7 @@ export default function StudentDashboard() {
         </main>
       </div>
 
-      {/* CAMERA SCANNER MODAL FOR STUDENT DASHBOARD */}
+      {/* CAMERA SCANNER MODAL */}
       {isCameraModalOpen && (
         <div
           style={{
@@ -1363,15 +1393,7 @@ export default function StudentDashboard() {
             >
               <div id="student-qr-reader" style={{ width: '100%', height: '100%' }} />
 
-              <div
-                style={{
-                  position: 'absolute',
-                  width: '210px',
-                  height: '210px',
-                  pointerEvents: 'none',
-                  boxSizing: 'border-box',
-                }}
-              >
+              <div style={{ position: 'absolute', width: '210px', height: '210px', pointerEvents: 'none', boxSizing: 'border-box' }}>
                 <div style={{ position: 'absolute', top: 0, left: 0, width: '32px', height: '32px', borderTop: '4px solid #ffffff', borderLeft: '4px solid #ffffff', borderTopLeftRadius: '8px' }} />
                 <div style={{ position: 'absolute', top: 0, right: 0, width: '32px', height: '32px', borderTop: '4px solid #ffffff', borderRight: '4px solid #ffffff', borderTopRightRadius: '8px' }} />
                 <div style={{ position: 'absolute', bottom: 0, left: 0, width: '32px', height: '32px', borderBottom: '4px solid #ffffff', borderLeft: '4px solid #ffffff', borderBottomLeftRadius: '8px' }} />
@@ -1401,7 +1423,7 @@ export default function StudentDashboard() {
         </div>
       )}
 
-      {/* SCANNED VERIFICATION MODAL FOR STUDENT DASHBOARD */}
+      {/* SCANNED VERIFICATION MODAL */}
       {showVerifyModal && scannedStudentData && (
         <div
           style={{
@@ -1457,14 +1479,11 @@ export default function StudentDashboard() {
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
+                boxShadow: '0 4px 10px rgba(0,0,0,0.08)',
               }}
             >
               {scannedStudentData.avatar_url ? (
-                <img
-                  src={scannedStudentData.avatar_url}
-                  alt={scannedStudentData.full_name}
-                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                />
+                <img src={scannedStudentData.avatar_url} alt={scannedStudentData.full_name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
               ) : (
                 <span style={{ fontSize: '2.5rem' }}>👤</span>
               )}
@@ -1534,6 +1553,7 @@ export default function StudentDashboard() {
                   fontSize: '0.95rem',
                   fontWeight: 900,
                   cursor: 'pointer',
+                  boxShadow: '0 4px 12px rgba(21, 128, 61, 0.25)',
                 }}
               >
                 {confirmingAttendance ? 'Recording...' : '✓ OK • Confirm Attendance'}
