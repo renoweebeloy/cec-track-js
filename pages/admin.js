@@ -35,15 +35,16 @@ export default function AdminDashboard() {
   const [staffEmail, setStaffEmail] = useState('');
   const [staffRole, setStaffRole] = useState('Staff Officer');
 
-  // 3. Event States (Blangko na ang Title ug Location, walay FaCET Facade)
+  // 3. Event States (With Image Compression)
   const [eventTitle, setEventTitle] = useState('');
-  const [eventLocation, setEventLocation] = useState(''); // Blangko na ang default location
+  const [eventLocation, setEventLocation] = useState('');
   const [eventDesc, setEventDesc] = useState('');
   const [eventDate, setEventDate] = useState('');
   const [timeIn, setTimeIn] = useState('08:00');
   const [timeOut, setTimeOut] = useState('17:00');
   const [eventStatus, setEventStatus] = useState('active');
   const [eventImage, setEventImage] = useState('');
+  const [compressingImage, setCompressingImage] = useState(false);
 
   // 4. Manual Attendance Logger States
   const [manualStudentId, setManualStudentId] = useState('');
@@ -204,8 +205,105 @@ export default function AdminDashboard() {
   };
 
   // ========================================================
-  // CAMERA SCANNER FUNCTIONS
+  // AUTOMATIC IMAGE COMPRESSOR (PREVENTS DATABASE TIMEOUT)
   // ========================================================
+  const handleEventImageUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      showNotify('error', 'Please select a valid image file (PNG, JPG, JPEG).');
+      return;
+    }
+
+    setCompressingImage(true);
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        // Compress using Canvas: scales down resolution and optimizes quality
+        const canvas = document.createElement('canvas');
+        const MAX_WIDTH = 800;
+        const MAX_HEIGHT = 600;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > MAX_WIDTH) {
+            height *= MAX_WIDTH / width;
+            width = MAX_WIDTH;
+          }
+        } else {
+          if (height > MAX_HEIGHT) {
+            width *= MAX_HEIGHT / height;
+            height = MAX_HEIGHT;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+
+        // Compresses multi-megabyte photo down to ~40KB-70KB
+        const compressedBase64 = canvas.toDataURL('image/jpeg', 0.7);
+        setEventImage(compressedBase64);
+        setCompressingImage(false);
+        showNotify('success', 'Image optimized and ready for publishing.');
+      };
+      img.src = event.target.result;
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // ========================================================
+  // ADD EVENT (FAST & TIMEOUT-FREE INSERTION)
+  // ========================================================
+  const handleAddEvent = async (e) => {
+    e.preventDefault();
+    if (compressingImage) {
+      showNotify('error', 'Please wait until image optimization completes.');
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const { error } = await supabase.from('events').insert([
+        {
+          title: eventTitle.trim(),
+          location: eventLocation.trim(),
+          date: eventDate,
+          time_in: timeIn,
+          time_out: timeOut,
+          description: eventDesc.trim() || 'Official College Event',
+          status: eventStatus,
+          image_url: eventImage || null,
+        },
+      ]);
+
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      showNotify('success', `Official event "${eventTitle}" published successfully!`);
+      setEventTitle('');
+      setEventLocation('');
+      setEventDesc('');
+      setEventDate('');
+      setTimeIn('08:00');
+      setTimeOut('17:00');
+      setEventImage('');
+      fetchAllData();
+    } catch (err) {
+      showNotify('error', `Error publishing event: ${err.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // CAMERA SCANNER FUNCTIONS
   const startCameraScanner = async () => {
     if (!selectedEventId) {
       showNotify('error', 'Please select an Active Event Schedule below before scanning.');
@@ -526,58 +624,6 @@ export default function AdminDashboard() {
       showNotify('error', err.message);
     } finally {
       setLoading(false);
-    }
-  };
-
-  // EVENT IMAGE UPLOAD HANDLER
-  const handleEventImageUpload = (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    if (!file.type.startsWith('image/')) {
-      showNotify('error', 'Please select a valid image file (PNG, JPG, JPEG).');
-      return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      setEventImage(event.target.result);
-    };
-    reader.readAsDataURL(file);
-  };
-
-  // ADD EVENT (Blangko na ang Title ug Location inig human og publish)
-  const handleAddEvent = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-
-    const { error } = await supabase.from('events').insert([
-      {
-        title: eventTitle.trim(),
-        location: eventLocation.trim(),
-        date: eventDate,
-        time_in: timeIn,
-        time_out: timeOut,
-        description: eventDesc.trim(),
-        status: eventStatus,
-        image_url: eventImage || null,
-      },
-    ]);
-
-    setLoading(false);
-
-    if (error) {
-      showNotify('error', `Error publishing event: ${error.message}`);
-    } else {
-      showNotify('success', `Official event "${eventTitle}" published successfully with poster.`);
-      setEventTitle('');
-      setEventLocation(''); // Pabiling blangko
-      setEventDesc('');
-      setEventDate('');
-      setTimeIn('08:00');
-      setTimeOut('17:00');
-      setEventImage('');
-      fetchAllData();
     }
   };
 
@@ -1296,7 +1342,7 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          {/* TAB 4: MANAGE EVENTS (BLANGKO NA ANG TITLE UG LOCATION) */}
+          {/* TAB 4: MANAGE EVENTS (WITH REAL-TIME IMAGE COMPRESSOR) */}
           {activeTab === 'add-event' && (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '24px' }}>
               <div className={styles.adminFormCard}>
@@ -1328,7 +1374,11 @@ export default function AdminDashboard() {
                         overflow: 'hidden',
                       }}
                     >
-                      {eventImage ? (
+                      {compressingImage ? (
+                        <div style={{ padding: '20px 0', color: '#15803d', fontWeight: 800, fontSize: '0.85rem' }}>
+                          ⚡ Optimizing picture for fast saving...
+                        </div>
+                      ) : eventImage ? (
                         <div style={{ position: 'relative' }}>
                           <img
                             src={eventImage}
@@ -1336,7 +1386,7 @@ export default function AdminDashboard() {
                             style={{ maxHeight: '140px', width: 'auto', borderRadius: '12px', margin: '0 auto', display: 'block' }}
                           />
                           <span style={{ fontSize: '0.72rem', color: '#15803d', fontWeight: 800, display: 'block', marginTop: '6px' }}>
-                            Click to change picture
+                            Click to change picture (Optimized)
                           </span>
                         </div>
                       ) : (
@@ -1346,14 +1396,14 @@ export default function AdminDashboard() {
                             + Click to upload Event Picture
                           </span>
                           <span style={{ fontSize: '0.72rem', color: '#94a3b8', display: 'block', marginTop: '2px' }}>
-                            PNG, JPG, or JPEG banner image
+                            Automatically compressed to prevent timeouts
                           </span>
                         </div>
                       )}
                     </div>
                   </div>
 
-                  {/* EVENT TITLE (BLANGKO, WALAY TEXT O PLACEHOLDER) */}
+                  {/* EVENT TITLE */}
                   <div className={styles.inputGroup}>
                     <label className={styles.inputLabel} style={{ fontSize: '0.78rem' }}>Event Title *</label>
                     <input
@@ -1367,7 +1417,7 @@ export default function AdminDashboard() {
                   </div>
 
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                    {/* LOCATION (BLANGKO, GITANGTANG ANG 'FaCET Facade') */}
+                    {/* LOCATION */}
                     <div className={styles.inputGroup}>
                       <label className={styles.inputLabel} style={{ fontSize: '0.78rem' }}>Location *</label>
                       <input
@@ -1433,18 +1483,18 @@ export default function AdminDashboard() {
                   </div>
 
                   <div className={styles.inputGroup}>
-                    <label className={styles.inputLabel} style={{ fontSize: '0.78rem' }}>Description *</label>
+                    <label className={styles.inputLabel} style={{ fontSize: '0.78rem' }}>Description</label>
                     <textarea
                       rows="2"
                       value={eventDesc}
                       onChange={(e) => setEventDesc(e.target.value)}
                       className={styles.loginInput}
                       style={{ padding: '12px 14px', fontSize: '0.95rem' }}
-                      required
+                      placeholder="Brief event details..."
                     />
                   </div>
 
-                  <button type="submit" disabled={loading} className={styles.adminPrimaryBtn} style={{ minHeight: '48px', fontSize: '0.95rem' }}>
+                  <button type="submit" disabled={loading || compressingImage} className={styles.adminPrimaryBtn} style={{ minHeight: '48px', fontSize: '0.95rem' }}>
                     {loading ? 'Publishing...' : 'Publish Official Event ➔'}
                   </button>
                 </form>
