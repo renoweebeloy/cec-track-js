@@ -50,11 +50,11 @@ export default function AdminDashboard() {
   // 5. Live Camera Scanner & Scanned Student Verification Modal States
   const [isCameraModalOpen, setIsCameraModalOpen] = useState(false);
   const [isScannerRunning, setIsScannerRunning] = useState(false);
-  const [scannedStudentData, setScannedStudentData] = useState(null); // Data sa na-scan nga estudyante
+  const [scannedStudentData, setScannedStudentData] = useState(null);
   const [showVerifyModal, setShowVerifyModal] = useState(false);
   const [confirmingAttendance, setConfirmingAttendance] = useState(false);
 
-  // Data Collections & Filters
+  // Collections & Filters
   const [students, setStudents] = useState([]);
   const [staffList, setStaffList] = useState([]);
   const [events, setEvents] = useState([]);
@@ -77,7 +77,7 @@ export default function AdminDashboard() {
     }, 4500);
   };
 
-  // Dinamikong pag-load sa Html5Qrcode Library gikan sa CDN
+  // Dinamikong pag-load sa Html5Qrcode Library mula sa CDN
   useEffect(() => {
     if (typeof window !== 'undefined' && !window.Html5Qrcode) {
       const script = document.createElement('script');
@@ -109,7 +109,7 @@ export default function AdminDashboard() {
         const { data: profile, error } = await supabase
           .from('profiles')
           .select('*')
-          .eq('email', userEmail)
+          .eq('email', userEmail.trim().toLowerCase())
           .single();
 
         if (error || !profile) {
@@ -191,8 +191,13 @@ export default function AdminDashboard() {
   // CAMERA SCANNER FUNCTIONS
   // ========================================================
   const startCameraScanner = async () => {
+    if (!selectedEventId) {
+      showNotify('error', 'Pumili muna ng Active Event bago buksan ang scanner.');
+      return;
+    }
+
     if (!window.Html5Qrcode) {
-      showNotify('error', 'Scanner library is loading, please try again in a few seconds.');
+      showNotify('error', 'Kasalukuyang naglo-load ang scanner library. Subukan muli sandali.');
       return;
     }
 
@@ -214,7 +219,7 @@ export default function AdminDashboard() {
         setIsScannerRunning(true);
       } catch (err) {
         console.error('Error starting camera scanner:', err);
-        showNotify('error', 'Unable to access device camera. Please check camera permissions.');
+        showNotify('error', 'Hindi ma-access ang camera. Tiyaking pinayagan ang camera permission.');
         setIsCameraModalOpen(false);
       }
     }, 400);
@@ -240,11 +245,13 @@ export default function AdminDashboard() {
     setScannedStudentData(null);
   };
 
-  // KINI ANG TAWAGON INIG SCAN SA QR CODE
+  // ========================================================
+  // QR CODE DETECTION WITH STRICT DUPLICATE DENIAL
+  // ========================================================
   const handleQrCodeDetected = async (decodedText) => {
     if (!decodedText || showVerifyModal) return;
 
-    // Ihunong kadiyot ang scanner samtang ginasusi ang profile
+    // Ihinto muna ang scanner habang sinusuri
     if (scannerRef.current) {
       try {
         await scannerRef.current.pause();
@@ -254,15 +261,15 @@ export default function AdminDashboard() {
     const cleanSchoolId = decodedText.trim();
 
     try {
-      // 1. Pangitaon ang student record sa Supabase Profiles
+      // 1. Hanapin ang estudyante sa Profiles gamit ang School ID
       const { data: student, error } = await supabase
         .from('profiles')
-        .select('*')
+        .select('school_id, full_name, course, year_level, avatar_url')
         .eq('school_id', cleanSchoolId)
         .single();
 
       if (error || !student) {
-        alert(`❌ BLOCKED: School ID "${cleanSchoolId}" is not whitelisted in the system!`);
+        alert(`❌ ACCESS DENIED:\nAng School ID "${cleanSchoolId}" ay wala sa whitelist database!`);
         if (scannerRef.current) {
           try {
             await scannerRef.current.resume();
@@ -271,7 +278,33 @@ export default function AdminDashboard() {
         return;
       }
 
-      // 2. Ipakita ang Profile Verification Popup (Litrato, Course, Year Level, Name)
+      // 2. DUPLICATE CHECK: Suriin kung nakapag-scan na sa napiling event
+      const { data: existingAttendance } = await supabase
+        .from('attendance')
+        .select('id, time_in')
+        .eq('student_id', student.school_id)
+        .eq('event_id', selectedEventId)
+        .maybeSingle();
+
+      if (existingAttendance) {
+        // DENIED: Tapos na mag-scan
+        alert(
+          `🚫 SCAN DENIED / TAPOS NA MAG-SCAN!\n\n` +
+          `Pangalan: ${student.full_name}\n` +
+          `School ID: ${student.school_id}\n` +
+          `Oras na naitala kanina: ${existingAttendance.time_in}\n\n` +
+          `Done scanning na ang estudyanteng ito para sa event na ito.`
+        );
+
+        if (scannerRef.current) {
+          try {
+            await scannerRef.current.resume();
+          } catch (e) {}
+        }
+        return;
+      }
+
+      // 3. Kung bago pa at hindi pa nakapag-scan, buksan ang Verification Modal (School ID lamang, walang email)
       setScannedStudentData(student);
       setShowVerifyModal(true);
     } catch (err) {
@@ -279,14 +312,15 @@ export default function AdminDashboard() {
     }
   };
 
-  // PAG-CLICK SA "OK / CONFIRM ATTENDANCE" BUTTON
+  // ========================================================
+  // CONFIRM ATTENDANCE ACTION
+  // ========================================================
   const handleConfirmAttendance = async () => {
     if (!scannedStudentData || !selectedEventId) return;
 
     setConfirmingAttendance(true);
 
     try {
-      // 1. I-save ang attendance sa database
       const { error } = await supabase.from('attendance').insert([
         {
           student_id: scannedStudentData.school_id,
@@ -302,19 +336,19 @@ export default function AdminDashboard() {
         if (error.code === '23505') {
           showNotify(
             'error',
-            `⚠️ Already checked-in: ${scannedStudentData.full_name} (${scannedStudentData.school_id}) is already marked PRESENT!`
+            `⚠️ Done scanning na si ${scannedStudentData.full_name} (${scannedStudentData.school_id})!`
           );
         } else {
-          showNotify('error', `Attendance error: ${error.message}`);
+          showNotify('error', `Error sa attendance: ${error.message}`);
         }
       } else {
         showNotify(
           'success',
-          `✅ ATTENDANCE CONFIRMED: ${scannedStudentData.full_name} (${scannedStudentData.course} - ${scannedStudentData.year_level}) marked as PRESENT!`
+          `✅ DONE SCANNING: Naitala na ang attendance ni ${scannedStudentData.full_name} (School ID: ${scannedStudentData.school_id})!`
         );
       }
 
-      // 2. Isira ang verification modal ug ipadayon ang camera scanning
+      // Isara ang verification modal at ipagpatuloy ang camera para sa susunod na estudyante
       setShowVerifyModal(false);
       setScannedStudentData(null);
 
@@ -330,13 +364,13 @@ export default function AdminDashboard() {
     }
   };
 
-  // ADD STUDENT
+  // ADD STUDENT (School ID ang password sa database)
   const handleAddStudent = async (e) => {
     e.preventDefault();
 
     const idRegex = /^\d{4}-\d{4,5}$/;
     if (!idRegex.test(studentId.trim())) {
-      showNotify('error', 'Invalid Student ID format. Follow format: 2024-0616.');
+      showNotify('error', 'Invalid Student ID format. Gamitin ang format: 2024-0616.');
       return;
     }
 
@@ -367,7 +401,7 @@ export default function AdminDashboard() {
 
       showNotify(
         'success',
-        `Student enrolled! Default password is the School ID (${defaultPassword}).`
+        `Na-enroll na ang estudyante! Ang default password ay ang School ID (${defaultPassword}).`
       );
       setStudentId('');
       setStudentName('');
@@ -384,7 +418,7 @@ export default function AdminDashboard() {
   const handleAddStaff = async (e) => {
     e.preventDefault();
     if (userRole !== 'admin') {
-      showNotify('error', 'Only Administrators can register staff members.');
+      showNotify('error', 'Administrator lamang ang maaaring magrehistro ng staff.');
       return;
     }
 
@@ -414,7 +448,7 @@ export default function AdminDashboard() {
 
       showNotify(
         'success',
-        `Staff officer ${staffName} registered! Default password: ${defaultPassword}`
+        `Narehistro na si ${staffName}! Ang default password ay: ${defaultPassword}`
       );
       setStaffName('');
       setStaffEmail('');
@@ -446,9 +480,9 @@ export default function AdminDashboard() {
     setLoading(false);
 
     if (error) {
-      showNotify('error', `Error publishing event: ${error.message}`);
+      showNotify('error', `Error sa pag-publish ng event: ${error.message}`);
     } else {
-      showNotify('success', `Event "${eventTitle}" published successfully.`);
+      showNotify('success', `Na-publish ang event na "${eventTitle}".`);
       setEventTitle('');
       setEventDesc('');
       setEventDate('');
@@ -458,12 +492,12 @@ export default function AdminDashboard() {
     }
   };
 
-  // MANUAL ATTENDANCE LOG CHECK-IN
+  // MANUAL ATTENDANCE LOG CHECK-IN WITH DUPLICATE CHECK
   const handleManualScanSubmit = async (e) => {
     e.preventDefault();
     if (!manualStudentId) return;
 
-    setScanLogMsg({ type: 'info', text: 'Validating Student ID against Whitelist database...' });
+    setScanLogMsg({ type: 'info', text: 'Sinusuri ang School ID sa Whitelist...' });
 
     const studentMatch = students.find(
       (s) => s.school_id?.toLowerCase() === manualStudentId.trim().toLowerCase()
@@ -472,7 +506,23 @@ export default function AdminDashboard() {
     if (!studentMatch) {
       setScanLogMsg({
         type: 'error',
-        text: 'Access Denied: Student ID is not registered in the Whitelist database.',
+        text: 'Access Denied: Hindi rehistrado ang School ID sa whitelist.',
+      });
+      return;
+    }
+
+    // Duplicate check sa manual entry
+    const { data: existing } = await supabase
+      .from('attendance')
+      .select('id, time_in')
+      .eq('student_id', studentMatch.school_id)
+      .eq('event_id', selectedEventId)
+      .maybeSingle();
+
+    if (existing) {
+      setScanLogMsg({
+        type: 'warning',
+        text: `🚫 DENIED / DONE SCANNING: Nakatala na kaninang ${existing.time_in} si ${studentMatch.full_name} (${studentMatch.school_id})!`,
       });
       return;
     }
@@ -489,18 +539,11 @@ export default function AdminDashboard() {
     ]);
 
     if (error) {
-      if (error.code === '23505') {
-        setScanLogMsg({
-          type: 'warning',
-          text: `Attendance already recorded for ${studentMatch.full_name} (${studentMatch.school_id})!`,
-        });
-      } else {
-        setScanLogMsg({ type: 'error', text: `Error: ${error.message}` });
-      }
+      setScanLogMsg({ type: 'error', text: `Error: ${error.message}` });
     } else {
       setScanLogMsg({
         type: 'success',
-        text: `Attendance confirmed for ${studentMatch.full_name} (${studentMatch.course})!`,
+        text: `Done scanning! Attendance confirmed para kay ${studentMatch.full_name} (${studentMatch.school_id}).`,
       });
       setManualStudentId('');
     }
@@ -508,28 +551,28 @@ export default function AdminDashboard() {
 
   const handleDeleteUser = async (id, identifier) => {
     if (userRole !== 'admin') {
-      alert('Only administrators can remove registered accounts.');
+      alert('Administrator lamang ang maaaring magbura ng account.');
       return;
     }
-    if (!confirm(`Are you sure you want to remove ${identifier}?`)) return;
+    if (!confirm(`Sigurado ka bang nais mong tanggalin si ${identifier}?`)) return;
     const { error } = await supabase.from('profiles').delete().eq('id', id);
     if (error) showNotify('error', error.message);
     else {
-      showNotify('success', 'Record removed from system.');
+      showNotify('success', 'Natanggal na ang tala.');
       fetchAllData();
     }
   };
 
   const handleDeleteEvent = async (id, title) => {
     if (userRole !== 'admin') {
-      alert('Only administrators can delete events.');
+      alert('Administrator lamang ang maaaring magbura ng event.');
       return;
     }
-    if (!confirm(`Are you sure you want to delete event "${title}"?`)) return;
+    if (!confirm(`Sigurado ka bang nais mong burahin ang "${title}"?`)) return;
     const { error } = await supabase.from('events').delete().eq('id', id);
     if (error) showNotify('error', error.message);
     else {
-      showNotify('success', 'Event deleted.');
+      showNotify('success', 'Nabura na ang event.');
       fetchAllData();
     }
   };
@@ -796,7 +839,7 @@ export default function AdminDashboard() {
           </div>
         </aside>
 
-        {/* MAIN BODY AREA */}
+        {/* MAIN CONTENT VIEWPORT */}
         <main className={styles.portalContentArea} style={{ padding: '20px 16px' }}>
           <div style={{ marginBottom: '20px' }}>
             <h1 style={{ fontSize: '1.65rem', fontWeight: 900, color: '#0f172a', margin: '0 0 4px 0' }}>
@@ -823,9 +866,7 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          {/* ========================================================= */}
           {/* TAB 1: SYSTEM OVERVIEW */}
-          {/* ========================================================= */}
           {activeTab === 'profile' && (
             <div>
               <div className={styles.attendanceStatsGrid}>
@@ -876,9 +917,7 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          {/* ========================================================= */}
           {/* TAB 2: WHITELIST STUDENTS */}
-          {/* ========================================================= */}
           {activeTab === 'add-student' && (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '24px' }}>
               {isAdmin && (
@@ -1023,9 +1062,7 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          {/* ========================================================= */}
           {/* TAB 3: MANAGE STAFF */}
-          {/* ========================================================= */}
           {activeTab === 'add-staff' && isAdmin && (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '24px' }}>
               <div className={styles.adminFormCard}>
@@ -1112,9 +1149,7 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          {/* ========================================================= */}
           {/* TAB 4: MANAGE EVENTS */}
-          {/* ========================================================= */}
           {activeTab === 'add-event' && (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '24px' }}>
               <div className={styles.adminFormCard}>
@@ -1272,12 +1307,9 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          {/* ========================================================= */}
           {/* TAB 5: SCAN QR & QUICK LOG */}
-          {/* ========================================================= */}
           {activeTab === 'scan-qr' && (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '24px' }}>
-              {/* LIVE CAMERA SCANNER LAUNCHER (MATCHES IMAGE MODAL POPUP) */}
               <div className={styles.adminFormCard} style={{ textAlign: 'center', padding: '36px 20px' }}>
                 <div
                   style={{
@@ -1300,7 +1332,7 @@ export default function AdminDashboard() {
                   Live Camera QR Scanner
                 </h3>
                 <p style={{ fontSize: '0.88rem', color: '#64748b', marginBottom: '24px', lineHeight: 1.5 }}>
-                  Open camera scanner to verify Digital ID QR codes, preview student profiles, and log official attendance.
+                  I-scan ang QR code ng estudyante upang makita ang profile at maitala ang attendance.
                 </p>
 
                 <div style={{ marginBottom: '16px' }}>
@@ -1331,13 +1363,13 @@ export default function AdminDashboard() {
                 </button>
               </div>
 
-              {/* MANUAL FALLBACK CHECK-IN */}
+              {/* MANUAL CHECK-IN */}
               <div className={styles.adminFormCard}>
                 <h3 className={styles.analyticsTitle} style={{ fontSize: '1rem', marginBottom: '12px' }}>
                   Manual School ID Check-in
                 </h3>
                 <p style={{ fontSize: '0.82rem', color: '#64748b', marginBottom: '16px' }}>
-                  For students without phones or low camera lighting, enter their School ID directly.
+                  Para sa mga estudyanteng walang dalang smartphone o malabo ang camera.
                 </p>
 
                 <form onSubmit={handleManualScanSubmit} className={styles.loginForm}>
@@ -1365,8 +1397,8 @@ export default function AdminDashboard() {
                     style={{
                       marginTop: '14px',
                       fontSize: '0.9rem',
-                      color: scanLogMsg.type === 'error' ? '#b91c1c' : '#15803d',
-                      backgroundColor: scanLogMsg.type === 'error' ? '#fef2f2' : '#f0fdf4',
+                      color: scanLogMsg.type === 'error' ? '#b91c1c' : scanLogMsg.type === 'warning' ? '#b45309' : '#15803d',
+                      backgroundColor: scanLogMsg.type === 'error' ? '#fef2f2' : scanLogMsg.type === 'warning' ? '#fefce8' : '#f0fdf4',
                     }}
                   >
                     {scanLogMsg.text}
@@ -1407,7 +1439,6 @@ export default function AdminDashboard() {
               textAlign: 'center',
             }}
           >
-            {/* Header Title */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginBottom: '16px' }}>
               <span style={{ fontSize: '1.25rem' }}>📷</span>
               <h3 style={{ fontSize: '1.2rem', fontWeight: 900, color: '#15803d', margin: 0 }}>
@@ -1415,7 +1446,7 @@ export default function AdminDashboard() {
               </h3>
             </div>
 
-            {/* Video Viewfinder Container with White Frame Corners [ ] */}
+            {/* Video Viewfinder Container na may White Frame Corners [ ] */}
             <div
               style={{
                 position: 'relative',
@@ -1443,18 +1474,14 @@ export default function AdminDashboard() {
                   boxSizing: 'border-box',
                 }}
               >
-                {/* Top-Left */}
                 <div style={{ position: 'absolute', top: 0, left: 0, width: '32px', height: '32px', borderTop: '4px solid #ffffff', borderLeft: '4px solid #ffffff', borderTopLeftRadius: '8px' }} />
-                {/* Top-Right */}
                 <div style={{ position: 'absolute', top: 0, right: 0, width: '32px', height: '32px', borderTop: '4px solid #ffffff', borderRight: '4px solid #ffffff', borderTopRightRadius: '8px' }} />
-                {/* Bottom-Left */}
                 <div style={{ position: 'absolute', bottom: 0, left: 0, width: '32px', height: '32px', borderBottom: '4px solid #ffffff', borderLeft: '4px solid #ffffff', borderBottomLeftRadius: '8px' }} />
-                {/* Bottom-Right */}
                 <div style={{ position: 'absolute', bottom: 0, right: 0, width: '32px', height: '32px', borderBottom: '4px solid #ffffff', borderRight: '4px solid #ffffff', borderBottomRightRadius: '8px' }} />
               </div>
             </div>
 
-            {/* Stop/Resume Scanning button */}
+            {/* Stop/Resume Scanning Button */}
             <div style={{ marginTop: '12px', marginBottom: '14px' }}>
               <button
                 type="button"
@@ -1508,7 +1535,7 @@ export default function AdminDashboard() {
       )}
 
       {/* ========================================================= */}
-      {/* 2. SCANNED STUDENT PROFILE & VERIFICATION MODAL */}
+      {/* 2. SCANNED VERIFICATION MODAL (SCHOOL ID ONLY - WALANG GMAIL) */}
       {/* ========================================================= */}
       {showVerifyModal && scannedStudentData && (
         <div
@@ -1528,14 +1555,13 @@ export default function AdminDashboard() {
             style={{
               backgroundColor: '#ffffff',
               width: '100%',
-              maxWidth: '420px',
+              maxWidth: '400px',
               borderRadius: '28px',
               padding: '24px',
               boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.3)',
               textAlign: 'center',
             }}
           >
-            {/* Header Badge */}
             <span
               style={{
                 display: 'inline-block',
@@ -1557,8 +1583,8 @@ export default function AdminDashboard() {
             {/* Student Photo */}
             <div
               style={{
-                width: '90px',
-                height: '90px',
+                width: '94px',
+                height: '94px',
                 borderRadius: '24px',
                 backgroundColor: '#f1f5f9',
                 border: '3px solid #15803d',
@@ -1581,21 +1607,36 @@ export default function AdminDashboard() {
               )}
             </div>
 
-            {/* Student Name & School ID */}
-            <h2 style={{ fontSize: '1.4rem', fontWeight: 900, color: '#0f172a', margin: '0 0 4px 0' }}>
+            {/* Student Full Name */}
+            <h2 style={{ fontSize: '1.35rem', fontWeight: 900, color: '#0f172a', margin: '0 0 4px 0' }}>
               {scannedStudentData.full_name}
             </h2>
-            <div style={{ fontSize: '0.85rem', fontWeight: 800, color: '#15803d', marginBottom: '16px' }}>
-              {scannedStudentData.school_id}
+
+            {/* MALAKING SCHOOL ID (WALANG GMAIL) */}
+            <div
+              style={{
+                fontSize: '1.1rem',
+                fontWeight: 900,
+                color: '#15803d',
+                backgroundColor: '#f0fdf4',
+                border: '1px solid #bbf7d0',
+                borderRadius: '12px',
+                padding: '6px 14px',
+                display: 'inline-block',
+                margin: '8px auto 16px auto',
+                letterSpacing: '0.04em',
+              }}
+            >
+              ID: {scannedStudentData.school_id}
             </div>
 
-            {/* Details Box: Course, Year Level, & Event */}
+            {/* Details Box: Course at Year Level Lamang */}
             <div
               style={{
                 backgroundColor: '#f8fafc',
                 border: '1px solid #e2e8f0',
                 borderRadius: '18px',
-                padding: '16px',
+                padding: '14px 16px',
                 marginBottom: '20px',
                 textAlign: 'left',
                 display: 'flex',
@@ -1617,16 +1658,9 @@ export default function AdminDashboard() {
                   {scannedStudentData.year_level || '1st Year'}
                 </span>
               </div>
-
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ color: '#64748b', fontWeight: 700 }}>Email Address:</span>
-                <span style={{ fontWeight: 600, color: '#334155', fontSize: '0.78rem' }}>
-                  {scannedStudentData.email}
-                </span>
-              </div>
             </div>
 
-            {/* Action Buttons: OK (Confirm) and Cancel */}
+            {/* Action Buttons: OK (Confirm) at Cancel */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               <button
                 type="button"
@@ -1645,7 +1679,7 @@ export default function AdminDashboard() {
                   boxShadow: '0 4px 12px rgba(21, 128, 61, 0.25)',
                 }}
               >
-                {confirmingAttendance ? 'Recording...' : '✓ OK • Mark as Present'}
+                {confirmingAttendance ? 'Recording...' : '✓ OK • Confirm Attendance'}
               </button>
 
               <button
