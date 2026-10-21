@@ -160,7 +160,6 @@ export default function Home() {
           </button>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-            {/* About Navigation Link */}
             <button
               onClick={() => router.push('/about')}
               style={{
@@ -308,7 +307,7 @@ export default function Home() {
           </div>
         </section>
 
-        {/* Live Course Analytics Grid */}
+        {/* Live Course Analytics Grid (Walay Icons/Emojis) */}
         <section className={styles.analyticsSection}>
           <div className={styles.analyticsHeader}>
             <div className={styles.analyticsTitle}>
@@ -328,7 +327,6 @@ export default function Home() {
             <div className={styles.courseCard}>
               <div className={styles.cardTop}>
                 <span className={`${styles.badge} ${styles.bsbaBadge}`}>BSBA</span>
-                <span style={{ fontSize: '1.1rem' }}>💼</span>
               </div>
               <div>
                 <div className={styles.countValue}>{counts.BSBA}</div>
@@ -344,7 +342,6 @@ export default function Home() {
             <div className={styles.courseCard}>
               <div className={styles.cardTop}>
                 <span className={`${styles.badge} ${styles.bscrimBadge}`}>BSCRIM</span>
-                <span style={{ fontSize: '1.1rem' }}>🛡️</span>
               </div>
               <div>
                 <div className={styles.countValue}>{counts.BSCRIM}</div>
@@ -360,7 +357,6 @@ export default function Home() {
             <div className={styles.courseCard}>
               <div className={styles.cardTop}>
                 <span className={`${styles.badge} ${styles.bsaBadge}`}>BSA</span>
-                <span style={{ fontSize: '1.1rem' }}>🏛️</span>
               </div>
               <div>
                 <div className={styles.countValue}>{counts.BSA}</div>
@@ -376,7 +372,6 @@ export default function Home() {
             <div className={styles.courseCard}>
               <div className={styles.cardTop}>
                 <span className={`${styles.badge} ${styles.beedBadge}`}>BEED</span>
-                <span style={{ fontSize: '1.1rem' }}>🎓</span>
               </div>
               <div>
                 <div className={styles.countValue}>{counts.BEED}</div>
@@ -392,7 +387,6 @@ export default function Home() {
             <div className={styles.courseCard}>
               <div className={styles.cardTop}>
                 <span className={`${styles.badge} ${styles.bsamBadge}`}>BSAM</span>
-                <span style={{ fontSize: '1.1rem' }}>🌾</span>
               </div>
               <div>
                 <div className={styles.countValue}>{counts.BSAM}</div>
@@ -552,7 +546,7 @@ export default function Home() {
         </section>
       </main>
 
-      {/* Puti nga Footer nga may About Link */}
+      {/* Puti nga Footer */}
       <footer
         style={{
           backgroundColor: '#ffffff',
