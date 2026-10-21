@@ -1043,7 +1043,7 @@ export default function AdminDashboard() {
                 className={activeTab === 'profile' ? `${styles.portalNavLink} ${styles.portalNavLinkActive}` : styles.portalNavLink}
                 style={{ fontSize: '0.92rem', padding: '12px 14px' }}
               >
-                <span>👤</span>
+                <span></span>
                 <span>System Overview</span>
               </button>
 
@@ -1052,7 +1052,7 @@ export default function AdminDashboard() {
                 className={activeTab === 'add-student' ? `${styles.portalNavLink} ${styles.portalNavLinkActive}` : styles.portalNavLink}
                 style={{ fontSize: '0.92rem', padding: '12px 14px' }}
               >
-                <span>🎓</span>
+                <span></span>
                 <span>Add Student</span>
               </button>
 
@@ -1062,7 +1062,7 @@ export default function AdminDashboard() {
                   className={activeTab === 'add-staff' ? `${styles.portalNavLink} ${styles.portalNavLinkActive}` : styles.portalNavLink}
                   style={{ fontSize: '0.92rem', padding: '12px 14px' }}
                 >
-                  <span>🛡️</span>
+                  <span></span>
                   <span>Manage Staff &amp; Scanners</span>
                 </button>
               )}
@@ -1072,7 +1072,7 @@ export default function AdminDashboard() {
                 className={activeTab === 'add-event' ? `${styles.portalNavLink} ${styles.portalNavLinkActive}` : styles.portalNavLink}
                 style={{ fontSize: '0.92rem', padding: '12px 14px' }}
               >
-                <span>📅</span>
+                <span></span>
                 <span>Manage Events</span>
               </button>
 
@@ -1081,7 +1081,7 @@ export default function AdminDashboard() {
                 className={activeTab === 'scan-qr' ? `${styles.portalNavLink} ${styles.portalNavLinkActive}` : styles.portalNavLink}
                 style={{ fontSize: '0.92rem', padding: '12px 14px' }}
               >
-                <span>📷</span>
+                <span></span>
                 <span>Scan QR &amp; Quick Log</span>
               </button>
             </nav>
