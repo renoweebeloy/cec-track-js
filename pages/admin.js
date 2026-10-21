@@ -15,12 +15,12 @@ export default function AdminDashboard() {
   const [currentUser, setCurrentUser] = useState({ name: '', email: '', school_id: '' });
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
-  // Navigation: 'profile' | 'add-student' | 'add-staff' | 'add-event' | 'scan-qr'
+  // Navigation Tabs: 'profile' | 'add-student' | 'add-staff' | 'add-event' | 'scan-qr'
   const [activeTab, setActiveTab] = useState('profile');
   const [loading, setLoading] = useState(false);
   const [notification, setNotification] = useState({ type: '', message: '' });
 
-  // 1. Student States (Strict ID validation & 5 Courses)
+  // 1. Student States
   const [studentId, setStudentId] = useState('');
   const [studentName, setStudentName] = useState('');
   const [studentEmail, setStudentEmail] = useState('');
@@ -32,7 +32,7 @@ export default function AdminDashboard() {
   const [staffEmail, setStaffEmail] = useState('');
   const [staffRole, setStaffRole] = useState('Staff Officer');
 
-  // 3. Event States (Date, Time In, Time Out)
+  // 3. Event States
   const [eventTitle, setEventTitle] = useState('');
   const [eventLocation, setEventLocation] = useState('FaCET Facade');
   const [eventDesc, setEventDesc] = useState('');
@@ -41,19 +41,18 @@ export default function AdminDashboard() {
   const [timeOut, setTimeOut] = useState('17:00');
   const [eventStatus, setEventStatus] = useState('active');
 
-  // 4. Quick Manual QR / Attendance Logger States
+  // 4. Manual Logger States
   const [manualStudentId, setManualStudentId] = useState('');
   const [selectedEventId, setSelectedEventId] = useState('');
   const [scanLogMsg, setScanLogMsg] = useState({ type: '', text: '' });
 
-  // Data Lists & Filters
+  // Data Collections & Filters
   const [students, setStudents] = useState([]);
   const [staffList, setStaffList] = useState([]);
   const [events, setEvents] = useState([]);
   const [searchStudentQuery, setSearchStudentQuery] = useState('');
   const [searchEventQuery, setSearchEventQuery] = useState('');
 
-  // 5 Official Courses
   const courses = [
     { code: 'BSCRIM', name: 'Bachelor of Science in Criminology', badge: styles.bscrimBadge },
     { code: 'BSBA', name: 'Bachelor of Science in Business Administration', badge: styles.bsbaBadge },
@@ -69,17 +68,14 @@ export default function AdminDashboard() {
     }, 4500);
   };
 
-  // ========================================================
-  // ROUTE GUARD: Admin and Staff Authorization Check
-  // ========================================================
   useEffect(() => {
     const verifyPortalAccess = async () => {
       try {
         setAuthChecking(true);
 
         const cachedEmail = typeof window !== 'undefined' ? sessionStorage.getItem('cec_user_email') : null;
-
         let userEmail = cachedEmail;
+
         if (supabase) {
           const { data: { user } } = await supabase.auth.getUser();
           if (user?.email) userEmail = user.email;
@@ -109,7 +105,7 @@ export default function AdminDashboard() {
 
         setUserRole(profile.role);
         setCurrentUser({
-          name: profile.full_name || (profile.role === 'admin' ? 'System Administrator' : 'Staff Officer'),
+          name: profile.full_name || (profile.role === 'admin' ? 'Administrator' : 'Staff Officer'),
           email: profile.email,
           school_id: profile.school_id || '',
         });
@@ -171,79 +167,119 @@ export default function AdminDashboard() {
     router.replace('/');
   };
 
-  // Add Student (Enforce Regex Format: 2024-0616)
+  // Enrolling a student generates their Auth account with School ID as default password
   const handleAddStudent = async (e) => {
     e.preventDefault();
 
     const idRegex = /^\d{4}-\d{4,5}$/;
     if (!idRegex.test(studentId.trim())) {
-      showNotify('error', 'Invalid Student ID format. Example: 2024-0616.');
+      showNotify('error', 'Invalid Student ID format. Follow format: 2024-0616.');
       return;
     }
 
     setLoading(true);
 
-    const { error } = await supabase.from('profiles').insert([
-      {
-        school_id: studentId.trim(),
-        full_name: studentName.trim(),
-        email: studentEmail.trim().toLowerCase(),
-        course: studentCourse,
-        year_level: studentYear,
-        role: 'student',
-        can_scan: false,
-        status: 'Active',
-      },
-    ]);
+    try {
+      const cleanEmail = studentEmail.trim().toLowerCase();
+      const defaultPassword = studentId.trim();
 
-    setLoading(false);
+      // Create authentication user
+      const { error: authError } = await supabase.auth.signUp({
+        email: cleanEmail,
+        password: defaultPassword,
+      });
 
-    if (error) {
-      showNotify('error', `Error registering student: ${error.message}`);
-    } else {
-      showNotify('success', `Student (${studentId.trim()}) enrolled to Whitelist successfully!`);
+      if (authError && !authError.message.includes('already registered')) {
+        throw new Error(`Authentication Error: ${authError.message}`);
+      }
+
+      // Record profile with required password change flag
+      const { error: profileError } = await supabase.from('profiles').insert([
+        {
+          school_id: studentId.trim(),
+          full_name: studentName.trim(),
+          email: cleanEmail,
+          course: studentCourse,
+          year_level: studentYear,
+          role: 'student',
+          can_scan: false,
+          status: 'Active',
+          must_change_password: true,
+        },
+      ]);
+
+      if (profileError) {
+        throw new Error(`Database Error: ${profileError.message}`);
+      }
+
+      showNotify(
+        'success',
+        `Student enrolled. Default password is the School ID (${defaultPassword}).`
+      );
       setStudentId('');
       setStudentName('');
       setStudentEmail('');
       fetchAllData();
+    } catch (err) {
+      showNotify('error', err.message);
+    } finally {
+      setLoading(false);
     }
   };
 
-  // Add Staff Officer
   const handleAddStaff = async (e) => {
     e.preventDefault();
     if (userRole !== 'admin') {
-      showNotify('error', 'Only Administrators can register staff members.');
+      showNotify('error', 'Only Administrators are authorized to register staff members.');
       return;
     }
 
     setLoading(true);
     const generatedStaffId = `STAFF-${Math.floor(1000 + Math.random() * 9000)}`;
 
-    const { error } = await supabase.from('profiles').insert([
-      {
-        school_id: generatedStaffId,
-        full_name: staffName.trim(),
-        email: staffEmail.trim().toLowerCase(),
-        role: 'staff',
-        can_scan: true,
-        status: 'Active',
-      },
-    ]);
+    try {
+      const cleanEmail = staffEmail.trim().toLowerCase();
+      const defaultPassword = generatedStaffId;
 
-    setLoading(false);
+      const { error: authError } = await supabase.auth.signUp({
+        email: cleanEmail,
+        password: defaultPassword,
+      });
 
-    if (error) {
-      showNotify('error', `Error: ${error.message}`);
-    } else {
-      showNotify('success', `Staff officer ${staffName} registered. Scanner authorization enabled.`);
+      if (authError && !authError.message.includes('already registered')) {
+        throw new Error(`Authentication Error: ${authError.message}`);
+      }
+
+      const { error: profileError } = await supabase.from('profiles').insert([
+        {
+          school_id: generatedStaffId,
+          full_name: staffName.trim(),
+          email: cleanEmail,
+          role: 'staff',
+          can_scan: true,
+          status: 'Active',
+          must_change_password: true,
+        },
+      ]);
+
+      if (profileError) {
+        throw new Error(`Database Error: ${profileError.message}`);
+      }
+
+      showNotify(
+        'success',
+        `Staff officer ${staffName} registered. Default password: ${defaultPassword}`
+      );
       setStaffName('');
       setStaffEmail('');
       fetchAllData();
+    } catch (err) {
+      showNotify('error', err.message);
+    } finally {
+      setLoading(false);
     }
   };
 
-  // Add Official Event
   const handleAddEvent = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -275,12 +311,11 @@ export default function AdminDashboard() {
     }
   };
 
-  // Quick Manual Attendance Check-in
   const handleManualScanSubmit = async (e) => {
     e.preventDefault();
     if (!manualStudentId) return;
 
-    setScanLogMsg({ type: 'info', text: 'Verifying Student ID in Whitelist database...' });
+    setScanLogMsg({ type: 'info', text: 'Validating Student ID against Whitelist database...' });
 
     const studentMatch = students.find(
       (s) => s.school_id?.toLowerCase() === manualStudentId.trim().toLowerCase()
@@ -382,11 +417,10 @@ export default function AdminDashboard() {
     <div className={styles.container} style={{ paddingBottom: 0 }}>
       <Head>
         <title>CEC TRACK • {isAdmin ? 'Admin Portal' : 'Staff Portal'}</title>
-        {/* RESPONSIVE VIEWPORT TO MAKE TEXTS PROPORTIONAL AND LARGE ON MOBILE PHONES */}
         <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
       </Head>
 
-      {/* TOP HEADER: HAMBURGER & USER BADGE ON THE EXACT SAME ROW (SIDE BY SIDE) */}
+      {/* Top Header: Hamburger & Cateel Extension Campus Badge Aligned Side by Side */}
       <header
         style={{
           position: 'sticky',
@@ -410,7 +444,7 @@ export default function AdminDashboard() {
             boxSizing: 'border-box',
           }}
         >
-          {/* LEFT: HAMBURGER BUTTON & BRAND TITLE */}
+          {/* Left: Hamburger Button and Brand */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <button
               onClick={() => setIsSidebarOpen(!isSidebarOpen)}
@@ -454,70 +488,40 @@ export default function AdminDashboard() {
                   {isAdmin ? 'Admin' : 'Staff'}
                 </span>
               </div>
-              <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748b', display: 'block' }}>
-                College of Engineering & Computing
-              </span>
             </div>
           </div>
 
-          {/* RIGHT: USER BADGE CARD (ALIGNED IN THE SAME ROW SIDE BY SIDE) */}
+          {/* Right: Cateel Extension Campus Badge */}
           <div
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: '10px',
-              backgroundColor: '#ffffff',
-              border: '1px solid #e2e8f0',
-              borderRadius: '16px',
-              padding: '6px 12px',
-              boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+              gap: '8px',
+              backgroundColor: '#f0fdf4',
+              border: '1px solid #bbf7d0',
+              borderRadius: '14px',
+              padding: '8px 14px',
+              boxShadow: '0 1px 2px rgba(21, 128, 61, 0.06)',
               flexShrink: 0,
             }}
           >
-            <div style={{ textAlign: 'right' }}>
-              <span
-                style={{
-                  fontSize: '0.9rem',
-                  fontWeight: 900,
-                  color: '#0f172a',
-                  display: 'block',
-                  lineHeight: 1.2,
-                  maxWidth: '130px',
-                  whiteSpace: 'nowrap',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                }}
-              >
-                {currentUser.name || 'System Administrator'}
-              </span>
-              <span style={{ fontSize: '0.72rem', fontWeight: 800, color: '#15803d' }}>
-                {isAdmin ? 'Head Administrator' : 'Staff Officer'}
-              </span>
-            </div>
-
-            <div
+            <span style={{ fontSize: '1rem' }}>📍</span>
+            <span
               style={{
-                width: '38px',
-                height: '38px',
-                borderRadius: '12px',
-                backgroundColor: '#dcfce7',
+                fontSize: '0.85rem',
+                fontWeight: 800,
                 color: '#15803d',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontWeight: 900,
-                fontSize: '1rem',
-                flexShrink: 0,
-                border: '1px solid #bbf7d0',
+                letterSpacing: '-0.01em',
+                lineHeight: 1.2,
               }}
             >
-              {currentUser.name ? currentUser.name.charAt(0).toUpperCase() : 'S'}
-            </div>
+              Cateel Extension Campus
+            </span>
           </div>
         </div>
       </header>
 
-      {/* MOBILE BACKDROP OVERLAY */}
+      {/* Mobile Drawer Overlay */}
       {isSidebarOpen && (
         <div
           onClick={() => setIsSidebarOpen(false)}
@@ -532,7 +536,7 @@ export default function AdminDashboard() {
       )}
 
       <div className={styles.portalWrapper}>
-        {/* SIDEBAR NAVIGATION DRAWER (WITH PINNED SIGN OUT AT BOTTOM) */}
+        {/* Navigation Sidebar Drawer */}
         <aside
           style={{
             position: 'fixed',
@@ -581,7 +585,6 @@ export default function AdminDashboard() {
               </button>
             </div>
 
-            {/* NAVIGATION BUTTONS (PROPORTIONAL & TOUCH-FRIENDLY) */}
             <nav style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               <button
                 onClick={() => { setActiveTab('profile'); setIsSidebarOpen(false); }}
@@ -627,12 +630,12 @@ export default function AdminDashboard() {
                 style={{ fontSize: '0.95rem', padding: '14px 16px' }}
               >
                 <span>📷</span>
-                <span>Scan QR & Quick Log</span>
+                <span>Scan QR &amp; Quick Log</span>
               </button>
             </nav>
           </div>
 
-          {/* SIGN OUT PINNED AT THE BOTTOM */}
+          {/* Pinned Sign Out Button */}
           <div style={{ borderTop: '1px solid #f1f5f9', paddingTop: '18px', marginTop: '20px' }}>
             <button
               onClick={handleSignOut}
@@ -645,9 +648,8 @@ export default function AdminDashboard() {
           </div>
         </aside>
 
-        {/* MAIN BODY AREA */}
+        {/* Main Content Viewport */}
         <main className={styles.portalContentArea} style={{ padding: '20px 16px' }}>
-          {/* TITLE BANNER */}
           <div style={{ marginBottom: '20px' }}>
             <h1 style={{ fontSize: '1.65rem', fontWeight: 900, color: '#0f172a', margin: '0 0 4px 0' }}>
               Command Center
@@ -657,7 +659,6 @@ export default function AdminDashboard() {
             </p>
           </div>
 
-          {/* NOTIFICATION */}
           {notification.message && (
             <div
               className={styles.alertMessage}
@@ -674,9 +675,7 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          {/* ========================================================= */}
-          {/* TAB 1: SYSTEM OVERVIEW */}
-          {/* ========================================================= */}
+          {/* Tab 1: System Overview */}
           {activeTab === 'profile' && (
             <div>
               <div className={styles.attendanceStatsGrid}>
@@ -705,7 +704,6 @@ export default function AdminDashboard() {
                 </div>
               </div>
 
-              {/* Department Breakdown */}
               <div className={styles.adminFormCard}>
                 <h3 className={styles.analyticsTitle} style={{ fontSize: '0.85rem', marginBottom: '16px' }}>
                   Students Distribution by Course
@@ -728,9 +726,7 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          {/* ========================================================= */}
-          {/* TAB 2: WHITELIST STUDENTS */}
-          {/* ========================================================= */}
+          {/* Tab 2: Whitelist Students */}
           {activeTab === 'add-student' && (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '24px' }}>
               {isAdmin && (
@@ -820,7 +816,6 @@ export default function AdminDashboard() {
                 </div>
               )}
 
-              {/* Students Table */}
               <div className={styles.adminFormCard}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '8px' }}>
                   <h3 className={styles.analyticsTitle} style={{ fontSize: '0.9rem' }}>
@@ -876,9 +871,7 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          {/* ========================================================= */}
-          {/* TAB 3: MANAGE STAFF (Admin Only) */}
-          {/* ========================================================= */}
+          {/* Tab 3: Manage Staff */}
           {activeTab === 'add-staff' && isAdmin && (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '24px' }}>
               <div className={styles.adminFormCard}>
@@ -965,9 +958,7 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          {/* ========================================================= */}
-          {/* TAB 4: MANAGE EVENTS */}
-          {/* ========================================================= */}
+          {/* Tab 4: Manage Events */}
           {activeTab === 'add-event' && (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '24px' }}>
               <div className={styles.adminFormCard}>
@@ -1125,9 +1116,7 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          {/* ========================================================= */}
-          {/* TAB 5: SCAN QR & QUICK LOG */}
-          {/* ========================================================= */}
+          {/* Tab 5: Scan QR & Quick Log */}
           {activeTab === 'scan-qr' && (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '24px' }}>
               <div className={styles.adminFormCard} style={{ textAlign: 'center', padding: '32px 20px' }}>
