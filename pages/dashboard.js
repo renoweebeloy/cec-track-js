@@ -8,11 +8,13 @@ import styles from '../styles/Home.module.css';
 export default function StudentDashboard() {
   const router = useRouter();
   const fileInputRef = useRef(null);
+  const idCardRef = useRef(null); // Reference para sa pag-download ng ID card
 
   const [activeTab, setActiveTab] = useState('my-id'); // 'my-id' | 'attendance' | 'events' | 'profile'
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [downloadingId, setDownloadingId] = useState(false);
 
   // Student Profile Data
   const [profile, setProfile] = useState({
@@ -22,7 +24,7 @@ export default function StudentDashboard() {
     course: 'BSCRIM',
     section: 'Section A',
     year_level: '3rd Year',
-    avatar_url: '', // Gi-save nga ID photo
+    avatar_url: '', // Naka-save na 2x2 ID photo
   });
 
   // Events & Attendance States
@@ -68,7 +70,7 @@ export default function StudentDashboard() {
         }
       }
 
-      // Fetch events
+      // Kumuha ng mga events
       const { data: eventsData } = await supabase
         .from('events')
         .select('*')
@@ -78,7 +80,7 @@ export default function StudentDashboard() {
         setEvents(eventsData);
       }
 
-      // Fetch attendance logs
+      // Kumuha ng attendance logs
       const { data: logsData } = await supabase
         .from('attendance')
         .select('*')
@@ -133,7 +135,7 @@ export default function StudentDashboard() {
     if (!file) return;
 
     if (!file.type.startsWith('image/')) {
-      alert('Palihug pagpili og valid nga hulagway (PNG, JPG, o JPEG).');
+      alert('Pumili ng wastong larawan (PNG, JPG, o JPEG).');
       return;
     }
 
@@ -143,26 +145,65 @@ export default function StudentDashboard() {
     reader.onload = async (uploadEvent) => {
       const base64Photo = uploadEvent.target.result;
 
-      // I-update sa local state ug browser storage
       setProfile((prev) => ({ ...prev, avatar_url: base64Photo }));
       if (typeof window !== 'undefined') {
         localStorage.setItem(`cec_photo_${profile.school_id}`, base64Photo);
       }
 
-      // I-save usab sa database profiles table kon aduna ma'y avatar_url column
       try {
         await supabase
           .from('profiles')
           .update({ avatar_url: base64Photo })
           .eq('school_id', profile.school_id);
       } catch (err) {
-        console.warn('Database avatar save error (fallback to local photo):', err);
+        console.warn('Database avatar update note:', err);
       }
 
       setUploadingPhoto(false);
     };
 
     reader.readAsDataURL(file);
+  };
+
+  // DOWNLOAD OFFICIAL DIGITAL ID AS HIGH-RES PNG IMAGE
+  const handleDownloadIdCard = async () => {
+    if (!idCardRef.current) return;
+    setDownloadingId(true);
+
+    try {
+      // Dynamic load ng html2canvas mula sa CDN kung wala pa sa window
+      if (!window.html2canvas) {
+        const script = document.createElement('script');
+        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+        await new Promise((resolve, reject) => {
+          script.onload = resolve;
+          script.onerror = reject;
+          document.body.appendChild(script);
+        });
+      }
+
+      const canvas = await window.html2canvas(idCardRef.current, {
+        scale: 3, // Mataas na resolution (malinaw kahit i-zoom o i-print)
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: '#ffffff',
+        borderRadius: 28,
+      });
+
+      const imageUri = canvas.toDataURL('image/png');
+      const downloadLink = document.createElement('a');
+      downloadLink.download = `CEC-ID-${profile.school_id || 'Student'}.png`;
+      downloadLink.href = imageUri;
+      document.body.appendChild(downloadLink);
+      downloadLink.click();
+      document.body.removeChild(downloadLink);
+    } catch (err) {
+      console.error('Error downloading ID card:', err);
+      // Fallback gamit ang browser print kapag may aberya
+      window.print();
+    } finally {
+      setDownloadingId(false);
+    }
   };
 
   const handleSignOut = async () => {
@@ -188,7 +229,6 @@ export default function StudentDashboard() {
     log.location?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  // Dynamic QR Code generation based on School ID
   const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(
     profile.school_id
   )}`;
@@ -198,6 +238,7 @@ export default function StudentDashboard() {
       <Head>
         <title>Student Portal • CEC TRACK</title>
         <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" async />
       </Head>
 
       {/* TOP HEADER */}
@@ -481,13 +522,18 @@ export default function StudentDashboard() {
                   <p className={styles.adminSubtitle}>Your official scannable organization credentials.</p>
                 </div>
                 {profile.avatar_url && (
-                  <button onClick={() => window.print()} className={styles.adminPrimaryBtn} style={{ minHeight: '48px', fontSize: '0.95rem' }}>
-                    📥 Download Official ID
+                  <button
+                    onClick={handleDownloadIdCard}
+                    disabled={downloadingId}
+                    className={styles.adminPrimaryBtn}
+                    style={{ minHeight: '48px', fontSize: '0.95rem' }}
+                  >
+                    {downloadingId ? '⏳ Generating ID Image...' : '📥 Download Official ID'}
                   </button>
                 )}
               </div>
 
-              {/* Hidden file input for uploading photo */}
+              {/* Tago na file input para sa pag-upload ng litrato */}
               <input
                 type="file"
                 ref={fileInputRef}
@@ -497,33 +543,56 @@ export default function StudentDashboard() {
               />
 
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '28px', alignItems: 'start' }}>
-                {/* ID Card Front */}
+                {/* ID CARD CONTAINER NA MAY ATTACHED REF PARA SA DOWNLOAD */}
                 <div className={styles.digitalIdCard}>
-                  <div className={styles.idCardInner}>
-                    {/* Header Green Curve Cover */}
-                    <div className={styles.idCardHeaderCover} />
-
-                    {/* CECTRACK BADGE SA IBABAW SA ICON */}
-                    <span
+                  <div
+                    ref={idCardRef}
+                    className={styles.idCardInner}
+                    style={{
+                      position: 'relative',
+                      overflow: 'hidden',
+                      paddingTop: '68px',
+                      backgroundColor: '#ffffff',
+                    }}
+                  >
+                    {/* BERDENG HEADER COVER NA MAY "CEC- TRACK" BADGE */}
+                    <div
                       style={{
-                        position: 'relative',
-                        zIndex: 10,
-                        display: 'inline-block',
-                        backgroundColor: 'rgba(255, 255, 255, 0.25)',
-                        backdropFilter: 'blur(4px)',
-                        color: '#ffffff',
-                        fontSize: '0.75rem',
-                        fontWeight: 900,
-                        letterSpacing: '0.12em',
-                        padding: '4px 16px',
-                        borderRadius: '9999px',
-                        textTransform: 'uppercase',
-                        border: '1px solid rgba(255, 255, 255, 0.4)',
-                        marginBottom: '14px',
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        height: '115px',
+                        backgroundColor: '#15803d',
+                        borderTopLeftRadius: '26px',
+                        borderTopRightRadius: '26px',
+                        borderBottomLeftRadius: '36px',
+                        borderBottomRightRadius: '36px',
+                        display: 'flex',
+                        alignItems: 'flex-start',
+                        justifyContent: 'center',
+                        paddingTop: '16px',
+                        zIndex: 1,
                       }}
                     >
-                      CECTRACK
-                    </span>
+                      <span
+                        style={{
+                          color: '#ffffff',
+                          fontSize: '0.85rem',
+                          fontWeight: 900,
+                          letterSpacing: '0.14em',
+                          textTransform: 'uppercase',
+                          backgroundColor: 'rgba(255, 255, 255, 0.22)',
+                          backdropFilter: 'blur(5px)',
+                          padding: '4px 16px',
+                          borderRadius: '9999px',
+                          border: '1px solid rgba(255, 255, 255, 0.38)',
+                          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
+                        }}
+                      >
+                        CEC- TRACK
+                      </span>
+                    </div>
 
                     {/* PHOTO CONTAINER (CLICK TO UPLOAD) */}
                     <div
@@ -532,6 +601,8 @@ export default function StudentDashboard() {
                       style={{
                         cursor: 'pointer',
                         position: 'relative',
+                        zIndex: 2,
+                        marginTop: '10px',
                         border: '4px solid #ffffff',
                         overflow: 'hidden',
                         backgroundColor: '#f1f5f9',
@@ -539,7 +610,7 @@ export default function StudentDashboard() {
                         alignItems: 'center',
                         justifyContent: 'center',
                       }}
-                      title="Click to upload/change ID photo"
+                      title="Pindutin para mag-upload o magpalit ng litrato"
                     >
                       {profile.avatar_url ? (
                         <img
@@ -569,26 +640,28 @@ export default function StudentDashboard() {
                         cursor: 'pointer',
                         marginTop: '4px',
                         textDecoration: 'underline',
+                        position: 'relative',
+                        zIndex: 2,
                       }}
                     >
                       {uploadingPhoto ? 'Uploading photo...' : profile.avatar_url ? 'Change Photo' : 'Upload 2x2 Photo'}
                     </button>
 
-                    <h2 className={styles.idStudentName} style={{ marginTop: '8px' }}>
+                    <h2 className={styles.idStudentName} style={{ marginTop: '8px', position: 'relative', zIndex: 2 }}>
                       {profile.full_name}
                     </h2>
 
-                    <div className={styles.idLabel}>STUDENT ID</div>
-                    <div className={styles.idSchoolNumber}>{profile.school_id}</div>
+                    <div className={styles.idLabel} style={{ position: 'relative', zIndex: 2 }}>STUDENT ID</div>
+                    <div className={styles.idSchoolNumber} style={{ position: 'relative', zIndex: 2 }}>{profile.school_id}</div>
 
-                    {/* QR CODE CONDITION: IPAGAWAS LAMANG KUNG NAKA-UPLOAD NA OG PHOTO */}
+                    {/* QR CODE CONDITION: LALABAS LAMANG KUNG NAKA-UPLOAD NA NG LITRATO */}
                     {profile.avatar_url ? (
-                      <div>
+                      <div style={{ position: 'relative', zIndex: 2 }}>
                         <div className={styles.idQrBox}>
-                          <img src={qrCodeUrl} alt="Student QR Code" />
+                          <img src={qrCodeUrl} alt="Student QR Code" crossOrigin="anonymous" />
                         </div>
 
-                        {/* SCAN FOR ATTENDANCE SA UBOS SA QR CODE */}
+                        {/* SCAN FOR ATTENDANCE SA ILALIM NG QR CODE */}
                         <div
                           style={{
                             fontSize: '0.78rem',
@@ -603,9 +676,11 @@ export default function StudentDashboard() {
                         </div>
                       </div>
                     ) : (
-                      /* LOCKED STATE KUNG WALA PA'Y LITRATO */
+                      /* KUNG WALA PANG LITRATO: NAKA-LOCK ANG QR CODE */
                       <div
                         style={{
+                          position: 'relative',
+                          zIndex: 2,
                           margin: '18px 0',
                           padding: '18px 14px',
                           backgroundColor: '#fef2f2',
@@ -645,7 +720,7 @@ export default function StudentDashboard() {
                     )}
 
                     {/* FOOTER: CATEEL EXTENSION CAMPUS */}
-                    <div style={{ borderTop: '1px solid #f1f5f9', marginTop: '16px', paddingTop: '10px' }}>
+                    <div style={{ borderTop: '1px solid #f1f5f9', marginTop: '16px', paddingTop: '10px', position: 'relative', zIndex: 2 }}>
                       <span
                         style={{
                           fontSize: '0.7rem',
@@ -661,7 +736,7 @@ export default function StudentDashboard() {
                   </div>
                 </div>
 
-                {/* Right Column: Info Guide Cards */}
+                {/* Right Column: Info Cards */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                   <div className={styles.adminFormCard} style={{ backgroundColor: '#f0fdf4', borderColor: '#bbf7d0', padding: '20px' }}>
                     <div style={{ display: 'flex', gap: '14px', alignItems: 'flex-start' }}>
@@ -671,7 +746,7 @@ export default function StudentDashboard() {
                           Universal Device Downloads
                         </h4>
                         <p style={{ margin: 0, fontSize: '0.85rem', color: '#15803d', lineHeight: 1.5 }}>
-                          Save this digital badge directly to your smartphone photos or download it on your laptop for quick verification during events.
+                          Pindutin ang <strong>Download Official ID</strong> sa itaas upang awtomatikong ma-save ang iyong digital ID card bilang malinaw na PNG image sa iyong Photos o Downloads folder.
                         </p>
                       </div>
                     </div>
@@ -686,7 +761,7 @@ export default function StudentDashboard() {
                         </h4>
                         <ul style={{ margin: '6px 0 0 0', paddingLeft: '18px', fontSize: '0.85rem', color: '#64748b', lineHeight: 1.6 }}>
                           <li>Present this QR code for attendance monitoring at all official assemblies.</li>
-                          <li>This code is non-transferable. Presenting another student&apos;s code is prohibited.</li>
+                          <li>This code is non-transferable. Presenting another student&apos;s code is strictly prohibited.</li>
                         </ul>
                       </div>
                     </div>
@@ -713,7 +788,6 @@ export default function StudentDashboard() {
                 </button>
               </div>
 
-              {/* Attendance Statistics Cards */}
               <div className={styles.attendanceStatsGrid}>
                 <div className={styles.attStatCard} style={{ padding: '20px' }}>
                   <span className={styles.attStatLabel} style={{ fontSize: '0.8rem' }}>Total Events</span>
@@ -736,7 +810,6 @@ export default function StudentDashboard() {
                 </div>
               </div>
 
-              {/* Filters & Search */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
                 <div style={{ display: 'flex', gap: '8px' }}>
                   <button
@@ -772,7 +845,6 @@ export default function StudentDashboard() {
                 />
               </div>
 
-              {/* Attendance Logs Table */}
               <div className={styles.adminTableWrapper}>
                 <table className={styles.adminTable}>
                   <thead>
@@ -935,7 +1007,6 @@ export default function StudentDashboard() {
                 </p>
               </div>
 
-              {/* Verified Details Card */}
               <div className={styles.adminFormCard} style={{ padding: '24px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #f1f5f9', paddingBottom: '12px', marginBottom: '16px' }}>
                   <span style={{ fontSize: '0.8rem', fontWeight: 900, color: '#0f172a', textTransform: 'uppercase' }}>
@@ -968,7 +1039,6 @@ export default function StudentDashboard() {
                 </div>
               </div>
 
-              {/* Security Policy Notice */}
               <div className={styles.adminFormCard} style={{ backgroundColor: '#f0fdf4', borderColor: '#bbf7d0', marginTop: '16px', padding: '18px' }}>
                 <p style={{ margin: 0, fontSize: '0.85rem', color: '#166534', lineHeight: 1.5 }}>
                   ℹ️ <strong>ADMINISTRATOR MANAGED:</strong> Your official student credentials are maintained by the organization administrators. For any corrections to your course or name, please contact an authorized officer.
