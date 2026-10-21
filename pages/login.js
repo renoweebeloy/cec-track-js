@@ -1,36 +1,41 @@
 import { useState } from 'react';
 import Head from 'next/head';
+import { supabase } from '../lib/supabaseClient';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
-import { supabase } from '../lib/supabaseClient';
+import styles from '../styles/Home.module.css';
 
 export default function Login() {
   const router = useRouter();
 
+  // Form States
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [message, setMessage] = useState('');
+  const [isSuccess, setIsSuccess] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [errorMessage, setErrorMessage] = useState('');
-  const [successMessage, setSuccessMessage] = useState('');
 
   // Data Privacy Modal State (para sa mga estudyante)
   const [showPrivacyModal, setShowPrivacyModal] = useState(false);
 
+  // ========================================================
+  // LOGIN SUBMIT HANDLER (ADMIN, STAFF & STUDENT ROUTING)
+  // ========================================================
   const handleLogin = async (e) => {
     e.preventDefault();
     setLoading(true);
-    setErrorMessage('');
-    setSuccessMessage('');
+    setMessage('');
+    setIsSuccess(false);
 
     const cleanEmail = email.trim().toLowerCase();
 
     try {
       if (!supabase) {
-        throw new Error('Wala ma-initialize ang Supabase client.');
+        throw new Error('Wala ma-initialize ang database connection.');
       }
 
-      // 1. Susiha kon ang email anaa ba sa database whitelist ('profiles' table)
+      // 1. Susiha kon ang user anaa ba sa whitelist database ('profiles' table)
       const { data: profile, error: profileErr } = await supabase
         .from('profiles')
         .select('*')
@@ -39,7 +44,7 @@ export default function Login() {
 
       if (profileErr || !profile) {
         throw new Error(
-          '❌ ACCESS DENIED: Kini nga email wala marehistro sa Whitelist! Palihug pakigkita sa Admin aron ma-enroll ang imong account.'
+          '❌ ACCESS DENIED: Kini nga email wala pa sa Whitelist! Palihug duol sa Admin aron ma-enroll ang imong School ID (e.g. 2024-0616).'
         );
       }
 
@@ -47,7 +52,7 @@ export default function Login() {
         throw new Error('⚠️ Na-deactivate kini nga account. Pakigkita sa Administrator.');
       }
 
-      // 2. Supabase Auth Login
+      // 2. Supabase Authentication Sign In
       const { error: authError } = await supabase.auth.signInWithPassword({
         email: cleanEmail,
         password: password,
@@ -65,29 +70,33 @@ export default function Login() {
       sessionStorage.setItem('cec_full_name', profile.full_name || '');
       sessionStorage.setItem('cec_can_scan', profile.can_scan ? 'true' : 'false');
 
-      // 4. ROLE-BASED REDIRECTION (Usa ra ka login page para sa tanan)
+      // 4. Role-based Redirection
       if (userRole === 'admin' || userRole === 'staff') {
-        // Ang Admin ug Staff diretso sa Admin Command Center (/admin)
+        // Kon Admin o Staff, ilabay dayon sa admin.js
         router.push('/admin');
       } else {
-        // Ang Estudyante mo-review una sa Data Privacy & Confidentiality Agreement
+        // Kon Estudyante, ipakita ang Data Privacy Modal una moadto sa dashboard
         setShowPrivacyModal(true);
       }
     } catch (err) {
-      setErrorMessage(err.message || 'Adunay sayop sa pagsulod.');
+      setMessage(err.message || 'Adunay sayop sa pag-login.');
+      setIsSuccess(false);
     } finally {
       setLoading(false);
     }
   };
 
+  // Kon mo-uyon ang estudyante sa Data Privacy
   const handleAgreePrivacy = () => {
     setShowPrivacyModal(false);
     router.push('/dashboard');
   };
 
+  // Forgot Password Handler
   const handleForgotPassword = async () => {
     if (!email) {
-      setErrorMessage('Palihug ibutang ang imong Email Address sa ibabaw.');
+      setMessage('Palihug ibutang ang imong email sa ibabaw una mopislit og Forgot Password.');
+      setIsSuccess(false);
       return;
     }
     setLoading(true);
@@ -96,210 +105,306 @@ export default function Login() {
     });
     setLoading(false);
     if (error) {
-      setErrorMessage(error.message);
+      setMessage(error.message);
+      setIsSuccess(false);
     } else {
-      setSuccessMessage('Na-send na ang password reset link sa imong email!');
+      setMessage('Na-send na ang password reset link sa imong email!');
+      setIsSuccess(true);
     }
   };
 
   return (
-    <div className="min-h-screen bg-[#FAFAFA] flex flex-col justify-center items-center px-4 py-8 antialiased font-sans">
+    <div className={styles.loginContainer}>
       <Head>
-        <title>Login Portal • CEC TRACK 3.0</title>
+        <title>Login • CECTRACK 3.0</title>
       </Head>
 
-      <div className="w-full max-w-sm sm:max-w-md bg-white p-6 sm:p-8 rounded-3xl border border-slate-200/80 shadow-xl space-y-6">
-        {/* Logo & Header */}
-        <div className="text-center space-y-2">
-          <div className="w-16 h-16 mx-auto rounded-3xl bg-white shadow-md border border-slate-100 flex items-center justify-center relative overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-to-br from-orange-100 to-white opacity-60"></div>
-            <span className="text-xl font-black text-orange-600 relative z-10">CEC</span>
-          </div>
-
-          <h1 className="text-3xl font-black tracking-tight text-orange-600 pt-1">
-            CEC TRACK 3.0
-          </h1>
-
-          <div>
-            <h2 className="text-base font-bold text-slate-900">
-              Welcome to <span className="text-orange-600">CEC TRACK</span>
-            </h2>
-            <p className="text-xs text-slate-500 mt-0.5">
-              Enter your credentials to access your portal.
-            </p>
+      <div className={styles.loginCard}>
+        {/* GAMAY NGA DOrSU / CEC LOGO LAYOUT */}
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1.25rem' }}>
+          <div
+            style={{
+              width: '54px',
+              height: '54px',
+              borderRadius: '16px',
+              backgroundColor: '#f0fdf4',
+              border: '2px solid #bbf7d0',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: '0 4px 10px rgba(21, 128, 61, 0.12)',
+              overflow: 'hidden',
+              padding: '6px',
+              boxSizing: 'border-box',
+            }}
+          >
+            <img
+              src="/logo.png"
+              alt="DOrSU Logo"
+              style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+              onError={(e) => {
+                // Kon wala pa ang logo.png sa imong public folder, mo-fallback sa green CEC badge
+                e.currentTarget.style.display = 'none';
+                if (e.currentTarget.nextSibling) {
+                  e.currentTarget.nextSibling.style.display = 'block';
+                }
+              }}
+            />
+            <span
+              style={{
+                display: 'none',
+                fontWeight: 900,
+                color: '#15803d',
+                fontSize: '0.95rem',
+                letterSpacing: '-0.025em',
+              }}
+            >
+              CEC
+            </span>
           </div>
         </div>
 
-        {/* Alerts */}
-        {errorMessage && (
-          <div className="p-3.5 bg-rose-50 border border-rose-200 text-rose-700 text-xs font-bold rounded-2xl flex items-start gap-2">
-            <span className="text-sm">⚠️</span>
-            <span>{errorMessage}</span>
-          </div>
-        )}
+        {/* Header Section */}
+        <div className={styles.loginHeader}>
+          <h1 className={styles.loginTitle}>
+            Welcome to <br />
+            <span className={styles.loginTitleHighlight}>CECTRACK</span>
+          </h1>
+          <p className={styles.loginSubtitle}>
+            Enter your CECTRACK credentials to login.
+          </p>
+        </div>
 
-        {successMessage && (
-          <div className="p-3.5 bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-bold rounded-2xl flex items-start gap-2">
-            <span className="text-sm">✅</span>
-            <span>{successMessage}</span>
-          </div>
-        )}
-
-        {/* Login Form */}
-        <form onSubmit={handleLogin} className="space-y-4">
-          <div className="space-y-1">
-            <label className="text-[11px] font-black uppercase tracking-wider text-slate-400 pl-1">
-              EMAIL ADDRESS
-            </label>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400">
+        {/* Form Section */}
+        <form onSubmit={handleLogin} className={styles.loginForm}>
+          {/* Email Input */}
+          <div className={styles.inputGroup}>
+            <label className={styles.inputLabel}>Email</label>
+            <div className={styles.inputWrapper}>
+              <div className={styles.inputIconLeft}>
                 <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+                  />
                 </svg>
               </div>
               <input
                 type="email"
-                placeholder="e.g. juandelacruz@gmail.com"
+                placeholder="juandelacruz@gmail.com"
+                className={styles.loginInput}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                className="w-full pl-11 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-orange-500 focus:bg-white transition"
               />
             </div>
           </div>
 
-          <div className="space-y-1">
-            <label className="text-[11px] font-black uppercase tracking-wider text-slate-400 pl-1">
-              PASSWORD
-            </label>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400">
+          {/* Password Input */}
+          <div className={styles.inputGroup}>
+            <label className={styles.inputLabel}>Password</label>
+            <div className={styles.inputWrapper}>
+              <div className={styles.inputIconLeft}>
                 <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+                  />
                 </svg>
               </div>
               <input
                 type={showPassword ? 'text' : 'password'}
                 placeholder="••••••••"
+                className={styles.loginInput}
+                style={{ paddingRight: '3rem' }}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                className="w-full pl-11 pr-12 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-orange-500 focus:bg-white transition"
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute inset-y-0 right-0 pr-4 flex items-center text-slate-400 hover:text-slate-600 text-xs font-bold"
+                className={styles.passwordToggle}
               >
                 {showPassword ? 'Hide' : 'Show'}
               </button>
             </div>
           </div>
 
-          <div className="text-right">
+          {/* Forgot Password Link */}
+          <div className={styles.forgotPasswordWrapper}>
             <button
               type="button"
               onClick={handleForgotPassword}
-              className="text-xs font-bold text-orange-600 hover:text-orange-700 transition"
+              className={styles.forgotPasswordBtn}
             >
               Forgot Password?
             </button>
           </div>
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full py-4 bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white font-black rounded-2xl text-sm shadow-lg shadow-orange-500/25 flex items-center justify-center gap-2 transition"
-          >
-            {loading ? <span>Ginasusi ang Profile...</span> : <span>Log In ➔</span>}
+          {/* Submit Button */}
+          <button type="submit" disabled={loading} className={styles.submitBtn}>
+            {loading ? 'Ginasusi ang Access...' : 'Log In'}
           </button>
         </form>
 
-        <div className="text-center pt-2">
-          <Link
-            href="/"
-            className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-400 hover:text-slate-700 transition"
+        {/* Message Alert */}
+        {message && (
+          <div
+            className={styles.alertMessage}
+            style={
+              isSuccess
+                ? {
+                    color: '#15803d',
+                    backgroundColor: '#f0fdf4',
+                    borderColor: '#bbf7d0',
+                  }
+                : {}
+            }
           >
-            <span>←</span> Back to Home
+            {message}
+          </div>
+        )}
+
+        {/* Back to Home Link */}
+        <div className={styles.backLinkWrapper}>
+          <Link href="/" className={styles.backLink}>
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className={styles.backIcon}
+            >
+              <path d="M15 18l-6-6 6-6" />
+            </svg>
+            Back to Home
           </Link>
         </div>
       </div>
 
-      {/* RA 10173 DATA PRIVACY AGREEMENT MODAL */}
+      {/* ========================================================
+          DATA PRIVACY MODAL (PARA SA MGA ESTUDYANTE)
+         ======================================================== */}
       {showPrivacyModal && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
-          <div className="w-full max-w-md bg-white rounded-t-3xl sm:rounded-3xl p-6 space-y-5 max-h-[90vh] overflow-y-auto animate-in slide-in-from-bottom duration-300">
-            <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
-              <div className="w-10 h-10 rounded-2xl bg-orange-100 text-orange-600 flex items-center justify-center text-xl shrink-0 font-bold">
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(15, 23, 42, 0.65)',
+            backdropFilter: 'blur(4px)',
+            zIndex: 100,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '16px',
+          }}
+        >
+          <div
+            style={{
+              backgroundColor: '#ffffff',
+              width: '100%',
+              maxWidth: '460px',
+              borderRadius: '24px',
+              padding: '24px',
+              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '16px',
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px',
+                borderBottom: '1px solid #f1f5f9',
+                paddingBottom: '12px',
+              }}
+            >
+              <div
+                style={{
+                  width: '40px',
+                  height: '40px',
+                  borderRadius: '12px',
+                  backgroundColor: '#dcfce7',
+                  color: '#15803d',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '1.25rem',
+                }}
+              >
                 🛡️
               </div>
               <div>
-                <h3 className="text-lg font-black text-slate-900 leading-tight">
-                  Data Privacy &<br />Confidentiality
+                <h3
+                  style={{
+                    fontSize: '1.1rem',
+                    fontWeight: 900,
+                    color: '#0f172a',
+                    margin: 0,
+                  }}
+                >
+                  Data Privacy Agreement
                 </h3>
-                <p className="text-[11px] text-slate-400 font-bold">
-                  Official CEC Policy • RA 10173 Compliance
-                </p>
+                <span
+                  style={{
+                    fontSize: '0.7rem',
+                    fontWeight: 800,
+                    color: '#15803d',
+                    textTransform: 'uppercase',
+                  }}
+                >
+                  RA 10173 Compliance • CEC Policy
+                </span>
               </div>
             </div>
 
-            <div className="bg-orange-50 p-4 rounded-2xl border border-orange-100 flex items-start gap-2.5">
-              <span className="text-orange-600 font-bold text-base shrink-0">⚠️</span>
-              <p className="text-xs font-bold text-orange-900 leading-relaxed">
-                Please review and accept this student data agreement before entering your portal.
-              </p>
-            </div>
+            <p style={{ fontSize: '0.8rem', color: '#64748b', lineHeight: 1.5, margin: 0 }}>
+              Pinaagi sa pagsulod sa CEC TRACK portal, miuyon ka nga ang tanang personal nga impormasyon, attendance logs, ug digital IDs confidential ug dili ipaambit sa uban.
+            </p>
 
-            <div className="space-y-3.5 text-xs">
-              <div className="flex items-start gap-3">
-                <div className="w-5 h-5 rounded-full bg-orange-100 text-orange-600 font-black text-[10px] flex items-center justify-center shrink-0 mt-0.5">
-                  1
-                </div>
-                <div>
-                  <h4 className="font-black text-slate-900">Confidentiality & Non-Disclosure</h4>
-                  <p className="text-slate-500 mt-0.5 leading-relaxed">
-                    You agree that all member directories, attendance logs, voting ballots, and internal organization materials accessible via CEC TRACK are strictly confidential.
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-3">
-                <div className="w-5 h-5 rounded-full bg-orange-100 text-orange-600 font-black text-[10px] flex items-center justify-center shrink-0 mt-0.5">
-                  2
-                </div>
-                <div>
-                  <h4 className="font-black text-slate-900">Personal Data Protection (No Sharing)</h4>
-                  <p className="text-slate-500 mt-0.5 leading-relaxed">
-                    You must not screenshot, scrape, share, or disclose any personal details of fellow students or officers with external parties.
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-3">
-                <div className="w-5 h-5 rounded-full bg-orange-100 text-orange-600 font-black text-[10px] flex items-center justify-center shrink-0 mt-0.5">
-                  3
-                </div>
-                <div>
-                  <h4 className="font-black text-slate-900">Digital ID & QR Code Security</h4>
-                  <p className="text-slate-500 mt-0.5 leading-relaxed">
-                    Your Digital ID and generated QR code are strictly personal. Sharing or presenting another student's QR code for proxy attendance is considered a violation.
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="pt-2 space-y-2">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '8px' }}>
               <button
                 type="button"
                 onClick={handleAgreePrivacy}
-                className="w-full py-4 bg-orange-500 hover:bg-orange-600 text-white font-black rounded-2xl text-sm shadow-md shadow-orange-500/25 flex items-center justify-center gap-2 transition"
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  backgroundColor: '#15803d',
+                  color: '#ffffff',
+                  borderRadius: '12px',
+                  border: 'none',
+                  fontWeight: 800,
+                  cursor: 'pointer',
+                  fontSize: '0.875rem',
+                }}
               >
-                <span>✓ Agree & Log In</span>
+                ✓ Agree & Enter Portal
               </button>
               <button
                 type="button"
                 onClick={() => setShowPrivacyModal(false)}
-                className="w-full py-3.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-2xl text-xs transition"
+                style={{
+                  width: '100%',
+                  padding: '10px',
+                  backgroundColor: '#f1f5f9',
+                  color: '#475569',
+                  borderRadius: '12px',
+                  border: 'none',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  fontSize: '0.8rem',
+                }}
               >
                 Cancel
               </button>
