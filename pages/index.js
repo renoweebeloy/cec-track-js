@@ -9,7 +9,7 @@ export default function Home() {
   const [currentTime, setCurrentTime] = useState('');
   const [currentDate, setCurrentDate] = useState('');
 
-  // Dynamic Course Counts gikan sa Database
+  // Dynamic Course Counts mula sa Database
   const [counts, setCounts] = useState({
     BSBA: 0,
     BSCRIM: 0,
@@ -19,7 +19,7 @@ export default function Home() {
     total: 0,
   });
 
-  // Dynamic Events gikan sa Admin
+  // Dynamic Events mula sa Admin
   const [events, setEvents] = useState([]);
   const [eventsLoading, setEventsLoading] = useState(true);
 
@@ -56,11 +56,11 @@ export default function Home() {
     return () => clearInterval(timer);
   }, []);
 
-  // Fetch Student Analytics ug Official Events gikan sa Supabase
+  // Kumuha ng Student Analytics at Events mula sa Supabase
   const fetchData = async () => {
     if (!supabase) return;
     try {
-      // 1. Fetch profiles analytics
+      // 1. Profiles analytics
       const { data: profilesData } = await supabase
         .from('profiles')
         .select('course, role, status');
@@ -78,7 +78,7 @@ export default function Home() {
         });
       }
 
-      // 2. Fetch official events nga gi-publish ni Admin
+      // 2. Official events mula sa Admin
       setEventsLoading(true);
       const { data: eventsData } = await supabase
         .from('events')
@@ -392,9 +392,7 @@ export default function Home() {
           </div>
         </section>
 
-        {/* ======================================================== */}
-        {/* NEW: OFFICIAL EVENTS SECTION (CONNECTED TO ADMIN JS) */}
-        {/* ======================================================== */}
+        {/* OFFICIAL EVENTS SECTION */}
         <section className={styles.analyticsSection} id="events-section" style={{ marginTop: '40px' }}>
           <div className={styles.analyticsHeader}>
             <div className={styles.analyticsTitle}>
@@ -448,10 +446,8 @@ export default function Home() {
                       display: 'flex',
                       flexDirection: 'column',
                       justifyContent: 'space-between',
-                      transition: 'transform 0.2s ease, box-shadow 0.2s ease',
                     }}
                   >
-                    {/* Event Banner Image kon aduna man gani gi-upload si admin */}
                     {ev.image_url ? (
                       <div style={{ width: '100%', height: '160px', overflow: 'hidden', backgroundColor: '#f1f5f9' }}>
                         <img
@@ -543,13 +539,13 @@ export default function Home() {
       </main>
 
       {/* ======================================================== */}
-      {/* FOOTER SUBAY SA SCREENSHOT (2026 CEC TRACK, WALAY MADE WITH) */}
+      {/* PUTING FOOTER (TUMUGMA SA BACKGROUND NG WEBSITE) */}
       {/* ======================================================== */}
       <footer
         style={{
-          backgroundColor: '#030712',
-          color: '#94a3b8',
-          borderTop: '1px solid #111827',
+          backgroundColor: '#ffffff',
+          color: '#64748b',
+          borderTop: '1px solid #e2e8f0',
           padding: '24px 20px',
           marginTop: '70px',
           width: '100%',
@@ -567,7 +563,7 @@ export default function Home() {
             gap: '16px',
           }}
         >
-          {/* Left: 2026 CEC TRACK */}
+          {/* Kaliwa: © 2026 CEC TRACK */}
           <div
             style={{
               fontSize: '0.8rem',
@@ -579,7 +575,7 @@ export default function Home() {
             © 2026 CEC TRACK. ALL RIGHTS RESERVED.
           </div>
 
-          {/* Right: Policy Links & Official Badge */}
+          {/* Kanan: Links at Green Badge sa Puting Background */}
           <div
             style={{
               display: 'flex',
@@ -591,20 +587,20 @@ export default function Home() {
               letterSpacing: '0.05em',
             }}
           >
-            <span style={{ cursor: 'pointer', color: '#94a3b8' }}>PRIVACY POLICY</span>
-            <span style={{ cursor: 'pointer', color: '#94a3b8' }}>TERMS OF USE</span>
-            <span style={{ cursor: 'pointer', color: '#94a3b8' }}>ACCESSIBILITY</span>
+            <span style={{ cursor: 'pointer', color: '#64748b' }}>PRIVACY POLICY</span>
+            <span style={{ cursor: 'pointer', color: '#64748b' }}>TERMS OF USE</span>
+            <span style={{ cursor: 'pointer', color: '#64748b' }}>ACCESSIBILITY</span>
             <span
               style={{
-                border: '1px solid #10b981',
-                color: '#10b981',
-                backgroundColor: 'rgba(16, 185, 129, 0.08)',
+                border: '1px solid #bbf7d0',
+                color: '#15803d',
+                backgroundColor: '#f0fdf4',
                 padding: '4px 12px',
                 borderRadius: '9999px',
                 fontSize: '0.7rem',
                 fontWeight: 900,
                 letterSpacing: '0.06em',
-                boxShadow: '0 0 10px rgba(16, 185, 129, 0.25)',
+                boxShadow: '0 1px 3px rgba(21, 128, 61, 0.08)',
               }}
             >
               OFFICIAL PORTAL
