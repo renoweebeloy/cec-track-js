@@ -10,9 +10,10 @@ export default function AdminDashboard() {
   // Authentication & Security Guard States
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [authChecking, setAuthChecking] = useState(true);
-  const [adminUser, setAdminUser] = useState({ name: 'System Administrator', email: '' });
+  const [userRole, setUserRole] = useState('admin'); // 'admin' | 'staff'
+  const [currentUser, setCurrentUser] = useState({ name: '', email: '', school_id: '' });
 
-  // 5 MAIN TABS: 'profile' | 'add-student' | 'add-staff' | 'add-event' | 'scan-qr'
+  // Navigation: 'profile' | 'add-student' | 'add-staff' | 'add-event' | 'scan-qr'
   const [activeTab, setActiveTab] = useState('profile');
   const [loading, setLoading] = useState(false);
   const [notification, setNotification] = useState({ type: '', message: '' });
@@ -67,18 +68,15 @@ export default function AdminDashboard() {
   };
 
   // ========================================================
-  // ROUTE GUARD: Susiha kon Admin ba gyud ang naka-login
+  // ROUTE GUARD: Gitugotan ang ADMIN ug STAFF
   // ========================================================
   useEffect(() => {
-    const verifyAdminAccess = async () => {
+    const verifyPortalAccess = async () => {
       try {
         setAuthChecking(true);
 
-        // 1. Susiha una ang Session Storage
-        const cachedRole = typeof window !== 'undefined' ? sessionStorage.getItem('cec_role') : null;
         const cachedEmail = typeof window !== 'undefined' ? sessionStorage.getItem('cec_user_email') : null;
 
-        // 2. Susiha ang Supabase Auth User
         let userEmail = cachedEmail;
         if (supabase) {
           const { data: { user } } = await supabase.auth.getUser();
@@ -90,37 +88,49 @@ export default function AdminDashboard() {
           return;
         }
 
-        // 3. I-verify ang role gikan sa database profiles table
         const { data: profile, error } = await supabase
           .from('profiles')
           .select('*')
           .eq('email', userEmail)
           .single();
 
-        if (error || !profile || profile.role !== 'admin') {
-          alert('⛔ ACCESS DENIED: Admin credentials lamang ang gitugotan dinhi!');
+        if (error || !profile) {
+          router.replace('/login');
+          return;
+        }
+
+        // Gitugotan ang Admin ug Staff
+        if (profile.role !== 'admin' && profile.role !== 'staff') {
+          alert('⛔ ACCESS DENIED: Estudyante ka, dad-on ka sa imong Student Portal.');
           router.replace('/dashboard');
           return;
         }
 
-        setAdminUser({
-          name: profile.full_name || 'System Administrator',
+        setUserRole(profile.role);
+        setCurrentUser({
+          name: profile.full_name || (profile.role === 'admin' ? 'Administrator' : 'Staff Officer'),
           email: profile.email,
+          school_id: profile.school_id || '',
         });
+
+        // Kon staff ang nag-login, default tab dayon ang QR Scanner
+        if (profile.role === 'staff') {
+          setActiveTab('scan-qr');
+        }
+
         setIsAuthorized(true);
         fetchAllData();
       } catch (err) {
-        console.error('Auth verification error:', err);
+        console.error('Portal access verification error:', err);
         router.replace('/login');
       } finally {
         setAuthChecking(false);
       }
     };
 
-    verifyAdminAccess();
+    verifyPortalAccess();
   }, [router]);
 
-  // Fetch tanang data gikan sa Supabase
   const fetchAllData = async () => {
     if (!supabase) return;
     setLoading(true);
@@ -147,7 +157,7 @@ export default function AdminDashboard() {
         }
       }
     } catch (err) {
-      console.error('Error fetching admin data:', err);
+      console.error('Error loading data:', err);
     } finally {
       setLoading(false);
     }
@@ -161,15 +171,13 @@ export default function AdminDashboard() {
     router.replace('/');
   };
 
-  // ========================================================
-  // FEATURE 2: ADD STUDENT (Strict Regex Format: 2024-0616)
-  // ========================================================
+  // ADD STUDENT HANDLER (Regex Format Check)
   const handleAddStudent = async (e) => {
     e.preventDefault();
 
     const idRegex = /^\d{4}-\d{4,5}$/;
     if (!idRegex.test(studentId.trim())) {
-      showNotify('error', '❌ Sayop nga Student ID format! Kinahanglan gayod sama ani: 2024-0616.');
+      showNotify('error', '❌ Sayop nga Student ID format! Sunda ang format: 2024-0616.');
       return;
     }
 
@@ -193,7 +201,7 @@ export default function AdminDashboard() {
     if (error) {
       showNotify('error', `Error pag-add sa student: ${error.message}`);
     } else {
-      showNotify('success', `✅ Student (${studentId.trim()}) opisyal nang naapil sa Whitelist!`);
+      showNotify('success', `✅ Student (${studentId.trim()}) narehistro na sa Whitelist!`);
       setStudentId('');
       setStudentName('');
       setStudentEmail('');
@@ -201,13 +209,15 @@ export default function AdminDashboard() {
     }
   };
 
-  // ========================================================
-  // FEATURE 3: ADD STAFF (Unlocks Scanner Permission)
-  // ========================================================
+  // ADD STAFF HANDLER
   const handleAddStaff = async (e) => {
     e.preventDefault();
-    setLoading(true);
+    if (userRole !== 'admin') {
+      showNotify('error', 'Admin lamang ang gitugotan nga mag-rehistro og staff.');
+      return;
+    }
 
+    setLoading(true);
     const generatedStaffId = `STAFF-${Math.floor(1000 + Math.random() * 9000)}`;
 
     const { error } = await supabase.from('profiles').insert([
@@ -224,18 +234,16 @@ export default function AdminDashboard() {
     setLoading(false);
 
     if (error) {
-      showNotify('error', `Error pag-add og staff: ${error.message}`);
+      showNotify('error', `Error: ${error.message}`);
     } else {
-      showNotify('success', `🎉 Si ${staffName} narehistro na isip Staff! Pwede na siyang mogamit sa QR Scanner.`);
+      showNotify('success', `🎉 Si ${staffName} narehistro na isip Staff! Active na iyang Scanner.`);
       setStaffName('');
       setStaffEmail('');
       fetchAllData();
     }
   };
 
-  // ========================================================
-  // FEATURE 4: ADD EVENT (With Date, Time In & Time Out)
-  // ========================================================
+  // ADD EVENT HANDLER
   const handleAddEvent = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -255,9 +263,9 @@ export default function AdminDashboard() {
     setLoading(false);
 
     if (error) {
-      showNotify('error', `Error pag-publish sa event: ${error.message}`);
+      showNotify('error', `Error: ${error.message}`);
     } else {
-      showNotify('success', `📅 Event "${eventTitle}" napatik na uban ang Time In/Out windows!`);
+      showNotify('success', `📅 Event "${eventTitle}" opisyal nang napatik!`);
       setEventTitle('');
       setEventDesc('');
       setEventDate('');
@@ -267,29 +275,12 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleToggleEventStatus = async (ev) => {
-    const nextStatus = ev.status === 'active' ? 'inactive' : 'active';
-    const { error } = await supabase
-      .from('events')
-      .update({ status: nextStatus })
-      .eq('id', ev.id);
-
-    if (error) {
-      showNotify('error', error.message);
-    } else {
-      showNotify('success', `Ang event "${ev.title}" gi-set na isip ${nextStatus.toUpperCase()}!`);
-      fetchAllData();
-    }
-  };
-
-  // ========================================================
-  // FEATURE 5: QUICK QR / MANUAL ATTENDANCE LOGGER
-  // ========================================================
+  // QUICK ATTENDANCE SCANNER
   const handleManualScanSubmit = async (e) => {
     e.preventDefault();
     if (!manualStudentId) return;
 
-    setScanLogMsg({ type: 'info', text: 'Ginasusi ang Student ID sa Whitelist...' });
+    setScanLogMsg({ type: 'info', text: 'Ginasusi ang Student ID...' });
 
     const studentMatch = students.find(
       (s) => s.school_id?.toLowerCase() === manualStudentId.trim().toLowerCase()
@@ -310,7 +301,7 @@ export default function AdminDashboard() {
         event_id: selectedEventId,
         status: 'PRESENT',
         time_in: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        scanned_by: adminUser.email || 'Admin',
+        scanned_by: currentUser.email || userRole,
       },
     ]);
 
@@ -318,22 +309,26 @@ export default function AdminDashboard() {
       if (error.code === '23505') {
         setScanLogMsg({
           type: 'warning',
-          text: `⚠️ Naka-record na daan og attendance si ${studentMatch.full_name} (${studentMatch.school_id}) niining event-a!`,
+          text: `⚠️ Naka-record na daan og attendance si ${studentMatch.full_name} (${studentMatch.school_id})!`,
         });
       } else {
-        setScanLogMsg({ type: 'error', text: `Database Error: ${error.message}` });
+        setScanLogMsg({ type: 'error', text: `Error: ${error.message}` });
       }
     } else {
       setScanLogMsg({
         type: 'success',
-        text: `✅ SUCCESS: Attendance logged alang kang ${studentMatch.full_name} (${studentMatch.school_id} - ${studentMatch.course})!`,
+        text: `✅ SUCCESS: Attendance recorded alang kang ${studentMatch.full_name} (${studentMatch.course})!`,
       });
       setManualStudentId('');
     }
   };
 
   const handleDeleteUser = async (id, identifier) => {
-    if (!confirm(`Sigurado ka nga tangtangon si ${identifier} sa sistema?`)) return;
+    if (userRole !== 'admin') {
+      alert('Admin lamang ang makatangtang og user.');
+      return;
+    }
+    if (!confirm(`Sigurado ka nga tangtangon si ${identifier}?`)) return;
     const { error } = await supabase.from('profiles').delete().eq('id', id);
     if (error) showNotify('error', error.message);
     else {
@@ -343,22 +338,24 @@ export default function AdminDashboard() {
   };
 
   const handleDeleteEvent = async (id, title) => {
+    if (userRole !== 'admin') {
+      alert('Admin lamang ang makatangtang og event.');
+      return;
+    }
     if (!confirm(`I-delete ang event nga "${title}"?`)) return;
     const { error } = await supabase.from('events').delete().eq('id', id);
     if (error) showNotify('error', error.message);
     else {
-      showNotify('success', 'Nafallback/Deleted na ang event.');
+      showNotify('success', 'Event deleted.');
       fetchAllData();
     }
   };
 
-  // Filtered queries
   const filteredStudents = students.filter(
     (s) =>
       s.school_id?.toLowerCase().includes(searchStudentQuery.toLowerCase()) ||
       s.full_name?.toLowerCase().includes(searchStudentQuery.toLowerCase()) ||
-      s.course?.toLowerCase().includes(searchStudentQuery.toLowerCase()) ||
-      s.email?.toLowerCase().includes(searchStudentQuery.toLowerCase())
+      s.course?.toLowerCase().includes(searchStudentQuery.toLowerCase())
   );
 
   const filteredEvents = events.filter(
@@ -367,7 +364,6 @@ export default function AdminDashboard() {
       e.location?.toLowerCase().includes(searchEventQuery.toLowerCase())
   );
 
-  // Loading Screen samtang ginasusi ang Admin Credentials
   if (authChecking) {
     return (
       <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center text-white px-4">
@@ -375,7 +371,7 @@ export default function AdminDashboard() {
           <span className="text-2xl font-black text-orange-500">C</span>
         </div>
         <p className="text-sm font-extrabold tracking-wider uppercase text-slate-300">
-          Ginasusi ang imong Admin Clearance...
+          Ginasusi ang imong Portal Clearance...
         </p>
       </div>
     );
@@ -383,13 +379,15 @@ export default function AdminDashboard() {
 
   if (!isAuthorized) return null;
 
+  const isAdmin = userRole === 'admin';
+
   return (
     <div className="min-h-screen bg-[#F8FAFC] text-slate-800 antialiased font-sans pb-20">
       <Head>
-        <title>CEC TRACK 3.0 • Command Center</title>
+        <title>CEC TRACK 3.0 • {isAdmin ? 'Admin Portal' : 'Staff Portal'}</title>
       </Head>
 
-      {/* TOP ULTRA-CLEAN NAVBAR */}
+      {/* HEADER NAVBAR */}
       <header className="sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-slate-200/80 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-18 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -401,8 +399,14 @@ export default function AdminDashboard() {
                 <span className="text-lg font-black tracking-tight text-slate-900">
                   CEC TRACK <span className="text-orange-600">3.0</span>
                 </span>
-                <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 tracking-wider">
-                  ADMIN
+                <span
+                  className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full tracking-wider ${
+                    isAdmin
+                      ? 'bg-orange-100 text-orange-700'
+                      : 'bg-blue-100 text-blue-700'
+                  }`}
+                >
+                  {isAdmin ? 'ADMIN COMMAND' : 'STAFF SCANNER ACCESS'}
                 </span>
               </div>
               <span className="text-[11px] font-semibold text-slate-400 block -mt-0.5">
@@ -417,7 +421,7 @@ export default function AdminDashboard() {
               className="text-xs font-black bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white px-4 py-2.5 rounded-2xl shadow-md shadow-orange-500/20 transition flex items-center gap-2"
             >
               <span>📷</span>
-              <span className="hidden sm:inline">Launch Scanner</span>
+              <span className="hidden sm:inline">Camera Scanner</span>
             </Link>
 
             <button
@@ -431,20 +435,22 @@ export default function AdminDashboard() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 pt-6">
-        {/* BANNER GREETING & QUICK REFRESH */}
+        {/* BANNER GREETING */}
         <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white p-6 rounded-3xl border border-slate-200/80 shadow-sm">
           <div>
             <div className="flex items-center gap-2 mb-1">
               <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping" />
               <span className="text-[11px] font-extrabold uppercase tracking-wider text-emerald-600">
-                SYSTEM ONLINE & ENCRYPTED
+                PORTAL ACTIVE ({userRole.toUpperCase()})
               </span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
-              Welcome back, {adminUser.name}
+              Welcome back, {currentUser.name}
             </h1>
             <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
-              Whitelist verification, official scheduling, and real-time attendance monitoring.
+              {isAdmin
+                ? 'Whitelist enrollment, staff delegation, event scheduling, ug live attendance.'
+                : 'Staff Attendance Monitoring Portal & QR Code Verification.'}
             </p>
           </div>
 
@@ -458,7 +464,7 @@ export default function AdminDashboard() {
           </button>
         </div>
 
-        {/* TOAST NOTIFICATION */}
+        {/* NOTIFICATION */}
         {notification.message && (
           <div
             className={`mb-6 p-4 rounded-2xl border text-xs sm:text-sm font-bold flex items-center justify-between shadow-sm transition-all ${
@@ -489,6 +495,7 @@ export default function AdminDashboard() {
           >
             👤 1. System Overview
           </button>
+
           <button
             onClick={() => setActiveTab('add-student')}
             className={`px-4 py-2.5 rounded-xl text-xs sm:text-sm font-black whitespace-nowrap transition ${
@@ -497,18 +504,23 @@ export default function AdminDashboard() {
                 : 'text-slate-600 hover:text-slate-900'
             }`}
           >
-            🎓 2. Add Student (Whitelist)
+            🎓 2. Whitelist Students
           </button>
-          <button
-            onClick={() => setActiveTab('add-staff')}
-            className={`px-4 py-2.5 rounded-xl text-xs sm:text-sm font-black whitespace-nowrap transition ${
-              activeTab === 'add-staff'
-                ? 'bg-white text-blue-600 shadow-sm'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            🛡️ 3. Add Staff (Scanner Access)
-          </button>
+
+          {/* Ang Add Staff makita lamang kon Admin ang naka-login */}
+          {isAdmin && (
+            <button
+              onClick={() => setActiveTab('add-staff')}
+              className={`px-4 py-2.5 rounded-xl text-xs sm:text-sm font-black whitespace-nowrap transition ${
+                activeTab === 'add-staff'
+                  ? 'bg-white text-blue-600 shadow-sm'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              🛡️ 3. Manage Staff
+            </button>
+          )}
+
           <button
             onClick={() => setActiveTab('add-event')}
             className={`px-4 py-2.5 rounded-xl text-xs sm:text-sm font-black whitespace-nowrap transition ${
@@ -519,6 +531,7 @@ export default function AdminDashboard() {
           >
             📅 4. Manage Events
           </button>
+
           <button
             onClick={() => setActiveTab('scan-qr')}
             className={`px-4 py-2.5 rounded-xl text-xs sm:text-sm font-black whitespace-nowrap transition ${
@@ -532,7 +545,7 @@ export default function AdminDashboard() {
         </div>
 
         {/* ========================================================= */}
-        {/* TAB 1: SYSTEM OVERVIEW & METRICS */}
+        {/* TAB 1: SYSTEM OVERVIEW */}
         {/* ========================================================= */}
         {activeTab === 'profile' && (
           <div className="space-y-6">
@@ -556,7 +569,7 @@ export default function AdminDashboard() {
                 <div className="mt-2 flex items-baseline justify-between">
                   <span className="text-3xl font-black text-blue-600">{staffList.length}</span>
                   <span className="text-[11px] bg-blue-50 text-blue-700 font-extrabold px-2 py-0.5 rounded-lg border border-blue-100">
-                    Scanners Active
+                    Active Scanners
                   </span>
                 </div>
               </div>
@@ -582,13 +595,12 @@ export default function AdminDashboard() {
                 <div className="mt-2 flex items-baseline justify-between">
                   <span className="text-3xl font-black text-slate-800">{events.length}</span>
                   <span className="text-[11px] bg-slate-100 text-slate-600 font-extrabold px-2 py-0.5 rounded-lg border border-slate-200">
-                    Published
+                    History
                   </span>
                 </div>
               </div>
             </div>
 
-            {/* Department Breakdown */}
             <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-sm">
               <h3 className="text-base font-black text-slate-900 mb-4">
                 Students Distribution by Course
@@ -612,106 +624,115 @@ export default function AdminDashboard() {
         )}
 
         {/* ========================================================= */}
-        {/* TAB 2: ADD STUDENT (Strict Regex 2024-0616 & 5 Courses) */}
+        {/* TAB 2: WHITELIST STUDENTS */}
         {/* ========================================================= */}
         {activeTab === 'add-student' && (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+            {/* Kon Admin: Makasulat og bag-ong student; Kon Staff: Tan-aw lang */}
             <div className="lg:col-span-5 bg-white p-6 rounded-3xl border border-slate-200/80 shadow-sm">
               <span className="text-[11px] font-black uppercase text-orange-600">
-                OFFICIAL ENROLLMENT
+                OFFICIAL WHITELIST
               </span>
-              <h2 className="text-xl font-black text-slate-900 mb-1">Add Student (Whitelist)</h2>
+              <h2 className="text-xl font-black text-slate-900 mb-1">
+                {isAdmin ? 'Add Student Member' : 'Student Whitelist Info'}
+              </h2>
               <p className="text-xs text-slate-400 mb-5 leading-relaxed">
-                Ang estudyante dili makasulod sa portal kung wala narehistro ang iyang School ID. Sunda ang format: <strong>2024-0616</strong>.
+                Ang School ID kinahanglan gayod sundon ang format: <strong>2024-0616</strong>.
               </p>
 
-              <form onSubmit={handleAddStudent} className="space-y-4">
-                <div>
-                  <label className="block text-xs font-bold uppercase text-slate-600 mb-1">
-                    School ID (Required Format: 2024-0616) *
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="e.g. 2024-0616"
-                    value={studentId}
-                    onChange={(e) => setStudentId(e.target.value)}
-                    pattern="\d{4}-\d{4,5}"
-                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-black focus:outline-none focus:ring-2 focus:ring-orange-500 focus:bg-white"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold uppercase text-slate-600 mb-1">
-                    Full Name *
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="e.g. Renowee Beloy"
-                    value={studentName}
-                    onChange={(e) => setStudentName(e.target.value)}
-                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:bg-white"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold uppercase text-slate-600 mb-1">
-                    Student Email Address *
-                  </label>
-                  <input
-                    type="email"
-                    placeholder="e.g. renowee.beloy@dorsu.edu.ph"
-                    value={studentEmail}
-                    onChange={(e) => setStudentEmail(e.target.value)}
-                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:bg-white"
-                    required
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
+              {isAdmin ? (
+                <form onSubmit={handleAddStudent} className="space-y-4">
                   <div>
                     <label className="block text-xs font-bold uppercase text-slate-600 mb-1">
-                      Course (5 Options)
+                      School ID (Format: 2024-0616) *
                     </label>
-                    <select
-                      value={studentCourse}
-                      onChange={(e) => setStudentCourse(e.target.value)}
-                      className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold focus:outline-none focus:ring-2 focus:ring-orange-500"
-                    >
-                      {courses.map((c) => (
-                        <option key={c.code} value={c.code}>
-                          {c.code}
-                        </option>
-                      ))}
-                    </select>
+                    <input
+                      type="text"
+                      placeholder="e.g. 2024-0616"
+                      value={studentId}
+                      onChange={(e) => setStudentId(e.target.value)}
+                      pattern="\d{4}-\d{4,5}"
+                      className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-black focus:outline-none focus:ring-2 focus:ring-orange-500 focus:bg-white"
+                      required
+                    />
                   </div>
 
                   <div>
                     <label className="block text-xs font-bold uppercase text-slate-600 mb-1">
-                      Year Level
+                      Full Name *
                     </label>
-                    <select
-                      value={studentYear}
-                      onChange={(e) => setStudentYear(e.target.value)}
-                      className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold focus:outline-none focus:ring-2 focus:ring-orange-500"
-                    >
-                      <option value="1st Year">1st Year</option>
-                      <option value="2nd Year">2nd Year</option>
-                      <option value="3rd Year">3rd Year</option>
-                      <option value="4th Year">4th Year</option>
-                    </select>
+                    <input
+                      type="text"
+                      placeholder="e.g. Renowee Beloy"
+                      value={studentName}
+                      onChange={(e) => setStudentName(e.target.value)}
+                      className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:bg-white"
+                      required
+                    />
                   </div>
-                </div>
 
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="w-full bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-black py-3.5 rounded-2xl shadow-md shadow-orange-500/25 transition mt-2"
-                >
-                  {loading ? 'Saving Record...' : 'Enroll to Whitelist ➔'}
-                </button>
-              </form>
+                  <div>
+                    <label className="block text-xs font-bold uppercase text-slate-600 mb-1">
+                      Student Email Address *
+                    </label>
+                    <input
+                      type="email"
+                      placeholder="e.g. renowee.beloy@dorsu.edu.ph"
+                      value={studentEmail}
+                      onChange={(e) => setStudentEmail(e.target.value)}
+                      className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:bg-white"
+                      required
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-bold uppercase text-slate-600 mb-1">
+                        Course
+                      </label>
+                      <select
+                        value={studentCourse}
+                        onChange={(e) => setStudentCourse(e.target.value)}
+                        className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold focus:outline-none focus:ring-2 focus:ring-orange-500"
+                      >
+                        {courses.map((c) => (
+                          <option key={c.code} value={c.code}>
+                            {c.code}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold uppercase text-slate-600 mb-1">
+                        Year Level
+                      </label>
+                      <select
+                        value={studentYear}
+                        onChange={(e) => setStudentYear(e.target.value)}
+                        className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold focus:outline-none focus:ring-2 focus:ring-orange-500"
+                      >
+                        <option value="1st Year">1st Year</option>
+                        <option value="2nd Year">2nd Year</option>
+                        <option value="3rd Year">3rd Year</option>
+                        <option value="4th Year">4th Year</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="w-full bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-black py-3.5 rounded-2xl shadow-md shadow-orange-500/25 transition mt-2"
+                  >
+                    {loading ? 'Saving Record...' : 'Enroll to Whitelist ➔'}
+                  </button>
+                </form>
+              ) : (
+                <div className="p-4 bg-blue-50 border border-blue-100 rounded-2xl text-xs text-blue-800">
+                  ℹ️ <strong>Staff Notice:</strong> Aduna kay access sa pag-tan-aw sa mga estudyante. Ang Head Admin lamang ang makadugang o makatangtang og bag-ong miyembro sa whitelist.
+                </div>
+              )}
             </div>
 
             {/* Students List Table */}
@@ -734,7 +755,7 @@ export default function AdminDashboard() {
 
               {filteredStudents.length === 0 ? (
                 <div className="text-center py-12 text-slate-400 text-xs">
-                  Walay estudyante nga nakit-an sa maong search query.
+                  Walay estudyante nga nakit-an.
                 </div>
               ) : (
                 <div className="overflow-x-auto">
@@ -744,7 +765,7 @@ export default function AdminDashboard() {
                         <th className="py-2.5 px-3">School ID</th>
                         <th className="py-2.5 px-3">Student Name</th>
                         <th className="py-2.5 px-3">Course & Year</th>
-                        <th className="py-2.5 px-3 text-right">Action</th>
+                        {isAdmin && <th className="py-2.5 px-3 text-right">Action</th>}
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
@@ -761,14 +782,16 @@ export default function AdminDashboard() {
                             </span>
                             <span className="text-[10px] text-slate-500">{st.year_level}</span>
                           </td>
-                          <td className="py-3 px-3 text-right">
-                            <button
-                              onClick={() => handleDeleteUser(st.id, st.school_id)}
-                              className="text-rose-600 hover:text-rose-800 font-extrabold px-2 py-1 rounded-lg hover:bg-rose-50 transition"
-                            >
-                              Remove
-                            </button>
-                          </td>
+                          {isAdmin && (
+                            <td className="py-3 px-3 text-right">
+                              <button
+                                onClick={() => handleDeleteUser(st.id, st.school_id)}
+                                className="text-rose-600 hover:text-rose-800 font-extrabold px-2 py-1 rounded-lg hover:bg-rose-50 transition"
+                              >
+                                Remove
+                              </button>
+                            </td>
+                          )}
                         </tr>
                       ))}
                     </tbody>
@@ -780,17 +803,17 @@ export default function AdminDashboard() {
         )}
 
         {/* ========================================================= */}
-        {/* TAB 3: ADD STAFF (Delegates QR Scanner Permissions) */}
+        {/* TAB 3: MANAGE STAFF (Admin Only) */}
         {/* ========================================================= */}
-        {activeTab === 'add-staff' && (
+        {activeTab === 'add-staff' && isAdmin && (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
             <div className="lg:col-span-5 bg-white p-6 rounded-3xl border border-slate-200/80 shadow-sm">
               <span className="text-[11px] font-black uppercase text-blue-600">
-                STAFF DELEGATION
+                STAFF PERMISSIONS
               </span>
               <h2 className="text-xl font-black text-slate-900 mb-1">Add Staff Officer</h2>
               <p className="text-xs text-slate-400 mb-5 leading-relaxed">
-                Ang mga opisyal nga narehistro diri makabaton og access sa <strong>QR Camera Scanner</strong> aron maka-check sa attendance.
+                Ang mga opisyal nga narehistro diri makagamit sa ilang account aron mo-scan og QR codes.
               </p>
 
               <form onSubmit={handleAddStaff} className="space-y-4">
@@ -837,8 +860,8 @@ export default function AdminDashboard() {
                 <div className="p-4 bg-blue-50 rounded-2xl border border-blue-100 flex items-center gap-3">
                   <span className="text-2xl">📷</span>
                   <div className="text-xs">
-                    <p className="font-black text-blue-900">Scanner Authorization Granted</p>
-                    <p className="text-blue-700 text-[11px]">can_scan = true is automatically enabled.</p>
+                    <p className="font-black text-blue-900">Scanner Authorization Active</p>
+                    <p className="text-blue-700 text-[11px]">can_scan = true is granted automatically.</p>
                   </div>
                 </div>
 
@@ -852,7 +875,6 @@ export default function AdminDashboard() {
               </form>
             </div>
 
-            {/* Staff List Table */}
             <div className="lg:col-span-7 bg-white p-6 rounded-3xl border border-slate-200/80 shadow-sm">
               <h3 className="text-lg font-black text-slate-900 mb-1">
                 Authorized Staff Members ({staffList.length})
@@ -893,7 +915,7 @@ export default function AdminDashboard() {
         )}
 
         {/* ========================================================= */}
-        {/* TAB 4: ADD EVENT (With Date, Time In & Time Out) */}
+        {/* TAB 4: MANAGE EVENTS */}
         {/* ========================================================= */}
         {activeTab === 'add-event' && (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
@@ -903,7 +925,7 @@ export default function AdminDashboard() {
               </span>
               <h2 className="text-xl font-black text-slate-900 mb-1">Publish New Event</h2>
               <p className="text-xs text-slate-400 mb-5 leading-relaxed">
-                I-set ang schedule, Required Time In, ug Time Out alang sa attendance logs.
+                I-set ang schedule, Required Time In, ug Time Out alang sa attendance tracking.
               </p>
 
               <form onSubmit={handleAddEvent} className="space-y-4">
@@ -1015,7 +1037,6 @@ export default function AdminDashboard() {
               </form>
             </div>
 
-            {/* Events List */}
             <div className="lg:col-span-7 space-y-4">
               <div className="flex items-center justify-between mb-2">
                 <h3 className="text-lg font-black text-slate-900">
@@ -1064,24 +1085,16 @@ export default function AdminDashboard() {
                           </div>
                         </div>
 
-                        <div className="flex items-center gap-2 self-end sm:self-center">
-                          <button
-                            onClick={() => handleToggleEventStatus(ev)}
-                            className={`text-xs font-black px-3 py-2 rounded-xl transition ${
-                              isActive
-                                ? 'bg-amber-50 text-amber-700 hover:bg-amber-100'
-                                : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
-                            }`}
-                          >
-                            {isActive ? 'Close Scanning' : 'Open Scanning'}
-                          </button>
-                          <button
-                            onClick={() => handleDeleteEvent(ev.id, ev.title)}
-                            className="text-xs font-bold text-rose-600 hover:bg-rose-50 px-3 py-2 rounded-xl transition"
-                          >
-                            Delete
-                          </button>
-                        </div>
+                        {isAdmin && (
+                          <div className="flex items-center gap-2 self-end sm:self-center">
+                            <button
+                              onClick={() => handleDeleteEvent(ev.id, ev.title)}
+                              className="text-xs font-bold text-rose-600 hover:bg-rose-50 px-3 py-2 rounded-xl transition"
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        )}
                       </div>
                     );
                   })}
@@ -1196,7 +1209,5 @@ export default function AdminDashboard() {
 }
 
 export async function getServerSideProps() {
-  return {
-    props: {},
-  };
+  return { props: {} };
 }
