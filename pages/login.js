@@ -8,7 +8,6 @@ import styles from '../styles/Home.module.css';
 export default function Login() {
   const router = useRouter();
 
-  // Form States
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [message, setMessage] = useState('');
@@ -16,7 +15,6 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  // Data Privacy Modal State for Students
   const [showPrivacyModal, setShowPrivacyModal] = useState(false);
 
   const handleLogin = async (e) => {
@@ -26,13 +24,14 @@ export default function Login() {
     setIsSuccess(false);
 
     const cleanEmail = email.trim().toLowerCase();
+    const cleanPassword = password.trim();
 
     try {
       if (!supabase) {
         throw new Error('Database connection failed.');
       }
 
-      // 1. Verify existence in profiles whitelist
+      // 1. Kuhaa ang record gikan sa database profiles
       const { data: profile, error: profileErr } = await supabase
         .from('profiles')
         .select('*')
@@ -43,17 +42,28 @@ export default function Login() {
         throw new Error('Invalid credentials.');
       }
 
-      // 2. Authenticate with Supabase Auth
-      const { error: authError } = await supabase.auth.signInWithPassword({
-        email: cleanEmail,
-        password: password,
-      });
+      // 2. Password Check: Susiha ang database password o default school_id
+      const validDbPassword = profile.password || profile.school_id;
+      const isPasswordCorrect = validDbPassword && validDbPassword.trim() === cleanPassword;
 
-      if (authError && authError.message.includes('Invalid login credentials')) {
+      // Susiha usab sa Supabase Auth kung naka-set didto
+      let authSuccess = false;
+      try {
+        const { error: authErr } = await supabase.auth.signInWithPassword({
+          email: cleanEmail,
+          password: cleanPassword,
+        });
+        if (!authErr) authSuccess = true;
+      } catch (e) {
+        authSuccess = false;
+      }
+
+      // Kung sayop ang gi-type nga password sa database ug auth
+      if (!isPasswordCorrect && !authSuccess) {
         throw new Error('Invalid credentials.');
       }
 
-      // 3. Store active session attributes
+      // 3. I-save ang session data sa SessionStorage
       const userRole = profile.role || 'student';
       sessionStorage.setItem('cec_role', userRole);
       sessionStorage.setItem('cec_user_email', profile.email);
@@ -61,11 +71,11 @@ export default function Login() {
       sessionStorage.setItem('cec_full_name', profile.full_name || '');
       sessionStorage.setItem('cec_can_scan', profile.can_scan ? 'true' : 'false');
 
-      // 4. Role and Password Verification Routing
+      // 4. Role & Password Verification Routing
       if (userRole === 'admin') {
         router.push('/admin');
       } else if (profile.must_change_password) {
-        // Enforce immediate password update for both new Students and Staff
+        // I-require ang pag-set og bag-ong password sa unang higayon
         router.push('/update-password');
       } else if (userRole === 'staff') {
         router.push('/admin');
@@ -113,7 +123,6 @@ export default function Login() {
       </Head>
 
       <div className={styles.loginCard}>
-        {/* Compact Logo Header */}
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1.25rem' }}>
           <div
             style={{
@@ -156,7 +165,6 @@ export default function Login() {
           </div>
         </div>
 
-        {/* Header Titles */}
         <div className={styles.loginHeader}>
           <h1 className={styles.loginTitle}>
             Welcome to <br />
@@ -167,7 +175,6 @@ export default function Login() {
           </p>
         </div>
 
-        {/* Credentials Form */}
         <form onSubmit={handleLogin} className={styles.loginForm}>
           <div className={styles.inputGroup}>
             <label className={styles.inputLabel}>Email Address</label>
@@ -240,7 +247,6 @@ export default function Login() {
           </button>
         </form>
 
-        {/* Feedback Alert */}
         {message && (
           <div
             className={styles.alertMessage}
@@ -278,7 +284,6 @@ export default function Login() {
         </div>
       </div>
 
-      {/* RA 10173 Student Data Privacy Modal */}
       {showPrivacyModal && (
         <div
           style={{
@@ -331,24 +336,10 @@ export default function Login() {
                 🛡️
               </div>
               <div>
-                <h3
-                  style={{
-                    fontSize: '1.1rem',
-                    fontWeight: 900,
-                    color: '#0f172a',
-                    margin: 0,
-                  }}
-                >
+                <h3 style={{ fontSize: '1.1rem', fontWeight: 900, color: '#0f172a', margin: 0 }}>
                   Data Privacy Notice
                 </h3>
-                <span
-                  style={{
-                    fontSize: '0.7rem',
-                    fontWeight: 800,
-                    color: '#15803d',
-                    textTransform: 'uppercase',
-                  }}
-                >
+                <span style={{ fontSize: '0.7rem', fontWeight: 800, color: '#15803d', textTransform: 'uppercase' }}>
                   RA 10173 Compliance • Official Policy
                 </span>
               </div>
