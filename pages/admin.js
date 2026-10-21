@@ -21,12 +21,13 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(false);
   const [notification, setNotification] = useState({ type: '', message: '' });
 
-  // 1. Student States (Strict ID validation & 5 Courses)
+  // 1. Student States (Section A to K and Juan Dela Cruz placeholder)
   const [studentId, setStudentId] = useState('');
   const [studentName, setStudentName] = useState('');
   const [studentEmail, setStudentEmail] = useState('');
   const [studentCourse, setStudentCourse] = useState('BSCRIM');
   const [studentYear, setStudentYear] = useState('1st Year');
+  const [studentSection, setStudentSection] = useState('Section A');
 
   // 2. Staff States
   const [staffName, setStaffName] = useState('');
@@ -70,6 +71,21 @@ export default function AdminDashboard() {
     { code: 'BSA', name: 'Bachelor of Science in Accountancy', badge: styles.bsaBadge },
   ];
 
+  // List of Sections from Section A to Section K
+  const sectionsList = [
+    'Section A',
+    'Section B',
+    'Section C',
+    'Section D',
+    'Section E',
+    'Section F',
+    'Section G',
+    'Section H',
+    'Section I',
+    'Section J',
+    'Section K',
+  ];
+
   const showNotify = (type, message) => {
     setNotification({ type, message });
     setTimeout(() => {
@@ -77,7 +93,7 @@ export default function AdminDashboard() {
     }, 4500);
   };
 
-  // Dinamikong pag-load sa Html5Qrcode Library mula sa CDN
+  // Dynamic loading of Html5Qrcode Library via CDN
   useEffect(() => {
     if (typeof window !== 'undefined' && !window.Html5Qrcode) {
       const script = document.createElement('script');
@@ -192,12 +208,12 @@ export default function AdminDashboard() {
   // ========================================================
   const startCameraScanner = async () => {
     if (!selectedEventId) {
-      showNotify('error', 'Pumili muna ng Active Event bago buksan ang scanner.');
+      showNotify('error', 'Please select an Active Event Schedule below before scanning.');
       return;
     }
 
     if (!window.Html5Qrcode) {
-      showNotify('error', 'Kasalukuyang naglo-load ang scanner library. Subukan muli sandali.');
+      showNotify('error', 'Scanner library is loading. Please try again shortly.');
       return;
     }
 
@@ -219,7 +235,7 @@ export default function AdminDashboard() {
         setIsScannerRunning(true);
       } catch (err) {
         console.error('Error starting camera scanner:', err);
-        showNotify('error', 'Hindi ma-access ang camera. Tiyaking pinayagan ang camera permission.');
+        showNotify('error', 'Unable to access camera. Please ensure camera permissions are granted.');
         setIsCameraModalOpen(false);
       }
     }, 400);
@@ -245,13 +261,10 @@ export default function AdminDashboard() {
     setScannedStudentData(null);
   };
 
-  // ========================================================
   // QR CODE DETECTION WITH STRICT DUPLICATE DENIAL
-  // ========================================================
   const handleQrCodeDetected = async (decodedText) => {
     if (!decodedText || showVerifyModal) return;
 
-    // Ihinto muna ang scanner habang sinusuri
     if (scannerRef.current) {
       try {
         await scannerRef.current.pause();
@@ -261,15 +274,15 @@ export default function AdminDashboard() {
     const cleanSchoolId = decodedText.trim();
 
     try {
-      // 1. Hanapin ang estudyante sa Profiles gamit ang School ID
+      // 1. Look up student in profiles table
       const { data: student, error } = await supabase
         .from('profiles')
-        .select('school_id, full_name, course, year_level, avatar_url')
+        .select('school_id, full_name, course, year_level, section, avatar_url')
         .eq('school_id', cleanSchoolId)
         .single();
 
       if (error || !student) {
-        alert(`❌ ACCESS DENIED:\nAng School ID "${cleanSchoolId}" ay wala sa whitelist database!`);
+        alert(`❌ ACCESS DENIED:\nSchool ID "${cleanSchoolId}" is not registered in the whitelist database!`);
         if (scannerRef.current) {
           try {
             await scannerRef.current.resume();
@@ -278,7 +291,7 @@ export default function AdminDashboard() {
         return;
       }
 
-      // 2. DUPLICATE CHECK: Suriin kung nakapag-scan na sa napiling event
+      // 2. DUPLICATE CHECK: Verify if student already checked in for this event
       const { data: existingAttendance } = await supabase
         .from('attendance')
         .select('id, time_in')
@@ -287,13 +300,12 @@ export default function AdminDashboard() {
         .maybeSingle();
 
       if (existingAttendance) {
-        // DENIED: Tapos na mag-scan
         alert(
-          `🚫 SCAN DENIED / TAPOS NA MAG-SCAN!\n\n` +
-          `Pangalan: ${student.full_name}\n` +
+          `🚫 SCAN DENIED / ALREADY SCANNED!\n\n` +
+          `Student Name: ${student.full_name}\n` +
           `School ID: ${student.school_id}\n` +
-          `Oras na naitala kanina: ${existingAttendance.time_in}\n\n` +
-          `Done scanning na ang estudyanteng ito para sa event na ito.`
+          `Recorded Time In: ${existingAttendance.time_in}\n\n` +
+          `Attendance has already been recorded for this student in this event schedule.`
         );
 
         if (scannerRef.current) {
@@ -304,7 +316,7 @@ export default function AdminDashboard() {
         return;
       }
 
-      // 3. Kung bago pa at hindi pa nakapag-scan, buksan ang Verification Modal (School ID lamang, walang email)
+      // 3. Display verification modal (School ID only, no email)
       setScannedStudentData(student);
       setShowVerifyModal(true);
     } catch (err) {
@@ -312,9 +324,7 @@ export default function AdminDashboard() {
     }
   };
 
-  // ========================================================
   // CONFIRM ATTENDANCE ACTION
-  // ========================================================
   const handleConfirmAttendance = async () => {
     if (!scannedStudentData || !selectedEventId) return;
 
@@ -336,19 +346,18 @@ export default function AdminDashboard() {
         if (error.code === '23505') {
           showNotify(
             'error',
-            `⚠️ Done scanning na si ${scannedStudentData.full_name} (${scannedStudentData.school_id})!`
+            `⚠️ Already scanned: ${scannedStudentData.full_name} (${scannedStudentData.school_id}) is already recorded!`
           );
         } else {
-          showNotify('error', `Error sa attendance: ${error.message}`);
+          showNotify('error', `Attendance error: ${error.message}`);
         }
       } else {
         showNotify(
           'success',
-          `✅ DONE SCANNING: Naitala na ang attendance ni ${scannedStudentData.full_name} (School ID: ${scannedStudentData.school_id})!`
+          `✅ DONE SCANNING: Attendance recorded for ${scannedStudentData.full_name} (School ID: ${scannedStudentData.school_id})!`
         );
       }
 
-      // Isara ang verification modal at ipagpatuloy ang camera para sa susunod na estudyante
       setShowVerifyModal(false);
       setScannedStudentData(null);
 
@@ -364,13 +373,15 @@ export default function AdminDashboard() {
     }
   };
 
-  // ADD STUDENT (School ID ang password sa database)
+  // ========================================================
+  // ADD STUDENT (Section A-K & School ID as Password)
+  // ========================================================
   const handleAddStudent = async (e) => {
     e.preventDefault();
 
     const idRegex = /^\d{4}-\d{4,5}$/;
     if (!idRegex.test(studentId.trim())) {
-      showNotify('error', 'Invalid Student ID format. Gamitin ang format: 2024-0616.');
+      showNotify('error', 'Invalid Student ID format. Please follow format: 2024-0616.');
       return;
     }
 
@@ -388,6 +399,7 @@ export default function AdminDashboard() {
           password: defaultPassword,
           course: studentCourse,
           year_level: studentYear,
+          section: studentSection,
           role: 'student',
           can_scan: false,
           status: 'Active',
@@ -401,7 +413,7 @@ export default function AdminDashboard() {
 
       showNotify(
         'success',
-        `Na-enroll na ang estudyante! Ang default password ay ang School ID (${defaultPassword}).`
+        `Student ${studentName.trim()} (${studentSection}) added successfully! Default password: ${defaultPassword}`
       );
       setStudentId('');
       setStudentName('');
@@ -414,11 +426,52 @@ export default function AdminDashboard() {
     }
   };
 
+  // ========================================================
+  // REMOVE ALL STUDENTS (With Confirmation Dialog)
+  // ========================================================
+  const handleRemoveAllStudents = async () => {
+    if (userRole !== 'admin') {
+      alert('Only administrators are authorized to remove student records.');
+      return;
+    }
+
+    if (students.length === 0) {
+      alert('No enrolled student records found to remove.');
+      return;
+    }
+
+    const isConfirmed = window.confirm(
+      'Are you sure you want to remove all students?\n\n' +
+      'Warning: This action will permanently delete all enrolled student records from the database. This action cannot be undone. Click OK to confirm or Cancel to abort.'
+    );
+
+    if (!isConfirmed) return;
+
+    setLoading(true);
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .delete()
+        .eq('role', 'student');
+
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      showNotify('success', 'All student records have been permanently removed.');
+      fetchAllData();
+    } catch (err) {
+      showNotify('error', `Error removing records: ${err.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // ADD STAFF
   const handleAddStaff = async (e) => {
     e.preventDefault();
     if (userRole !== 'admin') {
-      showNotify('error', 'Administrator lamang ang maaaring magrehistro ng staff.');
+      showNotify('error', 'Only administrators can register staff members.');
       return;
     }
 
@@ -448,7 +501,7 @@ export default function AdminDashboard() {
 
       showNotify(
         'success',
-        `Narehistro na si ${staffName}! Ang default password ay: ${defaultPassword}`
+        `Staff officer ${staffName} registered successfully! Default password: ${defaultPassword}`
       );
       setStaffName('');
       setStaffEmail('');
@@ -480,9 +533,9 @@ export default function AdminDashboard() {
     setLoading(false);
 
     if (error) {
-      showNotify('error', `Error sa pag-publish ng event: ${error.message}`);
+      showNotify('error', `Error publishing event: ${error.message}`);
     } else {
-      showNotify('success', `Na-publish ang event na "${eventTitle}".`);
+      showNotify('success', `Official event "${eventTitle}" published successfully.`);
       setEventTitle('');
       setEventDesc('');
       setEventDate('');
@@ -497,7 +550,7 @@ export default function AdminDashboard() {
     e.preventDefault();
     if (!manualStudentId) return;
 
-    setScanLogMsg({ type: 'info', text: 'Sinusuri ang School ID sa Whitelist...' });
+    setScanLogMsg({ type: 'info', text: 'Validating School ID against Whitelist database...' });
 
     const studentMatch = students.find(
       (s) => s.school_id?.toLowerCase() === manualStudentId.trim().toLowerCase()
@@ -506,12 +559,11 @@ export default function AdminDashboard() {
     if (!studentMatch) {
       setScanLogMsg({
         type: 'error',
-        text: 'Access Denied: Hindi rehistrado ang School ID sa whitelist.',
+        text: 'Access Denied: Student ID is not registered in the whitelist database.',
       });
       return;
     }
 
-    // Duplicate check sa manual entry
     const { data: existing } = await supabase
       .from('attendance')
       .select('id, time_in')
@@ -522,7 +574,7 @@ export default function AdminDashboard() {
     if (existing) {
       setScanLogMsg({
         type: 'warning',
-        text: `🚫 DENIED / DONE SCANNING: Nakatala na kaninang ${existing.time_in} si ${studentMatch.full_name} (${studentMatch.school_id})!`,
+        text: `🚫 DENIED / ALREADY SCANNED: Attendance was already recorded at ${existing.time_in} for ${studentMatch.full_name} (${studentMatch.school_id})!`,
       });
       return;
     }
@@ -543,7 +595,7 @@ export default function AdminDashboard() {
     } else {
       setScanLogMsg({
         type: 'success',
-        text: `Done scanning! Attendance confirmed para kay ${studentMatch.full_name} (${studentMatch.school_id}).`,
+        text: `Done scanning! Attendance confirmed for ${studentMatch.full_name} (${studentMatch.school_id}).`,
       });
       setManualStudentId('');
     }
@@ -551,28 +603,28 @@ export default function AdminDashboard() {
 
   const handleDeleteUser = async (id, identifier) => {
     if (userRole !== 'admin') {
-      alert('Administrator lamang ang maaaring magbura ng account.');
+      alert('Only administrators are authorized to remove accounts.');
       return;
     }
-    if (!confirm(`Sigurado ka bang nais mong tanggalin si ${identifier}?`)) return;
+    if (!confirm(`Are you sure you want to remove ${identifier}?`)) return;
     const { error } = await supabase.from('profiles').delete().eq('id', id);
     if (error) showNotify('error', error.message);
     else {
-      showNotify('success', 'Natanggal na ang tala.');
+      showNotify('success', 'Record removed successfully.');
       fetchAllData();
     }
   };
 
   const handleDeleteEvent = async (id, title) => {
     if (userRole !== 'admin') {
-      alert('Administrator lamang ang maaaring magbura ng event.');
+      alert('Only administrators are authorized to delete events.');
       return;
     }
-    if (!confirm(`Sigurado ka bang nais mong burahin ang "${title}"?`)) return;
+    if (!confirm(`Are you sure you want to delete event "${title}"?`)) return;
     const { error } = await supabase.from('events').delete().eq('id', id);
     if (error) showNotify('error', error.message);
     else {
-      showNotify('success', 'Nabura na ang event.');
+      showNotify('success', 'Event deleted successfully.');
       fetchAllData();
     }
   };
@@ -636,7 +688,7 @@ export default function AdminDashboard() {
             boxSizing: 'border-box',
           }}
         >
-          {/* Left: Hamburger & Brand */}
+          {/* Left: Hamburger Button and Brand */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <button
               onClick={() => setIsSidebarOpen(!isSidebarOpen)}
@@ -793,7 +845,7 @@ export default function AdminDashboard() {
                 style={{ fontSize: '0.95rem', padding: '14px 16px' }}
               >
                 <span>🎓</span>
-                <span>Whitelist Students</span>
+                <span>Add Student</span>
               </button>
 
               {isAdmin && (
@@ -839,7 +891,7 @@ export default function AdminDashboard() {
           </div>
         </aside>
 
-        {/* MAIN CONTENT VIEWPORT */}
+        {/* MAIN BODY VIEWPORT */}
         <main className={styles.portalContentArea} style={{ padding: '20px 16px' }}>
           <div style={{ marginBottom: '20px' }}>
             <h1 style={{ fontSize: '1.65rem', fontWeight: 900, color: '#0f172a', margin: '0 0 4px 0' }}>
@@ -871,7 +923,7 @@ export default function AdminDashboard() {
             <div>
               <div className={styles.attendanceStatsGrid}>
                 <div className={styles.attStatCard} style={{ padding: '20px' }}>
-                  <span className={styles.attStatLabel} style={{ fontSize: '0.8rem' }}>Whitelisted Students</span>
+                  <span className={styles.attStatLabel} style={{ fontSize: '0.8rem' }}>Enrolled Students</span>
                   <div className={styles.attStatValue} style={{ fontSize: '2.2rem' }}>{students.length}</div>
                 </div>
 
@@ -917,13 +969,13 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          {/* TAB 2: WHITELIST STUDENTS */}
+          {/* TAB 2: ADD STUDENT */}
           {activeTab === 'add-student' && (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '24px' }}>
               {isAdmin && (
                 <div className={styles.adminFormCard}>
                   <h3 className={styles.analyticsTitle} style={{ fontSize: '0.9rem', marginBottom: '16px' }}>
-                    Enroll Student to Whitelist
+                    Add Student
                   </h3>
 
                   <form onSubmit={handleAddStudent} className={styles.loginForm}>
@@ -945,7 +997,7 @@ export default function AdminDashboard() {
                       <label className={styles.inputLabel} style={{ fontSize: '0.78rem' }}>Full Name *</label>
                       <input
                         type="text"
-                        placeholder="e.g. Renowee Beloy"
+                        placeholder="e.g. Juan Dela Cruz"
                         value={studentName}
                         onChange={(e) => setStudentName(e.target.value)}
                         className={styles.loginInput}
@@ -967,6 +1019,7 @@ export default function AdminDashboard() {
                       />
                     </div>
 
+                    {/* Course & Year Level */}
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                       <div className={styles.inputGroup}>
                         <label className={styles.inputLabel} style={{ fontSize: '0.78rem' }}>Course</label>
@@ -1000,26 +1053,74 @@ export default function AdminDashboard() {
                       </div>
                     </div>
 
+                    {/* Section A to Section K */}
+                    <div className={styles.inputGroup}>
+                      <label className={styles.inputLabel} style={{ fontSize: '0.78rem' }}>Section (A - K) *</label>
+                      <select
+                        value={studentSection}
+                        onChange={(e) => setStudentSection(e.target.value)}
+                        className={styles.loginInput}
+                        style={{ padding: '12px 14px', fontSize: '0.95rem' }}
+                      >
+                        {sectionsList.map((sec) => (
+                          <option key={sec} value={sec}>
+                            {sec}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
                     <button type="submit" disabled={loading} className={styles.adminPrimaryBtn} style={{ minHeight: '48px', fontSize: '0.95rem' }}>
-                      {loading ? 'Saving Record...' : 'Enroll to Whitelist ➔'}
+                      {loading ? 'Saving Record...' : 'Add Student ➔'}
                     </button>
                   </form>
                 </div>
               )}
 
+              {/* Enrolled Students Table with Search & Remove All */}
               <div className={styles.adminFormCard}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '8px' }}>
-                  <h3 className={styles.analyticsTitle} style={{ fontSize: '0.9rem' }}>
-                    Enrolled Students ({filteredStudents.length})
-                  </h3>
-                  <input
-                    type="text"
-                    placeholder="🔍 Search student..."
-                    value={searchStudentQuery}
-                    onChange={(e) => setSearchStudentQuery(e.target.value)}
-                    className={styles.loginInput}
-                    style={{ width: '180px', padding: '8px 12px', fontSize: '0.85rem' }}
-                  />
+                  <div>
+                    <h3 className={styles.analyticsTitle} style={{ fontSize: '0.9rem', margin: 0 }}>
+                      Enrolled Students ({filteredStudents.length})
+                    </h3>
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <input
+                      type="text"
+                      placeholder="🔍 Search student..."
+                      value={searchStudentQuery}
+                      onChange={(e) => setSearchStudentQuery(e.target.value)}
+                      className={styles.loginInput}
+                      style={{ width: '150px', padding: '8px 12px', fontSize: '0.85rem' }}
+                    />
+
+                    {isAdmin && students.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={handleRemoveAllStudents}
+                        disabled={loading}
+                        style={{
+                          backgroundColor: '#fee2e2',
+                          color: '#b91c1c',
+                          border: '1px solid #fecaca',
+                          borderRadius: '10px',
+                          padding: '8px 12px',
+                          fontSize: '0.8rem',
+                          fontWeight: 900,
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          transition: 'all 0.2s ease',
+                        }}
+                        title="Delete all enrolled student records"
+                      >
+                        <span>🗑️</span> Remove All
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 <div className={styles.adminTableWrapper}>
@@ -1027,34 +1128,45 @@ export default function AdminDashboard() {
                     <thead>
                       <tr>
                         <th>School ID</th>
-                        <th>Student Name</th>
-                        <th>Course</th>
+                        <th>Student Details</th>
+                        <th>Course &amp; Section</th>
                         {isAdmin && <th style={{ textAlign: 'right' }}>Action</th>}
                       </tr>
                     </thead>
                     <tbody>
-                      {filteredStudents.map((st) => (
-                        <tr key={st.id}>
-                          <td style={{ fontWeight: 800 }}>{st.school_id}</td>
-                          <td>
-                            <div style={{ fontWeight: 700 }}>{st.full_name}</div>
-                            <div style={{ fontSize: '0.72rem', color: '#64748b' }}>{st.email}</div>
+                      {filteredStudents.length === 0 ? (
+                        <tr>
+                          <td colSpan={isAdmin ? 4 : 3} style={{ textAlign: 'center', padding: '24px', color: '#94a3b8' }}>
+                            No student records found.
                           </td>
-                          <td>
-                            <span className={styles.idBadge}>{st.course}</span>
-                          </td>
-                          {isAdmin && (
-                            <td style={{ textAlign: 'right' }}>
-                              <button
-                                onClick={() => handleDeleteUser(st.id, st.school_id)}
-                                style={{ background: 'none', border: 'none', color: '#b91c1c', fontWeight: 800, cursor: 'pointer', padding: '6px' }}
-                              >
-                                Remove
-                              </button>
-                            </td>
-                          )}
                         </tr>
-                      ))}
+                      ) : (
+                        filteredStudents.map((st) => (
+                          <tr key={st.id}>
+                            <td style={{ fontWeight: 800 }}>{st.school_id}</td>
+                            <td>
+                              <div style={{ fontWeight: 700 }}>{st.full_name}</div>
+                              <div style={{ fontSize: '0.72rem', color: '#64748b' }}>{st.email}</div>
+                            </td>
+                            <td>
+                              <span className={styles.idBadge}>{st.course}</span>
+                              <div style={{ fontSize: '0.72rem', color: '#15803d', fontWeight: 800, marginTop: '2px' }}>
+                                {st.section || 'Section A'} • {st.year_level || '1st Year'}
+                              </div>
+                            </td>
+                            {isAdmin && (
+                              <td style={{ textAlign: 'right' }}>
+                                <button
+                                  onClick={() => handleDeleteUser(st.id, st.school_id)}
+                                  style={{ background: 'none', border: 'none', color: '#b91c1c', fontWeight: 800, cursor: 'pointer', padding: '6px' }}
+                                >
+                                  Remove
+                                </button>
+                              </td>
+                            )}
+                          </tr>
+                        ))
+                      )}
                     </tbody>
                   </table>
                 </div>
@@ -1332,12 +1444,12 @@ export default function AdminDashboard() {
                   Live Camera QR Scanner
                 </h3>
                 <p style={{ fontSize: '0.88rem', color: '#64748b', marginBottom: '24px', lineHeight: 1.5 }}>
-                  I-scan ang QR code ng estudyante upang makita ang profile at maitala ang attendance.
+                  Scan student QR codes to verify profiles and record official attendance.
                 </p>
 
                 <div style={{ marginBottom: '16px' }}>
                   <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 800, color: '#334155', marginBottom: '6px' }}>
-                    Active Event Target:
+                    Active Event Schedule Target:
                   </label>
                   <select
                     value={selectedEventId}
@@ -1369,7 +1481,7 @@ export default function AdminDashboard() {
                   Manual School ID Check-in
                 </h3>
                 <p style={{ fontSize: '0.82rem', color: '#64748b', marginBottom: '16px' }}>
-                  Para sa mga estudyanteng walang dalang smartphone o malabo ang camera.
+                  For students without smartphones or during low camera lighting conditions.
                 </p>
 
                 <form onSubmit={handleManualScanSubmit} className={styles.loginForm}>
@@ -1411,7 +1523,7 @@ export default function AdminDashboard() {
       </div>
 
       {/* ========================================================= */}
-      {/* 1. CAMERA SCANNER MODAL POPUP (MATCHES USER IMAGE) */}
+      {/* 1. CAMERA SCANNER MODAL POPUP */}
       {/* ========================================================= */}
       {isCameraModalOpen && (
         <div
@@ -1446,7 +1558,6 @@ export default function AdminDashboard() {
               </h3>
             </div>
 
-            {/* Video Viewfinder Container na may White Frame Corners [ ] */}
             <div
               style={{
                 position: 'relative',
@@ -1464,7 +1575,7 @@ export default function AdminDashboard() {
             >
               <div id="interactive-qr-reader" style={{ width: '100%', height: '100%' }} />
 
-              {/* White Viewfinder Corners Overlay */}
+              {/* White Viewfinder Corners Overlay [ ] */}
               <div
                 style={{
                   position: 'absolute',
@@ -1481,7 +1592,6 @@ export default function AdminDashboard() {
               </div>
             </div>
 
-            {/* Stop/Resume Scanning Button */}
             <div style={{ marginTop: '12px', marginBottom: '14px' }}>
               <button
                 type="button"
@@ -1511,7 +1621,6 @@ export default function AdminDashboard() {
               </button>
             </div>
 
-            {/* Red Close Camera Button */}
             <button
               type="button"
               onClick={closeCameraModal}
@@ -1535,7 +1644,7 @@ export default function AdminDashboard() {
       )}
 
       {/* ========================================================= */}
-      {/* 2. SCANNED VERIFICATION MODAL (SCHOOL ID ONLY - WALANG GMAIL) */}
+      {/* 2. SCANNED VERIFICATION MODAL (SCHOOL ID ONLY - NO EMAIL) */}
       {/* ========================================================= */}
       {showVerifyModal && scannedStudentData && (
         <div
@@ -1612,7 +1721,7 @@ export default function AdminDashboard() {
               {scannedStudentData.full_name}
             </h2>
 
-            {/* MALAKING SCHOOL ID (WALANG GMAIL) */}
+            {/* School ID Display (No Email) */}
             <div
               style={{
                 fontSize: '1.1rem',
@@ -1630,7 +1739,7 @@ export default function AdminDashboard() {
               ID: {scannedStudentData.school_id}
             </div>
 
-            {/* Details Box: Course at Year Level Lamang */}
+            {/* Course, Year Level & Section */}
             <div
               style={{
                 backgroundColor: '#f8fafc',
@@ -1646,21 +1755,21 @@ export default function AdminDashboard() {
               }}
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ color: '#64748b', fontWeight: 700 }}>Course / Program:</span>
+                <span style={{ color: '#64748b', fontWeight: 700 }}>Course:</span>
                 <span className={styles.idBadge} style={{ fontSize: '0.75rem' }}>
                   {scannedStudentData.course}
                 </span>
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ color: '#64748b', fontWeight: 700 }}>Year Level:</span>
+                <span style={{ color: '#64748b', fontWeight: 700 }}>Year &amp; Section:</span>
                 <span style={{ fontWeight: 800, color: '#0f172a' }}>
-                  {scannedStudentData.year_level || '1st Year'}
+                  {scannedStudentData.year_level || '1st Year'} • {scannedStudentData.section || 'Section A'}
                 </span>
               </div>
             </div>
 
-            {/* Action Buttons: OK (Confirm) at Cancel */}
+            {/* Actions: OK & Cancel */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               <button
                 type="button"
