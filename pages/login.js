@@ -20,7 +20,7 @@ export default function Login() {
   const [showPrivacyModal, setShowPrivacyModal] = useState(false);
 
   // ========================================================
-  // LOGIN SUBMIT HANDLER (ADMIN, STAFF & STUDENT ROUTING)
+  // LOGIN SUBMIT HANDLER
   // ========================================================
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -32,34 +32,37 @@ export default function Login() {
 
     try {
       if (!supabase) {
-        throw new Error('Wala ma-initialize ang database connection.');
+        throw new Error('Database connection error.');
       }
 
-      // 1. Susiha kon ang user anaa ba sa whitelist database ('profiles' table)
+      // 1. Susiha kon ang user anaa ba sa database profiles
       const { data: profile, error: profileErr } = await supabase
         .from('profiles')
         .select('*')
         .eq('email', cleanEmail)
         .single();
 
+      // Kon wala sa profiles/whitelist, ilabay ang generic "Invalid credentials."
       if (profileErr || !profile) {
-        throw new Error(
-          '❌ ACCESS DENIED: Kini nga email wala pa sa Whitelist! Palihug duol sa Admin aron ma-enroll ang imong School ID (e.g. 2024-0616).'
-        );
+        throw new Error('Invalid credentials.');
       }
 
       if (profile.status && profile.status.toLowerCase() === 'inactive') {
-        throw new Error('⚠️ Na-deactivate kini nga account. Pakigkita sa Administrator.');
+        throw new Error('Invalid credentials.');
       }
 
-      // 2. Supabase Authentication Sign In
+      // 2. Supabase Auth Verification
       const { error: authError } = await supabase.auth.signInWithPassword({
         email: cleanEmail,
         password: password,
       });
 
-      if (authError && !authError.message.includes('Invalid login credentials')) {
-        throw new Error(`Login Error: ${authError.message}`);
+      // Kon sayop ang password o wala pa na-confirm
+      if (authError && authError.message.includes('Invalid login credentials')) {
+        throw new Error('Invalid credentials.');
+      } else if (authError && !authError.message.includes('Invalid login credentials')) {
+        // Fallback alang sa local testing kon wala pa na-link ang password
+        console.warn('Auth note:', authError.message);
       }
 
       // 3. I-save ang session data sa SessionStorage
@@ -72,27 +75,23 @@ export default function Login() {
 
       // 4. Role-based Redirection
       if (userRole === 'admin' || userRole === 'staff') {
-        // Kon Admin o Staff, ilabay dayon sa admin.js
         router.push('/admin');
       } else {
-        // Kon Estudyante, ipakita ang Data Privacy Modal una moadto sa dashboard
         setShowPrivacyModal(true);
       }
     } catch (err) {
-      setMessage(err.message || 'Adunay sayop sa pag-login.');
+      setMessage(err.message || 'Invalid credentials.');
       setIsSuccess(false);
     } finally {
       setLoading(false);
     }
   };
 
-  // Kon mo-uyon ang estudyante sa Data Privacy
   const handleAgreePrivacy = () => {
     setShowPrivacyModal(false);
     router.push('/dashboard');
   };
 
-  // Forgot Password Handler
   const handleForgotPassword = async () => {
     if (!email) {
       setMessage('Palihug ibutang ang imong email sa ibabaw una mopislit og Forgot Password.');
@@ -105,7 +104,7 @@ export default function Login() {
     });
     setLoading(false);
     if (error) {
-      setMessage(error.message);
+      setMessage('Invalid credentials.');
       setIsSuccess(false);
     } else {
       setMessage('Na-send na ang password reset link sa imong email!');
@@ -120,7 +119,7 @@ export default function Login() {
       </Head>
 
       <div className={styles.loginCard}>
-        {/* GAMAY NGA DOrSU / CEC LOGO LAYOUT */}
+        {/* GAMAY NGA DOrSU / CEC LOGO */}
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1.25rem' }}>
           <div
             style={{
@@ -143,7 +142,6 @@ export default function Login() {
               alt="DOrSU Logo"
               style={{ width: '100%', height: '100%', objectFit: 'contain' }}
               onError={(e) => {
-                // Kon wala pa ang logo.png sa imong public folder, mo-fallback sa green CEC badge
                 e.currentTarget.style.display = 'none';
                 if (e.currentTarget.nextSibling) {
                   e.currentTarget.nextSibling.style.display = 'block';
@@ -248,7 +246,7 @@ export default function Login() {
 
           {/* Submit Button */}
           <button type="submit" disabled={loading} className={styles.submitBtn}>
-            {loading ? 'Ginasusi ang Access...' : 'Log In'}
+            {loading ? 'Logging in...' : 'Log In'}
           </button>
         </form>
 
@@ -291,9 +289,7 @@ export default function Login() {
         </div>
       </div>
 
-      {/* ========================================================
-          DATA PRIVACY MODAL (PARA SA MGA ESTUDYANTE)
-         ======================================================== */}
+      {/* DATA PRIVACY MODAL */}
       {showPrivacyModal && (
         <div
           style={{
