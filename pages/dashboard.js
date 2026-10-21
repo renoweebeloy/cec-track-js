@@ -35,7 +35,7 @@ export default function StudentDashboard() {
   const [attendanceFilter, setAttendanceFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Scanning Clearance States
+  // Scanner Clearance States
   const [selectedEventId, setSelectedEventId] = useState('');
   const [isCameraModalOpen, setIsCameraModalOpen] = useState(false);
   const [isScannerRunning, setIsScannerRunning] = useState(false);
@@ -52,7 +52,7 @@ export default function StudentDashboard() {
   };
 
   // ========================================================
-  // 5-MINUTE AUTOMATIC SESSION TIMEOUT & BROWSER CLOSURE GUARD
+  // 5-MINUTE INACTIVITY / BROWSER CLOSURE TIMEOUT
   // ========================================================
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -441,7 +441,7 @@ export default function StudentDashboard() {
   )}`;
 
   return (
-    <div className={styles.container} style={{ paddingBottom: 0 }}>
+    <div className={styles.container} style={{ paddingBottom: 0, overflowX: 'hidden', maxWidth: '100vw' }}>
       <Head>
         <title>Student Portal • CEC TRACK</title>
         <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
@@ -449,7 +449,7 @@ export default function StudentDashboard() {
         <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js" async />
       </Head>
 
-      {/* TOP HEADER */}
+      {/* TOP HEADER: RESPONSIVE SINGLE ROW NA HINDI LUMALAGPAS SA SCREEN NG CP */}
       <header
         style={{
           position: 'sticky',
@@ -459,31 +459,34 @@ export default function StudentDashboard() {
           borderBottom: '1px solid #e2e8f0',
           boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
           width: '100%',
+          boxSizing: 'border-box',
         }}
       >
         <div
           style={{
             maxWidth: '1280px',
             margin: '0 auto',
-            padding: '12px 16px',
+            padding: '8px 10px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            gap: '12px',
+            gap: '6px',
             boxSizing: 'border-box',
+            width: '100%',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          {/* LEFT: HAMBURGER & BRAND TEXT (HINDI MAWAWALA SA SCREEN) */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, flexShrink: 1 }}>
             <button
               onClick={() => setIsSidebarOpen(!isSidebarOpen)}
               aria-label="Toggle Navigation Menu"
               style={{
-                width: '44px',
-                height: '44px',
-                borderRadius: '14px',
+                width: '38px',
+                height: '38px',
+                borderRadius: '12px',
                 backgroundColor: '#f1f5f9',
                 border: '1px solid #e2e8f0',
-                fontSize: '1.35rem',
+                fontSize: '1.2rem',
                 fontWeight: 900,
                 color: '#0f172a',
                 cursor: 'pointer',
@@ -496,54 +499,75 @@ export default function StudentDashboard() {
               {isSidebarOpen ? '✕' : '☰'}
             </button>
 
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{ fontSize: '1.25rem', fontWeight: 900, color: '#15803d', letterSpacing: '-0.025em' }}>
+            <div style={{ minWidth: 0, overflow: 'hidden' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                <span
+                  style={{
+                    fontSize: '1.05rem',
+                    fontWeight: 900,
+                    color: '#15803d',
+                    letterSpacing: '-0.025em',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
                   CEC TRACK
                 </span>
                 <span
                   style={{
-                    fontSize: '0.7rem',
+                    fontSize: '0.62rem',
                     fontWeight: 900,
-                    padding: '2px 8px',
+                    padding: '2px 6px',
                     borderRadius: '9999px',
                     backgroundColor: profile.can_scan ? '#fef3c7' : '#dcfce7',
                     color: profile.can_scan ? '#b45309' : '#15803d',
                     border: `1px solid ${profile.can_scan ? '#fde68a' : '#bbf7d0'}`,
                     textTransform: 'uppercase',
+                    whiteSpace: 'nowrap',
                   }}
                 >
-                  {profile.can_scan ? 'Scanner Officer' : 'Student'}
+                  {profile.can_scan ? 'Scanner' : 'Student'}
                 </span>
               </div>
-              <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748b', display: 'block' }}>
+              <span
+                style={{
+                  fontSize: '0.68rem',
+                  fontWeight: 700,
+                  color: '#64748b',
+                  display: 'block',
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                }}
+              >
                 Student Access Portal
               </span>
             </div>
           </div>
 
+          {/* RIGHT: STUDENT PROFILE BADGE (SWAK SA SCREEN AT MAY ELLIPSIS) */}
           <div
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: '10px',
+              gap: '6px',
               backgroundColor: '#ffffff',
               border: '1px solid #e2e8f0',
-              borderRadius: '16px',
-              padding: '6px 12px',
+              borderRadius: '14px',
+              padding: '4px 8px',
               boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
               flexShrink: 0,
+              maxWidth: '145px',
             }}
           >
-            <div style={{ textAlign: 'right' }}>
+            <div style={{ textAlign: 'right', minWidth: 0 }}>
               <span
                 style={{
-                  fontSize: '0.9rem',
+                  fontSize: '0.8rem',
                   fontWeight: 900,
                   color: '#0f172a',
                   display: 'block',
-                  lineHeight: 1.2,
-                  maxWidth: '130px',
+                  lineHeight: 1.15,
+                  maxWidth: '85px',
                   whiteSpace: 'nowrap',
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
@@ -551,23 +575,23 @@ export default function StudentDashboard() {
               >
                 {profile.full_name}
               </span>
-              <span style={{ fontSize: '0.72rem', fontWeight: 800, color: '#15803d' }}>
+              <span style={{ fontSize: '0.68rem', fontWeight: 800, color: '#15803d' }}>
                 {profile.school_id}
               </span>
             </div>
 
             <div
               style={{
-                width: '38px',
-                height: '38px',
-                borderRadius: '12px',
+                width: '32px',
+                height: '32px',
+                borderRadius: '10px',
                 backgroundColor: '#dcfce7',
                 color: '#15803d',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 fontWeight: 900,
-                fontSize: '1rem',
+                fontSize: '0.88rem',
                 flexShrink: 0,
                 border: '1px solid #bbf7d0',
                 overflow: 'hidden',
@@ -605,15 +629,15 @@ export default function StudentDashboard() {
             top: 0,
             bottom: 0,
             left: 0,
-            width: '290px',
-            maxWidth: '85vw',
+            width: '280px',
+            maxWidth: '82vw',
             backgroundColor: '#ffffff',
             borderRight: '1px solid #e2e8f0',
             zIndex: 100,
             display: 'flex',
             flexDirection: 'column',
             justifyContent: 'space-between',
-            padding: '24px 18px',
+            padding: '20px 16px',
             boxShadow: isSidebarOpen ? '6px 0 25px rgba(0,0,0,0.15)' : 'none',
             transform: isSidebarOpen ? 'translateX(0)' : 'translateX(-100%)',
             transition: 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
@@ -622,10 +646,10 @@ export default function StudentDashboard() {
           }}
         >
           <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', paddingBottom: '16px', borderBottom: '1px solid #f1f5f9' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', paddingBottom: '14px', borderBottom: '1px solid #f1f5f9' }}>
               <div>
-                <h2 style={{ fontSize: '1.35rem', fontWeight: 900, color: '#15803d', margin: 0 }}>Portal</h2>
-                <span style={{ fontSize: '0.72rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                <h2 style={{ fontSize: '1.25rem', fontWeight: 900, color: '#15803d', margin: 0 }}>Portal</h2>
+                <span style={{ fontSize: '0.68rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                   STUDENT ACCESS
                 </span>
               </div>
@@ -634,11 +658,11 @@ export default function StudentDashboard() {
                 style={{
                   background: 'none',
                   border: 'none',
-                  fontSize: '1.25rem',
+                  fontSize: '1.2rem',
                   fontWeight: 900,
                   color: '#64748b',
                   cursor: 'pointer',
-                  padding: '6px',
+                  padding: '4px',
                 }}
               >
                 ✕
@@ -649,7 +673,7 @@ export default function StudentDashboard() {
               <button
                 onClick={() => { setActiveTab('my-id'); setIsSidebarOpen(false); }}
                 className={activeTab === 'my-id' ? `${styles.portalNavLink} ${styles.portalNavLinkActive}` : styles.portalNavLink}
-                style={{ fontSize: '0.95rem', padding: '14px 16px' }}
+                style={{ fontSize: '0.92rem', padding: '12px 14px' }}
               >
                 <span>🪪</span>
                 <span>My ID</span>
@@ -658,7 +682,7 @@ export default function StudentDashboard() {
               <button
                 onClick={() => { setActiveTab('attendance'); setIsSidebarOpen(false); }}
                 className={activeTab === 'attendance' ? `${styles.portalNavLink} ${styles.portalNavLinkActive}` : styles.portalNavLink}
-                style={{ fontSize: '0.95rem', padding: '14px 16px' }}
+                style={{ fontSize: '0.92rem', padding: '12px 14px' }}
               >
                 <span>📅</span>
                 <span>Attendance</span>
@@ -667,7 +691,7 @@ export default function StudentDashboard() {
               <button
                 onClick={() => { setActiveTab('events'); setIsSidebarOpen(false); }}
                 className={activeTab === 'events' ? `${styles.portalNavLink} ${styles.portalNavLinkActive}` : styles.portalNavLink}
-                style={{ fontSize: '0.95rem', padding: '14px 16px' }}
+                style={{ fontSize: '0.92rem', padding: '12px 14px' }}
               >
                 <span>✨</span>
                 <span>Events</span>
@@ -678,8 +702,8 @@ export default function StudentDashboard() {
                   onClick={() => { setActiveTab('scan-attendance'); setIsSidebarOpen(false); }}
                   className={activeTab === 'scan-attendance' ? `${styles.portalNavLink} ${styles.portalNavLinkActive}` : styles.portalNavLink}
                   style={{
-                    fontSize: '0.95rem',
-                    padding: '14px 16px',
+                    fontSize: '0.92rem',
+                    padding: '12px 14px',
                     backgroundColor: activeTab === 'scan-attendance' ? '#dcfce7' : '#f0fdf4',
                     border: '1px solid #bbf7d0',
                     color: '#15803d',
@@ -694,36 +718,36 @@ export default function StudentDashboard() {
               <button
                 onClick={() => { setActiveTab('profile'); setIsSidebarOpen(false); }}
                 className={activeTab === 'profile' ? `${styles.portalNavLink} ${styles.portalNavLinkActive}` : styles.portalNavLink}
-                style={{ fontSize: '0.95rem', padding: '14px 16px' }}
+                style={{ fontSize: '0.92rem', padding: '12px 14px' }}
               >
                 <span>👤</span>
                 <span>Profile</span>
               </button>
 
-              <div style={{ padding: '14px 16px 4px 16px', fontSize: '0.7rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              <div style={{ padding: '12px 14px 4px 14px', fontSize: '0.68rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                 Organization
               </div>
 
-              <div className={styles.portalNavLink} style={{ opacity: 0.5, cursor: 'not-allowed', fontSize: '0.95rem', padding: '14px 16px' }}>
+              <div className={styles.portalNavLink} style={{ opacity: 0.5, cursor: 'not-allowed', fontSize: '0.92rem', padding: '12px 14px' }}>
                 <span>🎗️</span>
                 <span>Officers</span>
               </div>
-              <div className={styles.portalNavLink} style={{ opacity: 0.5, cursor: 'not-allowed', fontSize: '0.95rem', padding: '14px 16px' }}>
+              <div className={styles.portalNavLink} style={{ opacity: 0.5, cursor: 'not-allowed', fontSize: '0.92rem', padding: '12px 14px' }}>
                 <span>💳</span>
                 <span>Finance</span>
               </div>
-              <div className={styles.portalNavLink} style={{ opacity: 0.5, cursor: 'not-allowed', fontSize: '0.95rem', padding: '14px 16px' }}>
+              <div className={styles.portalNavLink} style={{ opacity: 0.5, cursor: 'not-allowed', fontSize: '0.92rem', padding: '12px 14px' }}>
                 <span>🛡️</span>
                 <span>Sanctions</span>
               </div>
             </nav>
           </div>
 
-          <div style={{ borderTop: '1px solid #f1f5f9', paddingTop: '18px', marginTop: '20px' }}>
+          <div style={{ borderTop: '1px solid #f1f5f9', paddingTop: '16px', marginTop: '16px' }}>
             <button
               onClick={handleSignOut}
               className={styles.portalNavLink}
-              style={{ color: '#b91c1c', fontWeight: 900, fontSize: '0.95rem', padding: '14px 16px' }}
+              style={{ color: '#b91c1c', fontWeight: 900, fontSize: '0.92rem', padding: '12px 14px' }}
             >
               <span>➔</span>
               <span>Sign Out</span>
@@ -732,17 +756,17 @@ export default function StudentDashboard() {
         </aside>
 
         {/* MAIN BODY CONTENT */}
-        <main className={styles.portalContentArea} style={{ padding: '20px 16px' }}>
+        <main className={styles.portalContentArea} style={{ padding: '16px 12px', width: '100%', boxSizing: 'border-box' }}>
           {notification.message && (
             <div
               className={styles.alertMessage}
               style={{
-                marginBottom: '1.25rem',
-                fontSize: '0.9rem',
+                marginBottom: '1rem',
+                fontSize: '0.85rem',
                 color: notification.type === 'error' ? '#b91c1c' : '#15803d',
                 backgroundColor: notification.type === 'error' ? '#fef2f2' : '#f0fdf4',
                 borderColor: notification.type === 'error' ? '#fee2e2' : '#bbf7d0',
-                padding: '12px 16px',
+                padding: '10px 14px',
               }}
             >
               {notification.message}
@@ -751,20 +775,22 @@ export default function StudentDashboard() {
 
           {/* TAB 1: MY DIGITAL ID */}
           {activeTab === 'my-id' && (
-            <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '12px' }}>
+            <div style={{ maxWidth: '1000px', margin: '0 auto', width: '100%' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px', flexWrap: 'wrap', gap: '10px' }}>
                 <div>
-                  <h1 className={styles.adminTitle}>My Digital ID</h1>
-                  <p className={styles.adminSubtitle}>Your official scannable organization credentials.</p>
+                  <h1 className={styles.adminTitle} style={{ fontSize: '1.45rem', margin: 0 }}>My Digital ID</h1>
+                  <p className={styles.adminSubtitle} style={{ fontSize: '0.82rem', margin: '4px 0 0 0' }}>
+                    Your official scannable organization credentials.
+                  </p>
                 </div>
                 {profile.avatar_url && (
                   <button
                     onClick={handleDownloadIdCard}
                     disabled={downloadingId}
                     className={styles.adminPrimaryBtn}
-                    style={{ minHeight: '48px', fontSize: '0.95rem' }}
+                    style={{ minHeight: '44px', fontSize: '0.88rem', padding: '10px 16px' }}
                   >
-                    {downloadingId ? '⏳ Generating ID Image...' : '📥 Download Official ID'}
+                    {downloadingId ? '⏳ Generating...' : '📥 Download Official ID'}
                   </button>
                 )}
               </div>
@@ -777,15 +803,16 @@ export default function StudentDashboard() {
                 style={{ display: 'none' }}
               />
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '28px', alignItems: 'start' }}>
-                <div className={styles.digitalIdCard}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))', gap: '20px', alignItems: 'start', width: '100%' }}>
+                {/* ID CARD */}
+                <div className={styles.digitalIdCard} style={{ margin: '0 auto', maxWidth: '340px', width: '100%' }}>
                   <div
                     ref={idCardRef}
                     className={styles.idCardInner}
                     style={{
                       position: 'relative',
                       overflow: 'hidden',
-                      paddingTop: '68px',
+                      paddingTop: '64px',
                       backgroundColor: '#ffffff',
                     }}
                   >
@@ -795,7 +822,7 @@ export default function StudentDashboard() {
                         top: 0,
                         left: 0,
                         right: 0,
-                        height: '115px',
+                        height: '110px',
                         backgroundColor: '#15803d',
                         borderTopLeftRadius: '26px',
                         borderTopRightRadius: '26px',
@@ -804,23 +831,22 @@ export default function StudentDashboard() {
                         display: 'flex',
                         alignItems: 'flex-start',
                         justifyContent: 'center',
-                        paddingTop: '16px',
+                        paddingTop: '14px',
                         zIndex: 1,
                       }}
                     >
                       <span
                         style={{
                           color: '#ffffff',
-                          fontSize: '0.85rem',
+                          fontSize: '0.82rem',
                           fontWeight: 900,
                           letterSpacing: '0.14em',
                           textTransform: 'uppercase',
                           backgroundColor: 'rgba(255, 255, 255, 0.22)',
                           backdropFilter: 'blur(5px)',
-                          padding: '4px 16px',
+                          padding: '3px 14px',
                           borderRadius: '9999px',
                           border: '1px solid rgba(255, 255, 255, 0.38)',
-                          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
                         }}
                       >
                         CEC- TRACK
@@ -834,13 +860,17 @@ export default function StudentDashboard() {
                         cursor: 'pointer',
                         position: 'relative',
                         zIndex: 2,
-                        marginTop: '10px',
+                        marginTop: '8px',
                         border: '4px solid #ffffff',
                         overflow: 'hidden',
                         backgroundColor: '#f1f5f9',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
+                        width: '90px',
+                        height: '90px',
+                        borderRadius: '24px',
+                        margin: '8px auto 0 auto',
                       }}
                     >
                       {profile.avatar_url ? (
@@ -851,7 +881,7 @@ export default function StudentDashboard() {
                         />
                       ) : (
                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', color: '#64748b' }}>
-                          <span style={{ fontSize: '2rem' }}>👤</span>
+                          <span style={{ fontSize: '1.8rem' }}>👤</span>
                           <span style={{ fontSize: '0.62rem', fontWeight: 900, color: '#15803d', marginTop: '2px' }}>
                             + Upload
                           </span>
@@ -875,30 +905,30 @@ export default function StudentDashboard() {
                         zIndex: 2,
                       }}
                     >
-                      {uploadingPhoto ? 'Uploading photo...' : profile.avatar_url ? 'Change Photo' : 'Upload 2x2 Photo'}
+                      {uploadingPhoto ? 'Uploading...' : profile.avatar_url ? 'Change Photo' : 'Upload 2x2 Photo'}
                     </button>
 
-                    <h2 className={styles.idStudentName} style={{ marginTop: '8px', position: 'relative', zIndex: 2 }}>
+                    <h2 className={styles.idStudentName} style={{ marginTop: '6px', fontSize: '1.25rem', position: 'relative', zIndex: 2 }}>
                       {profile.full_name}
                     </h2>
 
                     <div className={styles.idLabel} style={{ position: 'relative', zIndex: 2 }}>STUDENT ID</div>
-                    <div className={styles.idSchoolNumber} style={{ position: 'relative', zIndex: 2 }}>{profile.school_id}</div>
+                    <div className={styles.idSchoolNumber} style={{ position: 'relative', zIndex: 2, fontSize: '1.1rem' }}>{profile.school_id}</div>
 
                     {profile.avatar_url ? (
                       <div style={{ position: 'relative', zIndex: 2 }}>
-                        <div className={styles.idQrBox}>
-                          <img src={qrCodeUrl} alt="Student QR Code" crossOrigin="anonymous" />
+                        <div className={styles.idQrBox} style={{ maxWidth: '190px', margin: '10px auto' }}>
+                          <img src={qrCodeUrl} alt="Student QR Code" crossOrigin="anonymous" style={{ width: '100%', height: 'auto' }} />
                         </div>
 
                         <div
                           style={{
-                            fontSize: '0.78rem',
+                            fontSize: '0.75rem',
                             fontWeight: 900,
                             color: '#15803d',
                             letterSpacing: '0.08em',
                             textTransform: 'uppercase',
-                            marginTop: '10px',
+                            marginTop: '8px',
                           }}
                         >
                           SCAN FOR ATTENDANCE
@@ -909,22 +939,22 @@ export default function StudentDashboard() {
                         style={{
                           position: 'relative',
                           zIndex: 2,
-                          margin: '18px 0',
-                          padding: '18px 14px',
+                          margin: '14px 10px',
+                          padding: '16px 12px',
                           backgroundColor: '#fef2f2',
                           border: '1px dashed #fca5a5',
-                          borderRadius: '20px',
+                          borderRadius: '18px',
                           display: 'flex',
                           flexDirection: 'column',
                           alignItems: 'center',
-                          gap: '8px',
+                          gap: '6px',
                         }}
                       >
-                        <span style={{ fontSize: '1.8rem' }}>🔒</span>
-                        <div style={{ fontSize: '0.85rem', fontWeight: 900, color: '#991b1b' }}>
+                        <span style={{ fontSize: '1.6rem' }}>🔒</span>
+                        <div style={{ fontSize: '0.82rem', fontWeight: 900, color: '#991b1b' }}>
                           QR Code Locked
                         </div>
-                        <p style={{ fontSize: '0.72rem', color: '#b91c1c', margin: 0, lineHeight: 1.4, maxWidth: '220px' }}>
+                        <p style={{ fontSize: '0.7rem', color: '#b91c1c', margin: 0, lineHeight: 1.35, maxWidth: '200px' }}>
                           Please upload your official ID photo above to activate and display your Attendance QR Code.
                         </p>
                         <button
@@ -936,8 +966,8 @@ export default function StudentDashboard() {
                             color: '#ffffff',
                             border: 'none',
                             borderRadius: '10px',
-                            padding: '6px 14px',
-                            fontSize: '0.75rem',
+                            padding: '6px 12px',
+                            fontSize: '0.72rem',
                             fontWeight: 800,
                             cursor: 'pointer',
                           }}
@@ -947,10 +977,10 @@ export default function StudentDashboard() {
                       </div>
                     )}
 
-                    <div style={{ borderTop: '1px solid #f1f5f9', marginTop: '16px', paddingTop: '10px', position: 'relative', zIndex: 2 }}>
+                    <div style={{ borderTop: '1px solid #f1f5f9', marginTop: '14px', paddingTop: '8px', position: 'relative', zIndex: 2 }}>
                       <span
                         style={{
-                          fontSize: '0.7rem',
+                          fontSize: '0.68rem',
                           fontWeight: 900,
                           color: '#94a3b8',
                           textTransform: 'uppercase',
@@ -963,29 +993,30 @@ export default function StudentDashboard() {
                   </div>
                 </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                  <div className={styles.adminFormCard} style={{ backgroundColor: '#f0fdf4', borderColor: '#bbf7d0', padding: '20px' }}>
-                    <div style={{ display: 'flex', gap: '14px', alignItems: 'flex-start' }}>
-                      <span style={{ fontSize: '1.6rem' }}>📱</span>
+                {/* INFO CARDS */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', width: '100%' }}>
+                  <div className={styles.adminFormCard} style={{ backgroundColor: '#f0fdf4', borderColor: '#bbf7d0', padding: '16px' }}>
+                    <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+                      <span style={{ fontSize: '1.4rem' }}>📱</span>
                       <div>
-                        <h4 style={{ margin: '0 0 4px 0', fontSize: '0.95rem', fontWeight: 900, color: '#166534' }}>
+                        <h4 style={{ margin: '0 0 4px 0', fontSize: '0.9rem', fontWeight: 900, color: '#166534' }}>
                           Universal Device Downloads
                         </h4>
-                        <p style={{ margin: 0, fontSize: '0.85rem', color: '#15803d', lineHeight: 1.5 }}>
+                        <p style={{ margin: 0, fontSize: '0.8rem', color: '#15803d', lineHeight: 1.45 }}>
                           Save this digital badge directly to your smartphone photos or download it on your laptop for quick verification during events.
                         </p>
                       </div>
                     </div>
                   </div>
 
-                  <div className={styles.adminFormCard} style={{ padding: '20px' }}>
-                    <div style={{ display: 'flex', gap: '14px', alignItems: 'flex-start' }}>
-                      <span style={{ fontSize: '1.6rem' }}>🛡️</span>
+                  <div className={styles.adminFormCard} style={{ padding: '16px' }}>
+                    <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+                      <span style={{ fontSize: '1.4rem' }}>🛡️</span>
                       <div>
-                        <h4 style={{ margin: '0 0 4px 0', fontSize: '0.95rem', fontWeight: 900, color: '#0f172a' }}>
+                        <h4 style={{ margin: '0 0 4px 0', fontSize: '0.9rem', fontWeight: 900, color: '#0f172a' }}>
                           Official Usage Policy
                         </h4>
-                        <ul style={{ margin: '6px 0 0 0', paddingLeft: '18px', fontSize: '0.85rem', color: '#64748b', lineHeight: 1.6 }}>
+                        <ul style={{ margin: '4px 0 0 0', paddingLeft: '16px', fontSize: '0.78rem', color: '#64748b', lineHeight: 1.5 }}>
                           <li>Present this QR code for attendance monitoring at all official assemblies.</li>
                           <li>This code is non-transferable. Presenting another student&apos;s code is prohibited.</li>
                         </ul>
@@ -999,61 +1030,61 @@ export default function StudentDashboard() {
 
           {/* TAB 2: ATTENDANCE RECORDS */}
           {activeTab === 'attendance' && (
-            <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '12px' }}>
+            <div style={{ maxWidth: '1000px', margin: '0 auto', width: '100%' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px', flexWrap: 'wrap', gap: '10px' }}>
                 <div>
                   <span className={styles.tagBadge}>OFFICIAL ATTENDANCE HISTORY</span>
-                  <h1 className={styles.adminTitle} style={{ marginTop: '6px' }}>My Attendance Record</h1>
-                  <p className={styles.adminSubtitle}>Track your attendance participation, logged times, and compliance status.</p>
+                  <h1 className={styles.adminTitle} style={{ marginTop: '4px', fontSize: '1.45rem' }}>My Attendance Record</h1>
+                  <p className={styles.adminSubtitle} style={{ fontSize: '0.82rem' }}>Track your attendance participation and status.</p>
                 </div>
 
-                <button onClick={fetchStudentData} className={styles.eventsBtn} style={{ minHeight: '44px', fontSize: '0.9rem' }}>
+                <button onClick={fetchStudentData} className={styles.eventsBtn} style={{ minHeight: '40px', fontSize: '0.85rem' }}>
                   🔄 Refresh Records
                 </button>
               </div>
 
               <div className={styles.attendanceStatsGrid}>
-                <div className={styles.attStatCard} style={{ padding: '20px' }}>
-                  <span className={styles.attStatLabel} style={{ fontSize: '0.8rem' }}>Total Events</span>
-                  <div className={styles.attStatValue} style={{ fontSize: '2.2rem' }}>{totalEventsCount}</div>
+                <div className={styles.attStatCard} style={{ padding: '16px' }}>
+                  <span className={styles.attStatLabel} style={{ fontSize: '0.75rem' }}>Total Events</span>
+                  <div className={styles.attStatValue} style={{ fontSize: '1.8rem' }}>{totalEventsCount}</div>
                 </div>
 
-                <div className={styles.attStatCard} style={{ padding: '20px' }}>
-                  <span className={styles.attStatLabel} style={{ fontSize: '0.8rem' }}>Total Present</span>
-                  <div className={`${styles.attStatValue} ${styles.attGreenText}`} style={{ fontSize: '2.2rem' }}>{totalPresentCount}</div>
+                <div className={styles.attStatCard} style={{ padding: '16px' }}>
+                  <span className={styles.attStatLabel} style={{ fontSize: '0.75rem' }}>Total Present</span>
+                  <div className={`${styles.attStatValue} ${styles.attGreenText}`} style={{ fontSize: '1.8rem' }}>{totalPresentCount}</div>
                 </div>
 
-                <div className={styles.attStatCard} style={{ padding: '20px' }}>
-                  <span className={styles.attStatLabel} style={{ fontSize: '0.8rem' }}>Absences</span>
-                  <div className={styles.attStatValue} style={{ color: '#b91c1c', fontSize: '2.2rem' }}>{totalAbsencesCount}</div>
+                <div className={styles.attStatCard} style={{ padding: '16px' }}>
+                  <span className={styles.attStatLabel} style={{ fontSize: '0.75rem' }}>Absences</span>
+                  <div className={styles.attStatValue} style={{ color: '#b91c1c', fontSize: '1.8rem' }}>{totalAbsencesCount}</div>
                 </div>
 
-                <div className={styles.attStatCard} style={{ padding: '20px' }}>
-                  <span className={styles.attStatLabel} style={{ fontSize: '0.8rem' }}>Compliance Rate</span>
-                  <div className={`${styles.attStatValue} ${styles.attGreenText}`} style={{ fontSize: '2.2rem' }}>{complianceRate}%</div>
+                <div className={styles.attStatCard} style={{ padding: '16px' }}>
+                  <span className={styles.attStatLabel} style={{ fontSize: '0.75rem' }}>Compliance Rate</span>
+                  <div className={`${styles.attStatValue} ${styles.attGreenText}`} style={{ fontSize: '1.8rem' }}>{complianceRate}%</div>
                 </div>
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
-                <div style={{ display: 'flex', gap: '8px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '10px' }}>
+                <div style={{ display: 'flex', gap: '6px' }}>
                   <button
                     onClick={() => setAttendanceFilter('all')}
                     className={attendanceFilter === 'all' ? `${styles.adminTabBtn} ${styles.adminTabBtnActive}` : styles.adminTabBtn}
-                    style={{ fontSize: '0.85rem', padding: '10px 16px' }}
+                    style={{ fontSize: '0.8rem', padding: '8px 12px' }}
                   >
-                    All Logs ({attendanceLogs.length})
+                    All ({attendanceLogs.length})
                   </button>
                   <button
                     onClick={() => setAttendanceFilter('present')}
                     className={attendanceFilter === 'present' ? `${styles.adminTabBtn} ${styles.adminTabBtnActive}` : styles.adminTabBtn}
-                    style={{ fontSize: '0.85rem', padding: '10px 16px' }}
+                    style={{ fontSize: '0.8rem', padding: '8px 12px' }}
                   >
                     ✓ Present ({totalPresentCount})
                   </button>
                   <button
                     onClick={() => setAttendanceFilter('absent')}
                     className={attendanceFilter === 'absent' ? `${styles.adminTabBtn} ${styles.adminTabBtnActive}` : styles.adminTabBtn}
-                    style={{ fontSize: '0.85rem', padding: '10px 16px' }}
+                    style={{ fontSize: '0.8rem', padding: '8px 12px' }}
                   >
                     ✕ Absent ({totalAbsencesCount})
                   </button>
@@ -1061,11 +1092,11 @@ export default function StudentDashboard() {
 
                 <input
                   type="text"
-                  placeholder="🔍 Search event or venue..."
+                  placeholder="🔍 Search event..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className={styles.loginInput}
-                  style={{ width: '220px', padding: '8px 14px', fontSize: '0.9rem' }}
+                  style={{ width: '100%', maxWidth: '200px', padding: '8px 12px', fontSize: '0.85rem' }}
                 />
               </div>
 
@@ -1077,7 +1108,7 @@ export default function StudentDashboard() {
                       <th>Date</th>
                       <th>Time In</th>
                       <th>Time Out</th>
-                      <th>Event Status</th>
+                      <th>Status</th>
                       <th style={{ textAlign: 'center' }}>Attendance</th>
                     </tr>
                   </thead>
@@ -1088,7 +1119,7 @@ export default function StudentDashboard() {
                         <tr key={log.id}>
                           <td>
                             <div style={{ fontWeight: 800 }}>{log.title}</div>
-                            <div style={{ fontSize: '0.75rem', color: '#15803d', fontWeight: 700 }}>
+                            <div style={{ fontSize: '0.72rem', color: '#15803d', fontWeight: 700 }}>
                               📍 {log.location || 'FaCET Facade'}
                             </div>
                           </td>
@@ -1096,7 +1127,7 @@ export default function StudentDashboard() {
                           <td style={{ fontWeight: 800 }}>{log.time_in || '--:--'}</td>
                           <td style={{ fontWeight: 800 }}>{log.time_out || '--:--'}</td>
                           <td>
-                            <span className={styles.idBadge} style={{ fontSize: '0.7rem' }}>
+                            <span className={styles.idBadge} style={{ fontSize: '0.68rem' }}>
                               {log.event_status || 'CLOSED'}
                             </span>
                           </td>
@@ -1124,15 +1155,15 @@ export default function StudentDashboard() {
 
           {/* TAB 3: EVENTS */}
           {activeTab === 'events' && (
-            <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '12px' }}>
+            <div style={{ maxWidth: '1000px', margin: '0 auto', width: '100%' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px', flexWrap: 'wrap', gap: '10px' }}>
                 <div>
                   <span className={styles.tagBadge}>OFFICIAL ORGANIZATION ACTIVITIES</span>
-                  <h1 className={styles.adminTitle} style={{ marginTop: '6px' }}>Organization Events</h1>
-                  <p className={styles.adminSubtitle}>Explore upcoming assemblies, seminars, and official college activities.</p>
+                  <h1 className={styles.adminTitle} style={{ marginTop: '4px', fontSize: '1.45rem' }}>Organization Events</h1>
+                  <p className={styles.adminSubtitle} style={{ fontSize: '0.82rem' }}>Explore upcoming assemblies and official activities.</p>
                 </div>
 
-                <div style={{ display: 'flex', gap: '8px' }}>
+                <div style={{ display: 'flex', gap: '6px' }}>
                   <span className={styles.idBadge}>Total: {events.length}</span>
                   <span className={styles.idBadge} style={{ backgroundColor: '#dcfce7', color: '#15803d' }}>
                     Active: {events.filter((e) => e.status === 'active').length}
@@ -1141,17 +1172,17 @@ export default function StudentDashboard() {
               </div>
 
               {events.length === 0 ? (
-                <div className={styles.adminFormCard} style={{ textAlign: 'center', padding: '48px 24px' }}>
-                  <div style={{ fontSize: '3rem', marginBottom: '12px' }}>📅</div>
-                  <h3 style={{ margin: '0 0 6px 0', fontSize: '1.2rem', fontWeight: 900 }}>
+                <div className={styles.adminFormCard} style={{ textAlign: 'center', padding: '36px 16px' }}>
+                  <div style={{ fontSize: '2.5rem', marginBottom: '8px' }}>📅</div>
+                  <h3 style={{ margin: '0 0 4px 0', fontSize: '1.1rem', fontWeight: 900 }}>
                     No Events Available
                   </h3>
-                  <p style={{ margin: 0, fontSize: '0.88rem', color: '#64748b' }}>
-                    There are no official events scheduled at this time. Please check back later.
+                  <p style={{ margin: 0, fontSize: '0.82rem', color: '#64748b' }}>
+                    There are no official events scheduled at this time.
                   </p>
                 </div>
               ) : (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
                   {events.map((ev) => {
                     const isActive = ev.status === 'active';
                     return (
@@ -1167,43 +1198,43 @@ export default function StudentDashboard() {
                         }}
                       >
                         {ev.image_url ? (
-                          <div style={{ width: '100%', height: '170px', overflow: 'hidden', backgroundColor: '#f1f5f9' }}>
+                          <div style={{ width: '100%', height: '150px', overflow: 'hidden', backgroundColor: '#f1f5f9' }}>
                             <img src={ev.image_url} alt={ev.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                           </div>
                         ) : (
-                          <div style={{ width: '100%', height: '100px', backgroundColor: '#f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2rem', borderBottom: '1px solid #f1f5f9' }}>
+                          <div style={{ width: '100%', height: '90px', backgroundColor: '#f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.8rem', borderBottom: '1px solid #f1f5f9' }}>
                             📅
                           </div>
                         )}
 
-                        <div style={{ padding: '20px' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                        <div style={{ padding: '16px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                             <span
                               className={styles.idBadge}
                               style={{
                                 backgroundColor: isActive ? '#dcfce7' : '#f1f5f9',
                                 color: isActive ? '#15803d' : '#64748b',
-                                fontSize: '0.7rem',
+                                fontSize: '0.68rem',
                               }}
                             >
                               {isActive ? '● ACTIVE (OPEN)' : 'CLOSED'}
                             </span>
-                            <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#94a3b8' }}>
+                            <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#94a3b8' }}>
                               {ev.date}
                             </span>
                           </div>
 
-                          <h3 style={{ margin: '0 0 6px 0', fontSize: '1.15rem', fontWeight: 900, color: '#0f172a' }}>
+                          <h3 style={{ margin: '0 0 4px 0', fontSize: '1.05rem', fontWeight: 900, color: '#0f172a' }}>
                             {ev.title}
                           </h3>
-                          <div style={{ fontSize: '0.82rem', color: '#15803d', fontWeight: 800, marginBottom: '8px' }}>
+                          <div style={{ fontSize: '0.78rem', color: '#15803d', fontWeight: 800, marginBottom: '6px' }}>
                             📍 {ev.location || 'FaCET Facade'}
                           </div>
-                          <div style={{ fontSize: '0.82rem', color: '#64748b', display: 'flex', gap: '12px', fontWeight: 700, marginBottom: '12px' }}>
+                          <div style={{ fontSize: '0.78rem', color: '#64748b', display: 'flex', gap: '10px', fontWeight: 700, marginBottom: '10px' }}>
                             <span>In: {ev.time_in || '08:00'}</span>
                             <span>Out: {ev.time_out || '17:00'}</span>
                           </div>
-                          <p style={{ margin: 0, fontSize: '0.85rem', color: '#64748b', lineHeight: 1.5 }}>
+                          <p style={{ margin: 0, fontSize: '0.8rem', color: '#64748b', lineHeight: 1.45 }}>
                             {ev.description || 'No description provided.'}
                           </p>
                         </div>
@@ -1217,41 +1248,41 @@ export default function StudentDashboard() {
 
           {/* TAB 4: SCAN ATTENDANCE */}
           {activeTab === 'scan-attendance' && profile.can_scan && (
-            <div style={{ maxWidth: '600px', margin: '0 auto' }}>
-              <div className={styles.adminFormCard} style={{ textAlign: 'center', padding: '36px 20px' }}>
+            <div style={{ maxWidth: '540px', margin: '0 auto', width: '100%' }}>
+              <div className={styles.adminFormCard} style={{ textAlign: 'center', padding: '28px 16px' }}>
                 <div
                   style={{
-                    width: '64px',
-                    height: '64px',
-                    borderRadius: '20px',
+                    width: '56px',
+                    height: '56px',
+                    borderRadius: '18px',
                     backgroundColor: '#dcfce7',
                     color: '#15803d',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    fontSize: '2rem',
-                    margin: '0 auto 16px auto',
+                    fontSize: '1.8rem',
+                    margin: '0 auto 12px auto',
                     border: '1px solid #bbf7d0',
                   }}
                 >
                   📷
                 </div>
-                <h3 className={styles.analyticsTitle} style={{ justifyContent: 'center', fontSize: '1.2rem', marginBottom: '8px' }}>
+                <h3 className={styles.analyticsTitle} style={{ justifyContent: 'center', fontSize: '1.1rem', marginBottom: '6px' }}>
                   Student Officer Attendance Scanner
                 </h3>
-                <p style={{ fontSize: '0.88rem', color: '#64748b', marginBottom: '24px', lineHeight: 1.5 }}>
+                <p style={{ fontSize: '0.82rem', color: '#64748b', marginBottom: '18px', lineHeight: 1.45 }}>
                   You are authorized by administration to scan fellow students for official event attendance.
                 </p>
 
-                <div style={{ marginBottom: '16px', textAlign: 'left' }}>
-                  <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 800, color: '#334155', marginBottom: '6px' }}>
+                <div style={{ marginBottom: '14px', textAlign: 'left' }}>
+                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: '#334155', marginBottom: '6px' }}>
                     Select Event Schedule:
                   </label>
                   <select
                     value={selectedEventId}
                     onChange={(e) => setSelectedEventId(e.target.value)}
                     className={styles.loginInput}
-                    style={{ padding: '10px 14px', fontSize: '0.9rem' }}
+                    style={{ padding: '8px 12px', fontSize: '0.88rem' }}
                   >
                     {events.map((ev) => (
                       <option key={ev.id} value={ev.id}>
@@ -1265,7 +1296,7 @@ export default function StudentDashboard() {
                   type="button"
                   onClick={startCameraScanner}
                   className={styles.submitBtn}
-                  style={{ minHeight: '50px', fontSize: '1rem', fontWeight: 900 }}
+                  style={{ minHeight: '46px', fontSize: '0.92rem', fontWeight: 900 }}
                 >
                   📷 Open Camera Scanner ➔
                 </button>
@@ -1275,20 +1306,20 @@ export default function StudentDashboard() {
 
           {/* TAB 5: PROFILE */}
           {activeTab === 'profile' && (
-            <div style={{ maxWidth: '640px', margin: '0 auto' }}>
-              <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+            <div style={{ maxWidth: '580px', margin: '0 auto', width: '100%' }}>
+              <div style={{ textAlign: 'center', marginBottom: '20px' }}>
                 <div
                   style={{
-                    width: '84px',
-                    height: '84px',
-                    borderRadius: '24px',
+                    width: '76px',
+                    height: '76px',
+                    borderRadius: '22px',
                     backgroundColor: '#dcfce7',
                     color: '#15803d',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    fontSize: '2.2rem',
-                    margin: '0 auto 12px auto',
+                    fontSize: '2rem',
+                    margin: '0 auto 10px auto',
                     border: '1px solid #bbf7d0',
                     overflow: 'hidden',
                   }}
@@ -1299,21 +1330,21 @@ export default function StudentDashboard() {
                     '👤'
                   )}
                 </div>
-                <h1 className={styles.adminTitle} style={{ fontSize: '1.75rem' }}>{profile.full_name}</h1>
-                <p className={styles.adminSubtitle} style={{ fontSize: '0.9rem' }}>
+                <h1 className={styles.adminTitle} style={{ fontSize: '1.5rem' }}>{profile.full_name}</h1>
+                <p className={styles.adminSubtitle} style={{ fontSize: '0.85rem' }}>
                   {profile.course} • {profile.section} • {profile.year_level}
                 </p>
               </div>
 
-              <div className={styles.adminFormCard} style={{ padding: '24px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #f1f5f9', paddingBottom: '12px', marginBottom: '16px' }}>
-                  <span style={{ fontSize: '0.8rem', fontWeight: 900, color: '#0f172a', textTransform: 'uppercase' }}>
+              <div className={styles.adminFormCard} style={{ padding: '20px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #f1f5f9', paddingBottom: '10px', marginBottom: '14px' }}>
+                  <span style={{ fontSize: '0.75rem', fontWeight: 900, color: '#0f172a', textTransform: 'uppercase' }}>
                     VERIFIED STUDENT DETAILS
                   </span>
                   <span className={styles.idBadge}>OFFICIAL RECORD</span>
                 </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', fontSize: '0.92rem' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', fontSize: '0.88rem' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                     <span style={{ color: '#94a3b8', fontWeight: 700 }}>Full Name</span>
                     <span style={{ fontWeight: 800 }}>{profile.full_name}</span>
@@ -1355,23 +1386,24 @@ export default function StudentDashboard() {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            padding: '16px',
+            padding: '12px',
           }}
         >
           <div
             style={{
               backgroundColor: '#ffffff',
               width: '100%',
-              maxWidth: '460px',
-              borderRadius: '28px',
-              padding: '24px 20px',
+              maxWidth: '420px',
+              borderRadius: '24px',
+              padding: '20px 16px',
               boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
               textAlign: 'center',
+              boxSizing: 'border-box',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginBottom: '16px' }}>
-              <span style={{ fontSize: '1.25rem' }}>📷</span>
-              <h3 style={{ fontSize: '1.2rem', fontWeight: 900, color: '#15803d', margin: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginBottom: '14px' }}>
+              <span style={{ fontSize: '1.2rem' }}>📷</span>
+              <h3 style={{ fontSize: '1.1rem', fontWeight: 900, color: '#15803d', margin: 0 }}>
                 Scan Student QR Code
               </h3>
             </div>
@@ -1380,11 +1412,11 @@ export default function StudentDashboard() {
               style={{
                 position: 'relative',
                 width: '100%',
-                maxWidth: '380px',
-                height: '320px',
+                maxWidth: '340px',
+                height: '280px',
                 margin: '0 auto',
                 backgroundColor: '#0f172a',
-                borderRadius: '20px',
+                borderRadius: '18px',
                 overflow: 'hidden',
                 display: 'flex',
                 alignItems: 'center',
@@ -1393,11 +1425,11 @@ export default function StudentDashboard() {
             >
               <div id="student-qr-reader" style={{ width: '100%', height: '100%' }} />
 
-              <div style={{ position: 'absolute', width: '210px', height: '210px', pointerEvents: 'none', boxSizing: 'border-box' }}>
-                <div style={{ position: 'absolute', top: 0, left: 0, width: '32px', height: '32px', borderTop: '4px solid #ffffff', borderLeft: '4px solid #ffffff', borderTopLeftRadius: '8px' }} />
-                <div style={{ position: 'absolute', top: 0, right: 0, width: '32px', height: '32px', borderTop: '4px solid #ffffff', borderRight: '4px solid #ffffff', borderTopRightRadius: '8px' }} />
-                <div style={{ position: 'absolute', bottom: 0, left: 0, width: '32px', height: '32px', borderBottom: '4px solid #ffffff', borderLeft: '4px solid #ffffff', borderBottomLeftRadius: '8px' }} />
-                <div style={{ position: 'absolute', bottom: 0, right: 0, width: '32px', height: '32px', borderBottom: '4px solid #ffffff', borderRight: '4px solid #ffffff', borderBottomRightRadius: '8px' }} />
+              <div style={{ position: 'absolute', width: '180px', height: '180px', pointerEvents: 'none', boxSizing: 'border-box' }}>
+                <div style={{ position: 'absolute', top: 0, left: 0, width: '28px', height: '28px', borderTop: '4px solid #ffffff', borderLeft: '4px solid #ffffff', borderTopLeftRadius: '6px' }} />
+                <div style={{ position: 'absolute', top: 0, right: 0, width: '28px', height: '28px', borderTop: '4px solid #ffffff', borderRight: '4px solid #ffffff', borderTopRightRadius: '6px' }} />
+                <div style={{ position: 'absolute', bottom: 0, left: 0, width: '28px', height: '28px', borderBottom: '4px solid #ffffff', borderLeft: '4px solid #ffffff', borderBottomLeftRadius: '6px' }} />
+                <div style={{ position: 'absolute', bottom: 0, right: 0, width: '28px', height: '28px', borderBottom: '4px solid #ffffff', borderRight: '4px solid #ffffff', borderBottomRightRadius: '6px' }} />
               </div>
             </div>
 
@@ -1406,13 +1438,13 @@ export default function StudentDashboard() {
               onClick={closeCameraModal}
               style={{
                 width: '100%',
-                marginTop: '14px',
-                padding: '14px',
+                marginTop: '12px',
+                padding: '12px',
                 backgroundColor: '#ef4444',
                 color: '#ffffff',
                 border: 'none',
-                borderRadius: '16px',
-                fontSize: '0.95rem',
+                borderRadius: '14px',
+                fontSize: '0.9rem',
                 fontWeight: 900,
                 cursor: 'pointer',
               }}
@@ -1435,18 +1467,19 @@ export default function StudentDashboard() {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            padding: '16px',
+            padding: '12px',
           }}
         >
           <div
             style={{
               backgroundColor: '#ffffff',
               width: '100%',
-              maxWidth: '400px',
-              borderRadius: '28px',
-              padding: '24px',
+              maxWidth: '380px',
+              borderRadius: '24px',
+              padding: '20px 16px',
               boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.3)',
               textAlign: 'center',
+              boxSizing: 'border-box',
             }}
           >
             <span
@@ -1454,14 +1487,14 @@ export default function StudentDashboard() {
                 display: 'inline-block',
                 backgroundColor: '#dcfce7',
                 color: '#15803d',
-                fontSize: '0.72rem',
+                fontSize: '0.68rem',
                 fontWeight: 900,
-                padding: '4px 14px',
+                padding: '4px 12px',
                 borderRadius: '9999px',
                 border: '1px solid #bbf7d0',
                 textTransform: 'uppercase',
                 letterSpacing: '0.05em',
-                marginBottom: '16px',
+                marginBottom: '12px',
               }}
             >
               ✓ QR Code Verified
@@ -1469,12 +1502,12 @@ export default function StudentDashboard() {
 
             <div
               style={{
-                width: '94px',
-                height: '94px',
-                borderRadius: '24px',
+                width: '84px',
+                height: '84px',
+                borderRadius: '20px',
                 backgroundColor: '#f1f5f9',
                 border: '3px solid #15803d',
-                margin: '0 auto 12px auto',
+                margin: '0 auto 10px auto',
                 overflow: 'hidden',
                 display: 'flex',
                 alignItems: 'center',
@@ -1485,25 +1518,25 @@ export default function StudentDashboard() {
               {scannedStudentData.avatar_url ? (
                 <img src={scannedStudentData.avatar_url} alt={scannedStudentData.full_name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
               ) : (
-                <span style={{ fontSize: '2.5rem' }}>👤</span>
+                <span style={{ fontSize: '2.2rem' }}>👤</span>
               )}
             </div>
 
-            <h2 style={{ fontSize: '1.35rem', fontWeight: 900, color: '#0f172a', margin: '0 0 4px 0' }}>
+            <h2 style={{ fontSize: '1.25rem', fontWeight: 900, color: '#0f172a', margin: '0 0 4px 0' }}>
               {scannedStudentData.full_name}
             </h2>
 
             <div
               style={{
-                fontSize: '1.1rem',
+                fontSize: '1rem',
                 fontWeight: 900,
                 color: '#15803d',
                 backgroundColor: '#f0fdf4',
                 border: '1px solid #bbf7d0',
-                borderRadius: '12px',
-                padding: '6px 14px',
+                borderRadius: '10px',
+                padding: '5px 12px',
                 display: 'inline-block',
-                margin: '8px auto 16px auto',
+                margin: '6px auto 14px auto',
               }}
             >
               ID: {scannedStudentData.school_id}
@@ -1513,19 +1546,19 @@ export default function StudentDashboard() {
               style={{
                 backgroundColor: '#f8fafc',
                 border: '1px solid #e2e8f0',
-                borderRadius: '18px',
-                padding: '14px 16px',
-                marginBottom: '20px',
+                borderRadius: '16px',
+                padding: '12px 14px',
+                marginBottom: '16px',
                 textAlign: 'left',
                 display: 'flex',
                 flexDirection: 'column',
-                gap: '10px',
-                fontSize: '0.85rem',
+                gap: '8px',
+                fontSize: '0.82rem',
               }}
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ color: '#64748b', fontWeight: 700 }}>Course:</span>
-                <span className={styles.idBadge} style={{ fontSize: '0.75rem' }}>
+                <span className={styles.idBadge} style={{ fontSize: '0.72rem' }}>
                   {scannedStudentData.course}
                 </span>
               </div>
@@ -1545,12 +1578,12 @@ export default function StudentDashboard() {
                 disabled={confirmingAttendance}
                 style={{
                   width: '100%',
-                  padding: '14px',
+                  padding: '12px',
                   backgroundColor: '#15803d',
                   color: '#ffffff',
                   border: 'none',
-                  borderRadius: '16px',
-                  fontSize: '0.95rem',
+                  borderRadius: '14px',
+                  fontSize: '0.9rem',
                   fontWeight: 900,
                   cursor: 'pointer',
                   boxShadow: '0 4px 12px rgba(21, 128, 61, 0.25)',
@@ -1576,8 +1609,8 @@ export default function StudentDashboard() {
                   backgroundColor: '#f1f5f9',
                   color: '#475569',
                   border: 'none',
-                  borderRadius: '14px',
-                  fontSize: '0.85rem',
+                  borderRadius: '12px',
+                  fontSize: '0.82rem',
                   fontWeight: 800,
                   cursor: 'pointer',
                 }}
