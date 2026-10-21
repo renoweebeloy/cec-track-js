@@ -1,13 +1,14 @@
 import { useState } from 'react';
 import Head from 'next/head';
-import { supabase } from '../lib/supabaseClient';
-import { useRouter } from 'next/router';
 import Link from 'next/link';
+import { useRouter } from 'next/router';
+import { supabase } from '../lib/supabaseClient';
 import styles from '../styles/Home.module.css';
 
 export default function Login() {
   const router = useRouter();
 
+  // Form States
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [message, setMessage] = useState('');
@@ -19,6 +20,9 @@ export default function Login() {
   const [showPrivacyModal, setShowPrivacyModal] = useState(false);
   const [hasAgreedTerms, setHasAgreedTerms] = useState(false);
 
+  // ========================================================
+  // BULLETPROOF LOGIN HANDLER
+  // ========================================================
   const handleLogin = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -35,7 +39,7 @@ export default function Login() {
 
       let authenticatedProfile = null;
 
-      // 1. Verify via secure database RPC
+      // 1. Susiha pinaagi sa secure Bcrypt RPC sa Supabase
       try {
         const { data: rpcData, error: rpcErr } = await supabase.rpc('check_profile_login', {
           user_email: cleanEmail,
@@ -49,7 +53,7 @@ export default function Login() {
         console.warn('RPC check bypassed, checking direct fallback...', rpcException);
       }
 
-      // 2. Direct Fallback if RPC is initializing
+      // 2. Direct Fallback: kon plain text pa o default school id ang password
       if (!authenticatedProfile) {
         const { data: directProfile } = await supabase
           .from('profiles')
@@ -71,7 +75,7 @@ export default function Login() {
         throw new Error('Invalid email or password.');
       }
 
-      // 3. Save session and initialize 5-minute activity timer
+      // 3. I-save ang session data ug i-initialize ang 5-minute activity timer
       const userRole = authenticatedProfile.role || 'student';
       sessionStorage.setItem('cec_role', userRole);
       sessionStorage.setItem('cec_user_email', authenticatedProfile.email);
@@ -105,26 +109,6 @@ export default function Login() {
     router.push('/dashboard');
   };
 
-  const handleForgotPassword = async () => {
-    if (!email) {
-      setMessage('Please enter your email address to request a reset link.');
-      setIsSuccess(false);
-      return;
-    }
-    setLoading(true);
-    const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
-      redirectTo: typeof window !== 'undefined' ? `${window.location.origin}/update-password` : '',
-    });
-    setLoading(false);
-    if (error) {
-      setMessage('Invalid credentials.');
-      setIsSuccess(false);
-    } else {
-      setMessage('Password reset link sent to your registered email.');
-      setIsSuccess(true);
-    }
-  };
-
   return (
     <div className={styles.loginContainer}>
       <Head>
@@ -133,6 +117,7 @@ export default function Login() {
       </Head>
 
       <div className={styles.loginCard}>
+        {/* Compact Logo */}
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1.25rem' }}>
           <div
             style={{
@@ -161,27 +146,43 @@ export default function Login() {
                 }
               }}
             />
-            <span style={{ display: 'none', fontWeight: 900, color: '#15803d', fontSize: '0.95rem' }}>
+            <span
+              style={{
+                display: 'none',
+                fontWeight: 900,
+                color: '#15803d',
+                fontSize: '0.95rem',
+              }}
+            >
               CEC
             </span>
           </div>
         </div>
 
+        {/* Title */}
         <div className={styles.loginHeader}>
           <h1 className={styles.loginTitle}>
             Welcome to <br />
             <span className={styles.loginTitleHighlight}>CECTRACK</span>
           </h1>
-          <p className={styles.loginSubtitle}>Enter your credentials to access your portal.</p>
+          <p className={styles.loginSubtitle}>
+            Enter your credentials to access your portal.
+          </p>
         </div>
 
+        {/* Form Inputs */}
         <form onSubmit={handleLogin} className={styles.loginForm}>
           <div className={styles.inputGroup}>
             <label className={styles.inputLabel}>Email Address</label>
             <div className={styles.inputWrapper}>
               <div className={styles.inputIconLeft}>
                 <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+                  />
                 </svg>
               </div>
               <input
@@ -200,7 +201,12 @@ export default function Login() {
             <div className={styles.inputWrapper}>
               <div className={styles.inputIconLeft}>
                 <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+                  />
                 </svg>
               </div>
               <input
@@ -222,10 +228,11 @@ export default function Login() {
             </div>
           </div>
 
+          {/* FORGOT PASSWORD LINK */}
           <div className={styles.forgotPasswordWrapper}>
-            <button type="button" onClick={handleForgotPassword} className={styles.forgotPasswordBtn}>
+            <Link href="/forgot-password" className={styles.forgotPasswordBtn}>
               Forgot Password?
-            </button>
+            </Link>
           </div>
 
           <button type="submit" disabled={loading} className={styles.submitBtn}>
@@ -236,7 +243,15 @@ export default function Login() {
         {message && (
           <div
             className={styles.alertMessage}
-            style={isSuccess ? { color: '#15803d', backgroundColor: '#f0fdf4', borderColor: '#bbf7d0' } : {}}
+            style={
+              isSuccess
+                ? {
+                    color: '#15803d',
+                    backgroundColor: '#f0fdf4',
+                    borderColor: '#bbf7d0',
+                  }
+                : {}
+            }
           >
             {message}
           </div>
@@ -244,7 +259,17 @@ export default function Login() {
 
         <div className={styles.backLinkWrapper}>
           <Link href="/" className={styles.backLink}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={styles.backIcon}>
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className={styles.backIcon}
+            >
               <path d="M15 18l-6-6 6-6" />
             </svg>
             Back to Home
@@ -252,6 +277,7 @@ export default function Login() {
         </div>
       </div>
 
+      {/* Data Privacy Modal */}
       {showPrivacyModal && (
         <div
           style={{
@@ -282,7 +308,15 @@ export default function Login() {
               boxSizing: 'border-box',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '14px', borderBottom: '1px solid #f1f5f9', paddingBottom: '14px' }}>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '14px',
+                borderBottom: '1px solid #f1f5f9',
+                paddingBottom: '14px',
+              }}
+            >
               <div
                 style={{
                   width: '44px',
@@ -303,7 +337,15 @@ export default function Login() {
                 <h3 style={{ fontSize: '1.2rem', fontWeight: 900, color: '#0f172a', margin: 0 }}>
                   Data Privacy Notice
                 </h3>
-                <span style={{ fontSize: '0.72rem', fontWeight: 900, color: '#15803d', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                <span
+                  style={{
+                    fontSize: '0.72rem',
+                    fontWeight: 900,
+                    color: '#15803d',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.04em',
+                  }}
+                >
                   RA 10173 COMPLIANCE • OFFICIAL POLICY
                 </span>
               </div>
@@ -311,7 +353,22 @@ export default function Login() {
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
-                <div style={{ width: '24px', height: '24px', borderRadius: '50%', backgroundColor: '#ffedd5', color: '#ea580c', fontWeight: 900, fontSize: '0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: '2px' }}>
+                <div
+                  style={{
+                    width: '24px',
+                    height: '24px',
+                    borderRadius: '50%',
+                    backgroundColor: '#ffedd5',
+                    color: '#ea580c',
+                    fontWeight: 900,
+                    fontSize: '0.75rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                    marginTop: '2px',
+                  }}
+                >
                   1
                 </div>
                 <div>
@@ -325,7 +382,22 @@ export default function Login() {
               </div>
 
               <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
-                <div style={{ width: '24px', height: '24px', borderRadius: '50%', backgroundColor: '#ffedd5', color: '#ea580c', fontWeight: 900, fontSize: '0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: '2px' }}>
+                <div
+                  style={{
+                    width: '24px',
+                    height: '24px',
+                    borderRadius: '50%',
+                    backgroundColor: '#ffedd5',
+                    color: '#ea580c',
+                    fontWeight: 900,
+                    fontSize: '0.75rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                    marginTop: '2px',
+                  }}
+                >
                   2
                 </div>
                 <div>
@@ -339,7 +411,22 @@ export default function Login() {
               </div>
 
               <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
-                <div style={{ width: '24px', height: '24px', borderRadius: '50%', backgroundColor: '#ffedd5', color: '#ea580c', fontWeight: 900, fontSize: '0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: '2px' }}>
+                <div
+                  style={{
+                    width: '24px',
+                    height: '24px',
+                    borderRadius: '50%',
+                    backgroundColor: '#ffedd5',
+                    color: '#ea580c',
+                    fontWeight: 900,
+                    fontSize: '0.75rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                    marginTop: '2px',
+                  }}
+                >
                   3
                 </div>
                 <div>
@@ -353,7 +440,22 @@ export default function Login() {
               </div>
 
               <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
-                <div style={{ width: '24px', height: '24px', borderRadius: '50%', backgroundColor: '#ffedd5', color: '#ea580c', fontWeight: 900, fontSize: '0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: '2px' }}>
+                <div
+                  style={{
+                    width: '24px',
+                    height: '24px',
+                    borderRadius: '50%',
+                    backgroundColor: '#ffedd5',
+                    color: '#ea580c',
+                    fontWeight: 900,
+                    fontSize: '0.75rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                    marginTop: '2px',
+                  }}
+                >
                   4
                 </div>
                 <div>
@@ -384,9 +486,23 @@ export default function Login() {
                 type="checkbox"
                 checked={hasAgreedTerms}
                 onChange={(e) => setHasAgreedTerms(e.target.checked)}
-                style={{ width: '18px', height: '18px', cursor: 'pointer', accentColor: '#15803d', flexShrink: 0 }}
+                style={{
+                  width: '18px',
+                  height: '18px',
+                  cursor: 'pointer',
+                  accentColor: '#15803d',
+                  flexShrink: 0,
+                }}
               />
-              <span style={{ fontSize: '0.8rem', fontWeight: 800, color: '#0f172a', lineHeight: 1.4, userSelect: 'none' }}>
+              <span
+                style={{
+                  fontSize: '0.8rem',
+                  fontWeight: 800,
+                  color: '#0f172a',
+                  lineHeight: 1.4,
+                  userSelect: 'none',
+                }}
+              >
                 I have read, understood, and agree to abide by the Data Privacy and Non-Disclosure Policy.
               </span>
             </label>
