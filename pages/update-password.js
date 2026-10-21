@@ -55,7 +55,26 @@ export default function UpdatePassword() {
     setLoading(true);
 
     try {
-      // 1. Update password in Supabase Auth
+      if (!supabase) {
+        throw new Error('Database connection failed.');
+      }
+
+      // 1. Susiha kon aduna bay active Supabase Auth session
+      const { data: sessionData } = await supabase.auth.getSession();
+      
+      // AUTO-RECOVERY: Kon nawala ang session, i-re-authenticate gamit ang default credentials
+      if (!sessionData?.session) {
+        const { error: reAuthError } = await supabase.auth.signInWithPassword({
+          email: userEmail.trim().toLowerCase(),
+          password: schoolId.trim(),
+        });
+
+        if (reAuthError) {
+          throw new Error('Session expired or account not verified. Please log in again.');
+        }
+      }
+
+      // 2. I-update ang bag-ong password sa Supabase Auth
       const { error: authErr } = await supabase.auth.updateUser({
         password: newPassword,
       });
@@ -64,18 +83,18 @@ export default function UpdatePassword() {
         throw new Error(authErr.message);
       }
 
-      // 2. Set must_change_password to false in profiles table
+      // 3. I-update ang database flag aron dili na mangayo og password change sunod login
       const { error: dbErr } = await supabase
         .from('profiles')
         .update({ must_change_password: false })
-        .eq('email', userEmail);
+        .eq('email', userEmail.trim().toLowerCase());
 
       if (dbErr) {
         throw new Error(dbErr.message);
       }
 
       setIsSuccess(true);
-      setMessage('Password updated successfully. Redirecting...');
+      setMessage('Password updated successfully! Redirecting...');
 
       setTimeout(() => {
         if (userRole === 'staff') {
@@ -83,7 +102,7 @@ export default function UpdatePassword() {
         } else {
           router.push('/dashboard');
         }
-      }, 1400);
+      }, 1200);
     } catch (err) {
       setMessage(err.message || 'Failed to update password.');
       setIsSuccess(false);
@@ -95,7 +114,7 @@ export default function UpdatePassword() {
   return (
     <div className={styles.loginContainer}>
       <Head>
-        <title>Update Password • CEC TRACK</title>
+        <title>Set New Password • CEC TRACK</title>
         <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
       </Head>
 
@@ -186,8 +205,9 @@ export default function UpdatePassword() {
             </div>
           </div>
 
+          {/* Gi-ayo ang button label: & na imbes nga &amp; */}
           <button type="submit" disabled={loading} className={styles.submitBtn}>
-            {loading ? 'Saving Changes...' : 'Update &amp; Continue ➔'}
+            {loading ? 'Saving Changes...' : 'Update & Continue ➔'}
           </button>
         </form>
 
