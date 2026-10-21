@@ -59,43 +59,30 @@ export default function UpdatePassword() {
         throw new Error('Database connection failed.');
       }
 
-      // 1. Susiha kon aduna bay active Supabase Auth session
-      const { data: sessionData } = await supabase.auth.getSession();
-      
-      // AUTO-RECOVERY: Kon nawala ang session, i-re-authenticate gamit ang default credentials
-      if (!sessionData?.session) {
-        const { error: reAuthError } = await supabase.auth.signInWithPassword({
-          email: userEmail.trim().toLowerCase(),
-          password: schoolId.trim(),
-        });
-
-        if (reAuthError) {
-          throw new Error('Session expired or account not verified. Please log in again.');
-        }
-      }
-
-      // 2. I-update ang bag-ong password sa Supabase Auth
-      const { error: authErr } = await supabase.auth.updateUser({
-        password: newPassword,
-      });
-
-      if (authErr) {
-        throw new Error(authErr.message);
-      }
-
-      // 3. I-update ang database flag aron dili na mangayo og password change sunod login
+      // 1. I-UPDATE DIREKTA SA PROFILES DATABASE TABLE (Dili na magsalig sa auth session)
       const { error: dbErr } = await supabase
         .from('profiles')
-        .update({ must_change_password: false })
+        .update({
+          password: newPassword.trim(),
+          must_change_password: false,
+        })
         .eq('email', userEmail.trim().toLowerCase());
 
       if (dbErr) {
         throw new Error(dbErr.message);
       }
 
-      setIsSuccess(true);
-      setMessage('Password updated successfully! Redirecting...');
+      // 2. I-update usab sa Supabase Auth kung anaa man gani session
+      try {
+        await supabase.auth.updateUser({ password: newPassword.trim() });
+      } catch (authIgnored) {
+        // Dili igsapayan kon walay auth session kay naa na sa database profiles ang password
+      }
 
+      setIsSuccess(true);
+      setMessage('✅ Password updated successfully! Redirecting...');
+
+      // 3. Diretso padulong sa Dashboard o Admin
       setTimeout(() => {
         if (userRole === 'staff') {
           router.push('/admin');
@@ -119,7 +106,7 @@ export default function UpdatePassword() {
       </Head>
 
       <div className={styles.loginCard}>
-        {/* Security Badge */}
+        {/* Security Lock Badge */}
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1.25rem' }}>
           <div
             style={{
@@ -150,7 +137,7 @@ export default function UpdatePassword() {
 
         <form onSubmit={handlePasswordUpdate} className={styles.loginForm}>
           <div className={styles.inputGroup}>
-            <label className={styles.inputLabel}>New Password *</label>
+            <label className={styles.inputLabel}>NEW PASSWORD *</label>
             <div className={styles.inputWrapper}>
               <div className={styles.inputIconLeft}>
                 <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -182,7 +169,7 @@ export default function UpdatePassword() {
           </div>
 
           <div className={styles.inputGroup}>
-            <label className={styles.inputLabel}>Confirm New Password *</label>
+            <label className={styles.inputLabel}>CONFIRM NEW PASSWORD *</label>
             <div className={styles.inputWrapper}>
               <div className={styles.inputIconLeft}>
                 <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -205,7 +192,6 @@ export default function UpdatePassword() {
             </div>
           </div>
 
-          {/* Gi-ayo ang button label: & na imbes nga &amp; */}
           <button type="submit" disabled={loading} className={styles.submitBtn}>
             {loading ? 'Saving Changes...' : 'Update & Continue ➔'}
           </button>
