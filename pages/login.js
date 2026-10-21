@@ -16,12 +16,9 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  // Data Privacy Modal State (para sa mga estudyante)
+  // Data Privacy Modal State for Students
   const [showPrivacyModal, setShowPrivacyModal] = useState(false);
 
-  // ========================================================
-  // LOGIN SUBMIT HANDLER
-  // ========================================================
   const handleLogin = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -32,40 +29,31 @@ export default function Login() {
 
     try {
       if (!supabase) {
-        throw new Error('Database connection error.');
+        throw new Error('Database connection failed.');
       }
 
-      // 1. Susiha kon ang user anaa ba sa database profiles
+      // 1. Verify existence in profiles whitelist
       const { data: profile, error: profileErr } = await supabase
         .from('profiles')
         .select('*')
         .eq('email', cleanEmail)
         .single();
 
-      // Kon wala sa profiles/whitelist, ilabay ang generic "Invalid credentials."
-      if (profileErr || !profile) {
+      if (profileErr || !profile || (profile.status && profile.status.toLowerCase() === 'inactive')) {
         throw new Error('Invalid credentials.');
       }
 
-      if (profile.status && profile.status.toLowerCase() === 'inactive') {
-        throw new Error('Invalid credentials.');
-      }
-
-      // 2. Supabase Auth Verification
+      // 2. Authenticate with Supabase Auth
       const { error: authError } = await supabase.auth.signInWithPassword({
         email: cleanEmail,
         password: password,
       });
 
-      // Kon sayop ang password o wala pa na-confirm
       if (authError && authError.message.includes('Invalid login credentials')) {
         throw new Error('Invalid credentials.');
-      } else if (authError && !authError.message.includes('Invalid login credentials')) {
-        // Fallback alang sa local testing kon wala pa na-link ang password
-        console.warn('Auth note:', authError.message);
       }
 
-      // 3. I-save ang session data sa SessionStorage
+      // 3. Store active session attributes
       const userRole = profile.role || 'student';
       sessionStorage.setItem('cec_role', userRole);
       sessionStorage.setItem('cec_user_email', profile.email);
@@ -73,8 +61,13 @@ export default function Login() {
       sessionStorage.setItem('cec_full_name', profile.full_name || '');
       sessionStorage.setItem('cec_can_scan', profile.can_scan ? 'true' : 'false');
 
-      // 4. Role-based Redirection
-      if (userRole === 'admin' || userRole === 'staff') {
+      // 4. Role and Password Verification Routing
+      if (userRole === 'admin') {
+        router.push('/admin');
+      } else if (profile.must_change_password) {
+        // Enforce immediate password update for both new Students and Staff
+        router.push('/update-password');
+      } else if (userRole === 'staff') {
         router.push('/admin');
       } else {
         setShowPrivacyModal(true);
@@ -94,20 +87,20 @@ export default function Login() {
 
   const handleForgotPassword = async () => {
     if (!email) {
-      setMessage('Palihug ibutang ang imong email sa ibabaw una mopislit og Forgot Password.');
+      setMessage('Please enter your email address to request a reset link.');
       setIsSuccess(false);
       return;
     }
     setLoading(true);
     const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
-      redirectTo: typeof window !== 'undefined' ? `${window.location.origin}/reset-password` : '',
+      redirectTo: typeof window !== 'undefined' ? `${window.location.origin}/update-password` : '',
     });
     setLoading(false);
     if (error) {
       setMessage('Invalid credentials.');
       setIsSuccess(false);
     } else {
-      setMessage('Na-send na ang password reset link sa imong email!');
+      setMessage('Password reset link sent to your registered email.');
       setIsSuccess(true);
     }
   };
@@ -115,11 +108,12 @@ export default function Login() {
   return (
     <div className={styles.loginContainer}>
       <Head>
-        <title>Login • CECTRACK 3.0</title>
+        <title>Login • CEC TRACK</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
       </Head>
 
       <div className={styles.loginCard}>
-        {/* GAMAY NGA DOrSU / CEC LOGO */}
+        {/* Compact Logo Header */}
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1.25rem' }}>
           <div
             style={{
@@ -139,7 +133,7 @@ export default function Login() {
           >
             <img
               src="/logo.png"
-              alt="DOrSU Logo"
+              alt="CEC Logo"
               style={{ width: '100%', height: '100%', objectFit: 'contain' }}
               onError={(e) => {
                 e.currentTarget.style.display = 'none';
@@ -162,22 +156,21 @@ export default function Login() {
           </div>
         </div>
 
-        {/* Header Section */}
+        {/* Header Titles */}
         <div className={styles.loginHeader}>
           <h1 className={styles.loginTitle}>
             Welcome to <br />
             <span className={styles.loginTitleHighlight}>CECTRACK</span>
           </h1>
           <p className={styles.loginSubtitle}>
-            Enter your CECTRACK credentials to login.
+            Enter your credentials to access your portal.
           </p>
         </div>
 
-        {/* Form Section */}
+        {/* Credentials Form */}
         <form onSubmit={handleLogin} className={styles.loginForm}>
-          {/* Email Input */}
           <div className={styles.inputGroup}>
-            <label className={styles.inputLabel}>Email</label>
+            <label className={styles.inputLabel}>Email Address</label>
             <div className={styles.inputWrapper}>
               <div className={styles.inputIconLeft}>
                 <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -200,7 +193,6 @@ export default function Login() {
             </div>
           </div>
 
-          {/* Password Input */}
           <div className={styles.inputGroup}>
             <label className={styles.inputLabel}>Password</label>
             <div className={styles.inputWrapper}>
@@ -233,7 +225,6 @@ export default function Login() {
             </div>
           </div>
 
-          {/* Forgot Password Link */}
           <div className={styles.forgotPasswordWrapper}>
             <button
               type="button"
@@ -244,13 +235,12 @@ export default function Login() {
             </button>
           </div>
 
-          {/* Submit Button */}
           <button type="submit" disabled={loading} className={styles.submitBtn}>
-            {loading ? 'Logging in...' : 'Log In'}
+            {loading ? 'Authenticating...' : 'Log In'}
           </button>
         </form>
 
-        {/* Message Alert */}
+        {/* Feedback Alert */}
         {message && (
           <div
             className={styles.alertMessage}
@@ -268,7 +258,6 @@ export default function Login() {
           </div>
         )}
 
-        {/* Back to Home Link */}
         <div className={styles.backLinkWrapper}>
           <Link href="/" className={styles.backLink}>
             <svg
@@ -289,7 +278,7 @@ export default function Login() {
         </div>
       </div>
 
-      {/* DATA PRIVACY MODAL */}
+      {/* RA 10173 Student Data Privacy Modal */}
       {showPrivacyModal && (
         <div
           style={{
@@ -350,7 +339,7 @@ export default function Login() {
                     margin: 0,
                   }}
                 >
-                  Data Privacy Agreement
+                  Data Privacy Notice
                 </h3>
                 <span
                   style={{
@@ -360,13 +349,13 @@ export default function Login() {
                     textTransform: 'uppercase',
                   }}
                 >
-                  RA 10173 Compliance • CEC Policy
+                  RA 10173 Compliance • Official Policy
                 </span>
               </div>
             </div>
 
-            <p style={{ fontSize: '0.8rem', color: '#64748b', lineHeight: 1.5, margin: 0 }}>
-              Pinaagi sa pagsulod sa CEC TRACK portal, miuyon ka nga ang tanang personal nga impormasyon, attendance logs, ug digital IDs confidential ug dili ipaambit sa uban.
+            <p style={{ fontSize: '0.82rem', color: '#64748b', lineHeight: 1.5, margin: 0 }}>
+              By logging into CEC TRACK, you confirm that personal information, attendance records, and generated QR credentials remain private and confidential. Sharing Digital IDs for proxy attendance is prohibited.
             </p>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '8px' }}>
@@ -385,7 +374,7 @@ export default function Login() {
                   fontSize: '0.875rem',
                 }}
               >
-                ✓ Agree & Enter Portal
+                ✓ Agree &amp; Enter Portal
               </button>
               <button
                 type="button"
