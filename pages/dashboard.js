@@ -675,7 +675,7 @@ export default function StudentDashboard() {
                 className={activeTab === 'my-id' ? `${styles.portalNavLink} ${styles.portalNavLinkActive}` : styles.portalNavLink}
                 style={{ fontSize: '0.92rem', padding: '12px 14px' }}
               >
-                <span>🪪</span>
+                <span></span>
                 <span>My ID</span>
               </button>
 
@@ -684,7 +684,7 @@ export default function StudentDashboard() {
                 className={activeTab === 'attendance' ? `${styles.portalNavLink} ${styles.portalNavLinkActive}` : styles.portalNavLink}
                 style={{ fontSize: '0.92rem', padding: '12px 14px' }}
               >
-                <span>📅</span>
+                <span></span>
                 <span>Attendance</span>
               </button>
 
@@ -693,7 +693,7 @@ export default function StudentDashboard() {
                 className={activeTab === 'events' ? `${styles.portalNavLink} ${styles.portalNavLinkActive}` : styles.portalNavLink}
                 style={{ fontSize: '0.92rem', padding: '12px 14px' }}
               >
-                <span>✨</span>
+                <span></span>
                 <span>Events</span>
               </button>
 
@@ -710,7 +710,7 @@ export default function StudentDashboard() {
                     fontWeight: 900,
                   }}
                 >
-                  <span>📷</span>
+                  <span></span>
                   <span>Scan Attendance</span>
                 </button>
               )}
@@ -720,7 +720,7 @@ export default function StudentDashboard() {
                 className={activeTab === 'profile' ? `${styles.portalNavLink} ${styles.portalNavLinkActive}` : styles.portalNavLink}
                 style={{ fontSize: '0.92rem', padding: '12px 14px' }}
               >
-                <span>👤</span>
+                <span></span>
                 <span>Profile</span>
               </button>
 
@@ -733,11 +733,11 @@ export default function StudentDashboard() {
                 <span>Officers</span>
               </div>
               <div className={styles.portalNavLink} style={{ opacity: 0.5, cursor: 'not-allowed', fontSize: '0.92rem', padding: '12px 14px' }}>
-                <span>💳</span>
+                <span></span>
                 <span>Finance</span>
               </div>
               <div className={styles.portalNavLink} style={{ opacity: 0.5, cursor: 'not-allowed', fontSize: '0.92rem', padding: '12px 14px' }}>
-                <span>🛡️</span>
+                <span></span>
                 <span>Sanctions</span>
               </div>
             </nav>
