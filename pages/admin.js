@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
@@ -7,6 +7,7 @@ import styles from '../styles/Home.module.css';
 
 export default function AdminDashboard() {
   const router = useRouter();
+  const scannerRef = useRef(null);
 
   // Authentication & Security Guard States
   const [isAuthorized, setIsAuthorized] = useState(false);
@@ -46,6 +47,13 @@ export default function AdminDashboard() {
   const [selectedEventId, setSelectedEventId] = useState('');
   const [scanLogMsg, setScanLogMsg] = useState({ type: '', text: '' });
 
+  // 5. Live Camera Scanner & Scanned Student Verification Modal States
+  const [isCameraModalOpen, setIsCameraModalOpen] = useState(false);
+  const [isScannerRunning, setIsScannerRunning] = useState(false);
+  const [scannedStudentData, setScannedStudentData] = useState(null); // Data sa na-scan nga estudyante
+  const [showVerifyModal, setShowVerifyModal] = useState(false);
+  const [confirmingAttendance, setConfirmingAttendance] = useState(false);
+
   // Data Collections & Filters
   const [students, setStudents] = useState([]);
   const [staffList, setStaffList] = useState([]);
@@ -69,9 +77,17 @@ export default function AdminDashboard() {
     }, 4500);
   };
 
-  // ========================================================
-  // ROUTE GUARD: Admin and Staff Authorization Check
-  // ========================================================
+  // Dinamikong pag-load sa Html5Qrcode Library gikan sa CDN
+  useEffect(() => {
+    if (typeof window !== 'undefined' && !window.Html5Qrcode) {
+      const script = document.createElement('script');
+      script.src = 'https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js';
+      script.async = true;
+      document.body.appendChild(script);
+    }
+  }, []);
+
+  // Route Guard
   useEffect(() => {
     const verifyPortalAccess = async () => {
       try {
@@ -172,8 +188,149 @@ export default function AdminDashboard() {
   };
 
   // ========================================================
-  // ADD STUDENT: Direct Database Credential Assignment
+  // CAMERA SCANNER FUNCTIONS
   // ========================================================
+  const startCameraScanner = async () => {
+    if (!window.Html5Qrcode) {
+      showNotify('error', 'Scanner library is loading, please try again in a few seconds.');
+      return;
+    }
+
+    setIsCameraModalOpen(true);
+
+    setTimeout(async () => {
+      try {
+        const qrScanner = new window.Html5Qrcode('interactive-qr-reader');
+        scannerRef.current = qrScanner;
+
+        await qrScanner.start(
+          { facingMode: 'environment' },
+          { fps: 10, qrbox: { width: 220, height: 220 } },
+          (decodedText) => {
+            handleQrCodeDetected(decodedText);
+          },
+          () => {}
+        );
+        setIsScannerRunning(true);
+      } catch (err) {
+        console.error('Error starting camera scanner:', err);
+        showNotify('error', 'Unable to access device camera. Please check camera permissions.');
+        setIsCameraModalOpen(false);
+      }
+    }, 400);
+  };
+
+  const stopCameraScanner = async () => {
+    if (scannerRef.current) {
+      try {
+        await scannerRef.current.stop();
+        await scannerRef.current.clear();
+      } catch (err) {
+        console.warn('Scanner stop warning:', err);
+      }
+      scannerRef.current = null;
+    }
+    setIsScannerRunning(false);
+  };
+
+  const closeCameraModal = async () => {
+    await stopCameraScanner();
+    setIsCameraModalOpen(false);
+    setShowVerifyModal(false);
+    setScannedStudentData(null);
+  };
+
+  // KINI ANG TAWAGON INIG SCAN SA QR CODE
+  const handleQrCodeDetected = async (decodedText) => {
+    if (!decodedText || showVerifyModal) return;
+
+    // Ihunong kadiyot ang scanner samtang ginasusi ang profile
+    if (scannerRef.current) {
+      try {
+        await scannerRef.current.pause();
+      } catch (e) {}
+    }
+
+    const cleanSchoolId = decodedText.trim();
+
+    try {
+      // 1. Pangitaon ang student record sa Supabase Profiles
+      const { data: student, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('school_id', cleanSchoolId)
+        .single();
+
+      if (error || !student) {
+        alert(`❌ BLOCKED: School ID "${cleanSchoolId}" is not whitelisted in the system!`);
+        if (scannerRef.current) {
+          try {
+            await scannerRef.current.resume();
+          } catch (e) {}
+        }
+        return;
+      }
+
+      // 2. Ipakita ang Profile Verification Popup (Litrato, Course, Year Level, Name)
+      setScannedStudentData(student);
+      setShowVerifyModal(true);
+    } catch (err) {
+      console.error('Scan lookup error:', err);
+    }
+  };
+
+  // PAG-CLICK SA "OK / CONFIRM ATTENDANCE" BUTTON
+  const handleConfirmAttendance = async () => {
+    if (!scannedStudentData || !selectedEventId) return;
+
+    setConfirmingAttendance(true);
+
+    try {
+      // 1. I-save ang attendance sa database
+      const { error } = await supabase.from('attendance').insert([
+        {
+          student_id: scannedStudentData.school_id,
+          student_name: scannedStudentData.full_name || 'CEC Student',
+          event_id: selectedEventId,
+          status: 'PRESENT',
+          time_in: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          scanned_by: currentUser.email || userRole,
+        },
+      ]);
+
+      if (error) {
+        if (error.code === '23505') {
+          showNotify(
+            'error',
+            `⚠️ Already checked-in: ${scannedStudentData.full_name} (${scannedStudentData.school_id}) is already marked PRESENT!`
+          );
+        } else {
+          showNotify('error', `Attendance error: ${error.message}`);
+        }
+      } else {
+        showNotify(
+          'success',
+          `✅ ATTENDANCE CONFIRMED: ${scannedStudentData.full_name} (${scannedStudentData.course} - ${scannedStudentData.year_level}) marked as PRESENT!`
+        );
+      }
+
+      // 2. Isira ang verification modal ug ipadayon ang camera scanning
+      setShowVerifyModal(false);
+      setScannedStudentData(null);
+
+      if (scannerRef.current) {
+        try {
+          await scannerRef.current.resume();
+        } catch (e) {}
+      }
+    } catch (err) {
+      console.error('Error recording attendance:', err);
+    } finally {
+      setConfirmingAttendance(false);
+    }
+  };
+
+  // ADD STUDENT
   const handleAddStudent = async (e) => {
     e.preventDefault();
 
@@ -189,13 +346,12 @@ export default function AdminDashboard() {
       const cleanEmail = studentEmail.trim().toLowerCase();
       const defaultPassword = studentId.trim();
 
-      // I-save sa database profiles table uban ang password = School ID
       const { error: profileError } = await supabase.from('profiles').insert([
         {
           school_id: studentId.trim(),
           full_name: studentName.trim(),
           email: cleanEmail,
-          password: defaultPassword, // Direct database credential
+          password: defaultPassword,
           course: studentCourse,
           year_level: studentYear,
           role: 'student',
@@ -224,13 +380,11 @@ export default function AdminDashboard() {
     }
   };
 
-  // ========================================================
-  // ADD STAFF OFFICER: Direct Database Credential Assignment
-  // ========================================================
+  // ADD STAFF
   const handleAddStaff = async (e) => {
     e.preventDefault();
     if (userRole !== 'admin') {
-      showNotify('error', 'Only Administrators are authorized to register staff members.');
+      showNotify('error', 'Only Administrators can register staff members.');
       return;
     }
 
@@ -246,7 +400,7 @@ export default function AdminDashboard() {
           school_id: generatedStaffId,
           full_name: staffName.trim(),
           email: cleanEmail,
-          password: defaultPassword, // Direct database credential
+          password: defaultPassword,
           role: 'staff',
           can_scan: true,
           status: 'Active',
@@ -260,7 +414,7 @@ export default function AdminDashboard() {
 
       showNotify(
         'success',
-        `Staff officer ${staffName} registered! Default password is: ${defaultPassword}`
+        `Staff officer ${staffName} registered! Default password: ${defaultPassword}`
       );
       setStaffName('');
       setStaffEmail('');
@@ -272,9 +426,7 @@ export default function AdminDashboard() {
     }
   };
 
-  // ========================================================
-  // ADD EVENT HANDLER
-  // ========================================================
+  // ADD EVENT
   const handleAddEvent = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -306,9 +458,7 @@ export default function AdminDashboard() {
     }
   };
 
-  // ========================================================
   // MANUAL ATTENDANCE LOG CHECK-IN
-  // ========================================================
   const handleManualScanSubmit = async (e) => {
     e.preventDefault();
     if (!manualStudentId) return;
@@ -416,9 +566,10 @@ export default function AdminDashboard() {
       <Head>
         <title>CEC TRACK • {isAdmin ? 'Admin Portal' : 'Staff Portal'}</title>
         <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+        <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js" async />
       </Head>
 
-      {/* Top Header: Hamburger & Cateel Extension Campus Badge Aligned Side by Side */}
+      {/* TOP HEADER */}
       <header
         style={{
           position: 'sticky',
@@ -442,7 +593,7 @@ export default function AdminDashboard() {
             boxSizing: 'border-box',
           }}
         >
-          {/* Left: Hamburger Button and Brand */}
+          {/* Left: Hamburger & Brand */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <button
               onClick={() => setIsSidebarOpen(!isSidebarOpen)}
@@ -519,7 +670,7 @@ export default function AdminDashboard() {
         </div>
       </header>
 
-      {/* Mobile Drawer Overlay */}
+      {/* MOBILE DRAWER OVERLAY */}
       {isSidebarOpen && (
         <div
           onClick={() => setIsSidebarOpen(false)}
@@ -534,7 +685,7 @@ export default function AdminDashboard() {
       )}
 
       <div className={styles.portalWrapper}>
-        {/* Navigation Sidebar Drawer */}
+        {/* SIDEBAR NAVIGATION */}
         <aside
           style={{
             position: 'fixed',
@@ -633,7 +784,6 @@ export default function AdminDashboard() {
             </nav>
           </div>
 
-          {/* Pinned Sign Out Button */}
           <div style={{ borderTop: '1px solid #f1f5f9', paddingTop: '18px', marginTop: '20px' }}>
             <button
               onClick={handleSignOut}
@@ -646,7 +796,7 @@ export default function AdminDashboard() {
           </div>
         </aside>
 
-        {/* Main Content Viewport */}
+        {/* MAIN BODY AREA */}
         <main className={styles.portalContentArea} style={{ padding: '20px 16px' }}>
           <div style={{ marginBottom: '20px' }}>
             <h1 style={{ fontSize: '1.65rem', fontWeight: 900, color: '#0f172a', margin: '0 0 4px 0' }}>
@@ -673,7 +823,9 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          {/* Tab 1: System Overview */}
+          {/* ========================================================= */}
+          {/* TAB 1: SYSTEM OVERVIEW */}
+          {/* ========================================================= */}
           {activeTab === 'profile' && (
             <div>
               <div className={styles.attendanceStatsGrid}>
@@ -724,7 +876,9 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          {/* Tab 2: Whitelist Students */}
+          {/* ========================================================= */}
+          {/* TAB 2: WHITELIST STUDENTS */}
+          {/* ========================================================= */}
           {activeTab === 'add-student' && (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '24px' }}>
               {isAdmin && (
@@ -869,7 +1023,9 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          {/* Tab 3: Manage Staff */}
+          {/* ========================================================= */}
+          {/* TAB 3: MANAGE STAFF */}
+          {/* ========================================================= */}
           {activeTab === 'add-staff' && isAdmin && (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '24px' }}>
               <div className={styles.adminFormCard}>
@@ -956,7 +1112,9 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          {/* Tab 4: Manage Events */}
+          {/* ========================================================= */}
+          {/* TAB 4: MANAGE EVENTS */}
+          {/* ========================================================= */}
           {activeTab === 'add-event' && (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '24px' }}>
               <div className={styles.adminFormCard}>
@@ -1114,44 +1272,75 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          {/* Tab 5: Scan QR & Quick Log */}
+          {/* ========================================================= */}
+          {/* TAB 5: SCAN QR & QUICK LOG */}
+          {/* ========================================================= */}
           {activeTab === 'scan-qr' && (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '24px' }}>
-              <div className={styles.adminFormCard} style={{ textAlign: 'center', padding: '32px 20px' }}>
-                <h3 className={styles.analyticsTitle} style={{ justifyContent: 'center', fontSize: '1rem', marginBottom: '12px' }}>
-                  Live Camera Scanner
+              {/* LIVE CAMERA SCANNER LAUNCHER (MATCHES IMAGE MODAL POPUP) */}
+              <div className={styles.adminFormCard} style={{ textAlign: 'center', padding: '36px 20px' }}>
+                <div
+                  style={{
+                    width: '64px',
+                    height: '64px',
+                    borderRadius: '20px',
+                    backgroundColor: '#dcfce7',
+                    color: '#15803d',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '2rem',
+                    margin: '0 auto 16px auto',
+                    border: '1px solid #bbf7d0',
+                  }}
+                >
+                  📷
+                </div>
+                <h3 className={styles.analyticsTitle} style={{ justifyContent: 'center', fontSize: '1.2rem', marginBottom: '8px' }}>
+                  Live Camera QR Scanner
                 </h3>
-                <p style={{ fontSize: '0.88rem', color: '#64748b', marginBottom: '24px' }}>
-                  Launch the dedicated full-screen camera scanner to quickly record student attendances.
+                <p style={{ fontSize: '0.88rem', color: '#64748b', marginBottom: '24px', lineHeight: 1.5 }}>
+                  Open camera scanner to verify Digital ID QR codes, preview student profiles, and log official attendance.
                 </p>
-                <Link href="/scanner" style={{ textDecoration: 'none' }}>
-                  <button className={styles.submitBtn} style={{ minHeight: '48px', fontSize: '0.95rem' }}>
-                    📷 Launch Camera Scanner ➔
-                  </button>
-                </Link>
+
+                <div style={{ marginBottom: '16px' }}>
+                  <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 800, color: '#334155', marginBottom: '6px' }}>
+                    Active Event Target:
+                  </label>
+                  <select
+                    value={selectedEventId}
+                    onChange={(e) => setSelectedEventId(e.target.value)}
+                    className={styles.loginInput}
+                    style={{ padding: '10px 14px', fontSize: '0.9rem' }}
+                  >
+                    {events.map((ev) => (
+                      <option key={ev.id} value={ev.id}>
+                        {ev.title} ({ev.date})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={startCameraScanner}
+                  className={styles.submitBtn}
+                  style={{ minHeight: '50px', fontSize: '1rem', fontWeight: 900 }}
+                >
+                  📷 Launch Camera Scanner ➔
+                </button>
               </div>
 
+              {/* MANUAL FALLBACK CHECK-IN */}
               <div className={styles.adminFormCard}>
                 <h3 className={styles.analyticsTitle} style={{ fontSize: '1rem', marginBottom: '12px' }}>
                   Manual School ID Check-in
                 </h3>
-                <form onSubmit={handleManualScanSubmit} className={styles.loginForm}>
-                  <div className={styles.inputGroup}>
-                    <label className={styles.inputLabel} style={{ fontSize: '0.78rem' }}>Target Event Schedule</label>
-                    <select
-                      value={selectedEventId}
-                      onChange={(e) => setSelectedEventId(e.target.value)}
-                      className={styles.loginInput}
-                      style={{ padding: '12px 14px', fontSize: '0.95rem' }}
-                    >
-                      {events.map((ev) => (
-                        <option key={ev.id} value={ev.id}>
-                          {ev.title} ({ev.date})
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                <p style={{ fontSize: '0.82rem', color: '#64748b', marginBottom: '16px' }}>
+                  For students without phones or low camera lighting, enter their School ID directly.
+                </p>
 
+                <form onSubmit={handleManualScanSubmit} className={styles.loginForm}>
                   <div className={styles.inputGroup}>
                     <label className={styles.inputLabel} style={{ fontSize: '0.78rem' }}>School ID (e.g. 2024-0616) *</label>
                     <input
@@ -1188,6 +1377,306 @@ export default function AdminDashboard() {
           )}
         </main>
       </div>
+
+      {/* ========================================================= */}
+      {/* 1. CAMERA SCANNER MODAL POPUP (MATCHES USER IMAGE) */}
+      {/* ========================================================= */}
+      {isCameraModalOpen && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(15, 23, 42, 0.75)',
+            backdropFilter: 'blur(5px)',
+            zIndex: 110,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '16px',
+          }}
+        >
+          <div
+            style={{
+              backgroundColor: '#ffffff',
+              width: '100%',
+              maxWidth: '460px',
+              borderRadius: '28px',
+              padding: '24px 20px',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+              position: 'relative',
+              textAlign: 'center',
+            }}
+          >
+            {/* Header Title */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginBottom: '16px' }}>
+              <span style={{ fontSize: '1.25rem' }}>📷</span>
+              <h3 style={{ fontSize: '1.2rem', fontWeight: 900, color: '#15803d', margin: 0 }}>
+                Scan Student QR Code
+              </h3>
+            </div>
+
+            {/* Video Viewfinder Container with White Frame Corners [ ] */}
+            <div
+              style={{
+                position: 'relative',
+                width: '100%',
+                maxWidth: '380px',
+                height: '320px',
+                margin: '0 auto',
+                backgroundColor: '#0f172a',
+                borderRadius: '20px',
+                overflow: 'hidden',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <div id="interactive-qr-reader" style={{ width: '100%', height: '100%' }} />
+
+              {/* White Viewfinder Corners Overlay */}
+              <div
+                style={{
+                  position: 'absolute',
+                  width: '210px',
+                  height: '210px',
+                  pointerEvents: 'none',
+                  boxSizing: 'border-box',
+                }}
+              >
+                {/* Top-Left */}
+                <div style={{ position: 'absolute', top: 0, left: 0, width: '32px', height: '32px', borderTop: '4px solid #ffffff', borderLeft: '4px solid #ffffff', borderTopLeftRadius: '8px' }} />
+                {/* Top-Right */}
+                <div style={{ position: 'absolute', top: 0, right: 0, width: '32px', height: '32px', borderTop: '4px solid #ffffff', borderRight: '4px solid #ffffff', borderTopRightRadius: '8px' }} />
+                {/* Bottom-Left */}
+                <div style={{ position: 'absolute', bottom: 0, left: 0, width: '32px', height: '32px', borderBottom: '4px solid #ffffff', borderLeft: '4px solid #ffffff', borderBottomLeftRadius: '8px' }} />
+                {/* Bottom-Right */}
+                <div style={{ position: 'absolute', bottom: 0, right: 0, width: '32px', height: '32px', borderBottom: '4px solid #ffffff', borderRight: '4px solid #ffffff', borderBottomRightRadius: '8px' }} />
+              </div>
+            </div>
+
+            {/* Stop/Resume Scanning button */}
+            <div style={{ marginTop: '12px', marginBottom: '14px' }}>
+              <button
+                type="button"
+                onClick={async () => {
+                  if (scannerRef.current) {
+                    if (isScannerRunning) {
+                      await scannerRef.current.pause();
+                      setIsScannerRunning(false);
+                    } else {
+                      await scannerRef.current.resume();
+                      setIsScannerRunning(true);
+                    }
+                  }
+                }}
+                style={{
+                  backgroundColor: '#f1f5f9',
+                  border: '1px solid #cbd5e1',
+                  borderRadius: '8px',
+                  padding: '6px 14px',
+                  fontSize: '0.8rem',
+                  fontWeight: 800,
+                  color: '#475569',
+                  cursor: 'pointer',
+                }}
+              >
+                {isScannerRunning ? 'Stop Scanning' : 'Resume Scanning'}
+              </button>
+            </div>
+
+            {/* Red Close Camera Button */}
+            <button
+              type="button"
+              onClick={closeCameraModal}
+              style={{
+                width: '100%',
+                padding: '14px',
+                backgroundColor: '#ef4444',
+                color: '#ffffff',
+                border: 'none',
+                borderRadius: '16px',
+                fontSize: '0.95rem',
+                fontWeight: 900,
+                cursor: 'pointer',
+                boxShadow: '0 4px 12px rgba(239, 68, 68, 0.25)',
+              }}
+            >
+              Close Camera
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================= */}
+      {/* 2. SCANNED STUDENT PROFILE & VERIFICATION MODAL */}
+      {/* ========================================================= */}
+      {showVerifyModal && scannedStudentData && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(15, 23, 42, 0.85)',
+            backdropFilter: 'blur(6px)',
+            zIndex: 120,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '16px',
+          }}
+        >
+          <div
+            style={{
+              backgroundColor: '#ffffff',
+              width: '100%',
+              maxWidth: '420px',
+              borderRadius: '28px',
+              padding: '24px',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.3)',
+              textAlign: 'center',
+            }}
+          >
+            {/* Header Badge */}
+            <span
+              style={{
+                display: 'inline-block',
+                backgroundColor: '#dcfce7',
+                color: '#15803d',
+                fontSize: '0.72rem',
+                fontWeight: 900,
+                padding: '4px 14px',
+                borderRadius: '9999px',
+                border: '1px solid #bbf7d0',
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em',
+                marginBottom: '16px',
+              }}
+            >
+              ✓ QR Code Verified
+            </span>
+
+            {/* Student Photo */}
+            <div
+              style={{
+                width: '90px',
+                height: '90px',
+                borderRadius: '24px',
+                backgroundColor: '#f1f5f9',
+                border: '3px solid #15803d',
+                margin: '0 auto 12px auto',
+                overflow: 'hidden',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxShadow: '0 4px 10px rgba(0,0,0,0.08)',
+              }}
+            >
+              {scannedStudentData.avatar_url ? (
+                <img
+                  src={scannedStudentData.avatar_url}
+                  alt={scannedStudentData.full_name}
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                />
+              ) : (
+                <span style={{ fontSize: '2.5rem' }}>👤</span>
+              )}
+            </div>
+
+            {/* Student Name & School ID */}
+            <h2 style={{ fontSize: '1.4rem', fontWeight: 900, color: '#0f172a', margin: '0 0 4px 0' }}>
+              {scannedStudentData.full_name}
+            </h2>
+            <div style={{ fontSize: '0.85rem', fontWeight: 800, color: '#15803d', marginBottom: '16px' }}>
+              {scannedStudentData.school_id}
+            </div>
+
+            {/* Details Box: Course, Year Level, & Event */}
+            <div
+              style={{
+                backgroundColor: '#f8fafc',
+                border: '1px solid #e2e8f0',
+                borderRadius: '18px',
+                padding: '16px',
+                marginBottom: '20px',
+                textAlign: 'left',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '10px',
+                fontSize: '0.85rem',
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ color: '#64748b', fontWeight: 700 }}>Course / Program:</span>
+                <span className={styles.idBadge} style={{ fontSize: '0.75rem' }}>
+                  {scannedStudentData.course}
+                </span>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ color: '#64748b', fontWeight: 700 }}>Year Level:</span>
+                <span style={{ fontWeight: 800, color: '#0f172a' }}>
+                  {scannedStudentData.year_level || '1st Year'}
+                </span>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ color: '#64748b', fontWeight: 700 }}>Email Address:</span>
+                <span style={{ fontWeight: 600, color: '#334155', fontSize: '0.78rem' }}>
+                  {scannedStudentData.email}
+                </span>
+              </div>
+            </div>
+
+            {/* Action Buttons: OK (Confirm) and Cancel */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <button
+                type="button"
+                onClick={handleConfirmAttendance}
+                disabled={confirmingAttendance}
+                style={{
+                  width: '100%',
+                  padding: '14px',
+                  backgroundColor: '#15803d',
+                  color: '#ffffff',
+                  border: 'none',
+                  borderRadius: '16px',
+                  fontSize: '0.95rem',
+                  fontWeight: 900,
+                  cursor: 'pointer',
+                  boxShadow: '0 4px 12px rgba(21, 128, 61, 0.25)',
+                }}
+              >
+                {confirmingAttendance ? 'Recording...' : '✓ OK • Mark as Present'}
+              </button>
+
+              <button
+                type="button"
+                onClick={async () => {
+                  setShowVerifyModal(false);
+                  setScannedStudentData(null);
+                  if (scannerRef.current) {
+                    try {
+                      await scannerRef.current.resume();
+                    } catch (e) {}
+                  }
+                }}
+                style={{
+                  width: '100%',
+                  padding: '10px',
+                  backgroundColor: '#f1f5f9',
+                  color: '#475569',
+                  border: 'none',
+                  borderRadius: '14px',
+                  fontSize: '0.85rem',
+                  fontWeight: 800,
+                  cursor: 'pointer',
+                }}
+              >
+                Cancel &amp; Continue Scanning
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
