@@ -1,10 +1,18 @@
 import { useState, useEffect } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
+import { useRouter } from 'next/router';
 import { supabase } from '../lib/supabaseClient';
 
 export default function AdminDashboard() {
-  // 5 MAIN TABS: 'profile', 'add-student', 'add-staff', 'add-event', 'scan-qr'
+  const router = useRouter();
+
+  // Authentication & Security Guard States
+  const [isAuthorized, setIsAuthorized] = useState(false);
+  const [authChecking, setAuthChecking] = useState(true);
+  const [adminUser, setAdminUser] = useState({ name: 'System Administrator', email: '' });
+
+  // 5 MAIN TABS: 'profile' | 'add-student' | 'add-staff' | 'add-event' | 'scan-qr'
   const [activeTab, setActiveTab] = useState('profile');
   const [loading, setLoading] = useState(false);
   const [notification, setNotification] = useState({ type: '', message: '' });
@@ -33,15 +41,16 @@ export default function AdminDashboard() {
   // 4. Quick Manual QR / Attendance Logger States
   const [manualStudentId, setManualStudentId] = useState('');
   const [selectedEventId, setSelectedEventId] = useState('');
-  const [scanLogMsg, setScanLogMsg] = useState('');
+  const [scanLogMsg, setScanLogMsg] = useState({ type: '', text: '' });
 
-  // Lists & Data
+  // Data Lists & Filters
   const [students, setStudents] = useState([]);
   const [staffList, setStaffList] = useState([]);
   const [events, setEvents] = useState([]);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchStudentQuery, setSearchStudentQuery] = useState('');
+  const [searchEventQuery, setSearchEventQuery] = useState('');
 
-  // Ang 5 ka opisyal nga kurso
+  // 5 Opisyal nga Kurso
   const courses = [
     { code: 'BSCRIM', name: 'Bachelor of Science in Criminology' },
     { code: 'BSBA', name: 'Bachelor of Science in Business Administration' },
@@ -57,23 +66,75 @@ export default function AdminDashboard() {
     }, 4500);
   };
 
+  // ========================================================
+  // ROUTE GUARD: Susiha kon Admin ba gyud ang naka-login
+  // ========================================================
+  useEffect(() => {
+    const verifyAdminAccess = async () => {
+      try {
+        setAuthChecking(true);
+
+        // 1. Susiha una ang Session Storage
+        const cachedRole = typeof window !== 'undefined' ? sessionStorage.getItem('cec_role') : null;
+        const cachedEmail = typeof window !== 'undefined' ? sessionStorage.getItem('cec_user_email') : null;
+
+        // 2. Susiha ang Supabase Auth User
+        let userEmail = cachedEmail;
+        if (supabase) {
+          const { data: { user } } = await supabase.auth.getUser();
+          if (user?.email) userEmail = user.email;
+        }
+
+        if (!userEmail) {
+          router.replace('/login');
+          return;
+        }
+
+        // 3. I-verify ang role gikan sa database profiles table
+        const { data: profile, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('email', userEmail)
+          .single();
+
+        if (error || !profile || profile.role !== 'admin') {
+          alert('⛔ ACCESS DENIED: Admin credentials lamang ang gitugotan dinhi!');
+          router.replace('/dashboard');
+          return;
+        }
+
+        setAdminUser({
+          name: profile.full_name || 'System Administrator',
+          email: profile.email,
+        });
+        setIsAuthorized(true);
+        fetchAllData();
+      } catch (err) {
+        console.error('Auth verification error:', err);
+        router.replace('/login');
+      } finally {
+        setAuthChecking(false);
+      }
+    };
+
+    verifyAdminAccess();
+  }, [router]);
+
   // Fetch tanang data gikan sa Supabase
   const fetchAllData = async () => {
     if (!supabase) return;
     setLoading(true);
     try {
-      // Students (role: student or null)
       const { data: profilesData } = await supabase
         .from('profiles')
         .select('*')
-        .order('id', { ascending: false });
+        .order('created_at', { ascending: false });
 
       if (profilesData) {
-        setStudents(profilesData.filter((p) => p.role !== 'staff' && p.role !== 'admin'));
+        setStudents(profilesData.filter((p) => p.role === 'student' || (!p.role && p.role !== 'admin' && p.role !== 'staff')));
         setStaffList(profilesData.filter((p) => p.role === 'staff'));
       }
 
-      // Events
       const { data: eventsData } = await supabase
         .from('events')
         .select('*')
@@ -92,29 +153,29 @@ export default function AdminDashboard() {
     }
   };
 
-  useEffect(() => {
-    fetchAllData();
-  }, []);
+  const handleSignOut = async () => {
+    if (supabase) await supabase.auth.signOut();
+    if (typeof window !== 'undefined') {
+      sessionStorage.clear();
+    }
+    router.replace('/');
+  };
 
   // ========================================================
-  // FEATURE 2: ADD STUDENT (With strict format checking)
+  // FEATURE 2: ADD STUDENT (Strict Regex Format: 2024-0616)
   // ========================================================
   const handleAddStudent = async (e) => {
     e.preventDefault();
 
-    // Regex check: Pananglitan 2024-0616 o 2024-00123
     const idRegex = /^\d{4}-\d{4,5}$/;
     if (!idRegex.test(studentId.trim())) {
-      showNotify(
-        'error',
-        '❌ Sayop nga Student ID format! Kinahanglan sama ani: 2024-0616 (Tuig-Numero).'
-      );
+      showNotify('error', '❌ Sayop nga Student ID format! Kinahanglan gayod sama ani: 2024-0616.');
       return;
     }
 
     setLoading(true);
 
-    let { error } = await supabase.from('profiles').insert([
+    const { error } = await supabase.from('profiles').insert([
       {
         school_id: studentId.trim(),
         full_name: studentName.trim(),
@@ -122,30 +183,17 @@ export default function AdminDashboard() {
         course: studentCourse,
         year_level: studentYear,
         role: 'student',
+        can_scan: false,
         status: 'Active',
       },
     ]);
-
-    // Fallback kon wala pa ang bag-ong columns
-    if (error && error.message.includes('column')) {
-      const fallback = await supabase.from('profiles').insert([
-        {
-          school_id: studentId.trim(),
-          email: studentEmail.trim().toLowerCase(),
-        },
-      ]);
-      error = fallback.error;
-    }
 
     setLoading(false);
 
     if (error) {
       showNotify('error', `Error pag-add sa student: ${error.message}`);
     } else {
-      showNotify(
-        'success',
-        `✅ Student (${studentId}) narehistro na sa whitelist! Makasulod na siya sa portal.`
-      );
+      showNotify('success', `✅ Student (${studentId.trim()}) opisyal nang naapil sa Whitelist!`);
       setStudentId('');
       setStudentName('');
       setStudentEmail('');
@@ -154,7 +202,7 @@ export default function AdminDashboard() {
   };
 
   // ========================================================
-  // FEATURE 3: ADD STAFF (Unlocks scanning permissions)
+  // FEATURE 3: ADD STAFF (Unlocks Scanner Permission)
   // ========================================================
   const handleAddStaff = async (e) => {
     e.preventDefault();
@@ -162,7 +210,7 @@ export default function AdminDashboard() {
 
     const generatedStaffId = `STAFF-${Math.floor(1000 + Math.random() * 9000)}`;
 
-    let { error } = await supabase.from('profiles').insert([
+    const { error } = await supabase.from('profiles').insert([
       {
         school_id: generatedStaffId,
         full_name: staffName.trim(),
@@ -173,25 +221,12 @@ export default function AdminDashboard() {
       },
     ]);
 
-    if (error && error.message.includes('column')) {
-      const fallback = await supabase.from('profiles').insert([
-        {
-          school_id: generatedStaffId,
-          email: staffEmail.trim().toLowerCase(),
-        },
-      ]);
-      error = fallback.error;
-    }
-
     setLoading(false);
 
     if (error) {
       showNotify('error', `Error pag-add og staff: ${error.message}`);
     } else {
-      showNotify(
-        'success',
-        `🎉 Si ${staffName} narehistro na isip opisyal nga Staff! Na-activate na ang iyang Scanner feature.`
-      );
+      showNotify('success', `🎉 Si ${staffName} narehistro na isip Staff! Pwede na siyang mogamit sa QR Scanner.`);
       setStaffName('');
       setStaffEmail('');
       fetchAllData();
@@ -205,7 +240,7 @@ export default function AdminDashboard() {
     e.preventDefault();
     setLoading(true);
 
-    let { error } = await supabase.from('events').insert([
+    const { error } = await supabase.from('events').insert([
       {
         title: eventTitle.trim(),
         location: eventLocation.trim(),
@@ -217,24 +252,12 @@ export default function AdminDashboard() {
       },
     ]);
 
-    if (error && error.message.includes('column')) {
-      const fallback = await supabase.from('events').insert([
-        {
-          title: eventTitle.trim(),
-          description: `${eventLocation.trim()} (In: ${timeIn}, Out: ${timeOut}) — ${eventDesc.trim()}`,
-          date: eventDate,
-          status: eventStatus,
-        },
-      ]);
-      error = fallback.error;
-    }
-
     setLoading(false);
 
     if (error) {
       showNotify('error', `Error pag-publish sa event: ${error.message}`);
     } else {
-      showNotify('success', `📅 Event "${eventTitle}" napatik na uban ang Time In/Out!`);
+      showNotify('success', `📅 Event "${eventTitle}" napatik na uban ang Time In/Out windows!`);
       setEventTitle('');
       setEventDesc('');
       setEventDate('');
@@ -244,48 +267,73 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleToggleEventStatus = async (ev) => {
+    const nextStatus = ev.status === 'active' ? 'inactive' : 'active';
+    const { error } = await supabase
+      .from('events')
+      .update({ status: nextStatus })
+      .eq('id', ev.id);
+
+    if (error) {
+      showNotify('error', error.message);
+    } else {
+      showNotify('success', `Ang event "${ev.title}" gi-set na isip ${nextStatus.toUpperCase()}!`);
+      fetchAllData();
+    }
+  };
+
   // ========================================================
-  // FEATURE 5: QUICK QR / MANUAL ATTENDANCE SCANNER
+  // FEATURE 5: QUICK QR / MANUAL ATTENDANCE LOGGER
   // ========================================================
   const handleManualScanSubmit = async (e) => {
     e.preventDefault();
     if (!manualStudentId) return;
 
-    setScanLogMsg('Ginasusi ang Student ID...');
+    setScanLogMsg({ type: 'info', text: 'Ginasusi ang Student ID sa Whitelist...' });
 
-    // 1. Susiha kon ang ID anaa ba sa whitelist
     const studentMatch = students.find(
       (s) => s.school_id?.toLowerCase() === manualStudentId.trim().toLowerCase()
     );
 
     if (!studentMatch) {
-      setScanLogMsg('❌ BLOCKED: Kini nga Student ID wala sa Whitelist! Dili maka-attendance.');
+      setScanLogMsg({
+        type: 'error',
+        text: '❌ BLOCKED: Kini nga School ID wala sa Whitelist! Dili maka-attendance.',
+      });
       return;
     }
 
-    // 2. I-record ang attendance
     const { error } = await supabase.from('attendance').insert([
       {
         student_id: studentMatch.school_id,
-        student_name: studentMatch.full_name || 'Student',
+        student_name: studentMatch.full_name || 'CEC Student',
         event_id: selectedEventId,
         status: 'PRESENT',
         time_in: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        scanned_by: adminUser.email || 'Admin',
       },
     ]);
 
-    if (error && !error.message.includes('relation "attendance" does not exist')) {
-      setScanLogMsg(`Error: ${error.message}`);
+    if (error) {
+      if (error.code === '23505') {
+        setScanLogMsg({
+          type: 'warning',
+          text: `⚠️ Naka-record na daan og attendance si ${studentMatch.full_name} (${studentMatch.school_id}) niining event-a!`,
+        });
+      } else {
+        setScanLogMsg({ type: 'error', text: `Database Error: ${error.message}` });
+      }
     } else {
-      setScanLogMsg(
-        `✅ SUCCESS: Attendance recorded alang kang ${studentMatch.full_name || studentMatch.school_id} (${studentMatch.course || 'BSCRIM'})!`
-      );
+      setScanLogMsg({
+        type: 'success',
+        text: `✅ SUCCESS: Attendance logged alang kang ${studentMatch.full_name} (${studentMatch.school_id} - ${studentMatch.course})!`,
+      });
       setManualStudentId('');
     }
   };
 
-  const handleDeleteUser = async (id, nameOrId) => {
-    if (!confirm(`Sigurado ka nga tangtangon si ${nameOrId} sa whitelist?`)) return;
+  const handleDeleteUser = async (id, identifier) => {
+    if (!confirm(`Sigurado ka nga tangtangon si ${identifier} sa sistema?`)) return;
     const { error } = await supabase.from('profiles').delete().eq('id', id);
     if (error) showNotify('error', error.message);
     else {
@@ -299,86 +347,121 @@ export default function AdminDashboard() {
     const { error } = await supabase.from('events').delete().eq('id', id);
     if (error) showNotify('error', error.message);
     else {
-      showNotify('success', 'Event deleted.');
+      showNotify('success', 'Nafallback/Deleted na ang event.');
       fetchAllData();
     }
   };
 
-  // Filter students base sa search
+  // Filtered queries
   const filteredStudents = students.filter(
     (s) =>
-      s.school_id?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      s.full_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      s.course?.toLowerCase().includes(searchQuery.toLowerCase())
+      s.school_id?.toLowerCase().includes(searchStudentQuery.toLowerCase()) ||
+      s.full_name?.toLowerCase().includes(searchStudentQuery.toLowerCase()) ||
+      s.course?.toLowerCase().includes(searchStudentQuery.toLowerCase()) ||
+      s.email?.toLowerCase().includes(searchStudentQuery.toLowerCase())
   );
 
+  const filteredEvents = events.filter(
+    (e) =>
+      e.title?.toLowerCase().includes(searchEventQuery.toLowerCase()) ||
+      e.location?.toLowerCase().includes(searchEventQuery.toLowerCase())
+  );
+
+  // Loading Screen samtang ginasusi ang Admin Credentials
+  if (authChecking) {
+    return (
+      <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center text-white px-4">
+        <div className="w-16 h-16 rounded-2xl bg-orange-500/20 border-2 border-orange-500 flex items-center justify-center animate-pulse mb-4">
+          <span className="text-2xl font-black text-orange-500">C</span>
+        </div>
+        <p className="text-sm font-extrabold tracking-wider uppercase text-slate-300">
+          Ginasusi ang imong Admin Clearance...
+        </p>
+      </div>
+    );
+  }
+
+  if (!isAuthorized) return null;
+
   return (
-    <div className="min-h-screen bg-[#F8FAFC] text-slate-800 pb-16 antialiased font-sans">
+    <div className="min-h-screen bg-[#F8FAFC] text-slate-800 antialiased font-sans pb-20">
       <Head>
-        <title>CEC TRACK 3.0 • Admin Command Center</title>
+        <title>CEC TRACK 3.0 • Command Center</title>
       </Head>
 
-      {/* HEADER NAVBAR */}
-      <header className="sticky top-0 z-40 bg-white border-b border-slate-200 shadow-sm">
-        <div className="max-w-6xl mx-auto px-4 py-3.5 flex items-center justify-between">
+      {/* TOP ULTRA-CLEAN NAVBAR */}
+      <header className="sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-slate-200/80 shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-18 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-orange-500 flex items-center justify-center text-white font-black text-lg shadow-sm">
+            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-orange-600 to-orange-400 flex items-center justify-center text-white font-black text-xl shadow-md shadow-orange-500/20">
               C
             </div>
             <div>
-              <span className="text-lg font-black tracking-tight text-orange-600 block leading-tight">
-                CEC TRACK 3.0
-              </span>
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                Admin Command Center
+              <div className="flex items-center gap-2">
+                <span className="text-lg font-black tracking-tight text-slate-900">
+                  CEC TRACK <span className="text-orange-600">3.0</span>
+                </span>
+                <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 tracking-wider">
+                  ADMIN
+                </span>
+              </div>
+              <span className="text-[11px] font-semibold text-slate-400 block -mt-0.5">
+                College of Engineering and Computing
               </span>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2.5">
             <Link
               href="/scanner"
-              className="text-xs font-bold bg-orange-500 hover:bg-orange-600 text-white px-3.5 py-2 rounded-xl shadow-sm transition flex items-center gap-1.5"
+              className="text-xs font-black bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white px-4 py-2.5 rounded-2xl shadow-md shadow-orange-500/20 transition flex items-center gap-2"
             >
-              <span>📷</span> Launch Camera Scanner
+              <span>📷</span>
+              <span className="hidden sm:inline">Launch Scanner</span>
             </Link>
-            <Link
-              href="/"
-              className="text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-2 rounded-xl transition"
+
+            <button
+              onClick={handleSignOut}
+              className="text-xs font-bold text-rose-600 hover:bg-rose-50 border border-rose-200 px-3.5 py-2.5 rounded-2xl transition"
             >
-              Portal Home
-            </Link>
+              Sign Out
+            </button>
           </div>
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto px-4 pt-6">
-        {/* TOP TITLE */}
-        <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 pt-6">
+        {/* BANNER GREETING & QUICK REFRESH */}
+        <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white p-6 rounded-3xl border border-slate-200/80 shadow-sm">
           <div>
-            <span className="text-[11px] font-extrabold uppercase text-orange-600 tracking-wider bg-orange-50 px-3 py-1 rounded-full border border-orange-100">
-              ⚡ CENTRAL CONTROL HUB
-            </span>
-            <h1 className="text-2xl sm:text-3xl font-black text-slate-900 mt-2">
-              System Administration
+            <div className="flex items-center gap-2 mb-1">
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping" />
+              <span className="text-[11px] font-extrabold uppercase tracking-wider text-emerald-600">
+                SYSTEM ONLINE & ENCRYPTED
+              </span>
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
+              Welcome back, {adminUser.name}
             </h1>
-            <p className="text-xs sm:text-sm text-slate-500">
-              Whitelist verification, staff role delegation, event scheduling, ug live attendance.
+            <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
+              Whitelist verification, official scheduling, and real-time attendance monitoring.
             </p>
           </div>
 
           <button
             onClick={fetchAllData}
-            className="self-start sm:self-auto text-xs sm:text-sm font-bold px-4 py-2.5 rounded-2xl bg-white border border-slate-200 hover:bg-slate-50 shadow-sm flex items-center gap-2 transition"
+            disabled={loading}
+            className="self-start sm:self-auto text-xs font-bold px-4 py-2.5 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 shadow-sm flex items-center gap-2 transition"
           >
-            <span>🔄</span> {loading ? 'Refreshing...' : 'Refresh Records'}
+            <span className={loading ? 'animate-spin' : ''}>🔄</span>
+            <span>{loading ? 'Refreshing...' : 'Sync Database'}</span>
           </button>
         </div>
 
-        {/* NOTIFICATION BANNER */}
+        {/* TOAST NOTIFICATION */}
         {notification.message && (
           <div
-            className={`mb-6 p-4 rounded-2xl border text-sm font-semibold flex items-center justify-between shadow-sm transition-all ${
+            className={`mb-6 p-4 rounded-2xl border text-xs sm:text-sm font-bold flex items-center justify-between shadow-sm transition-all ${
               notification.type === 'error'
                 ? 'bg-rose-50 border-rose-200 text-rose-800'
                 : 'bg-emerald-50 border-emerald-200 text-emerald-800'
@@ -387,9 +470,9 @@ export default function AdminDashboard() {
             <span>{notification.message}</span>
             <button
               onClick={() => setNotification({ type: '', message: '' })}
-              className="text-xs uppercase font-extrabold ml-4 opacity-70 hover:opacity-100"
+              className="text-[10px] uppercase font-black ml-4 opacity-70 hover:opacity-100"
             >
-              Close
+              Dismiss
             </button>
           </div>
         )}
@@ -398,17 +481,17 @@ export default function AdminDashboard() {
         <div className="flex gap-2 p-1.5 bg-slate-200/80 rounded-2xl mb-6 overflow-x-auto">
           <button
             onClick={() => setActiveTab('profile')}
-            className={`px-4 py-2.5 rounded-xl text-xs sm:text-sm font-extrabold whitespace-nowrap transition ${
+            className={`px-4 py-2.5 rounded-xl text-xs sm:text-sm font-black whitespace-nowrap transition ${
               activeTab === 'profile'
                 ? 'bg-white text-slate-900 shadow-sm'
                 : 'text-slate-600 hover:text-slate-900'
             }`}
           >
-            👤 1. Admin Profile & Overview
+            👤 1. System Overview
           </button>
           <button
             onClick={() => setActiveTab('add-student')}
-            className={`px-4 py-2.5 rounded-xl text-xs sm:text-sm font-extrabold whitespace-nowrap transition ${
+            className={`px-4 py-2.5 rounded-xl text-xs sm:text-sm font-black whitespace-nowrap transition ${
               activeTab === 'add-student'
                 ? 'bg-white text-orange-600 shadow-sm'
                 : 'text-slate-600 hover:text-slate-900'
@@ -418,7 +501,7 @@ export default function AdminDashboard() {
           </button>
           <button
             onClick={() => setActiveTab('add-staff')}
-            className={`px-4 py-2.5 rounded-xl text-xs sm:text-sm font-extrabold whitespace-nowrap transition ${
+            className={`px-4 py-2.5 rounded-xl text-xs sm:text-sm font-black whitespace-nowrap transition ${
               activeTab === 'add-staff'
                 ? 'bg-white text-blue-600 shadow-sm'
                 : 'text-slate-600 hover:text-slate-900'
@@ -428,17 +511,17 @@ export default function AdminDashboard() {
           </button>
           <button
             onClick={() => setActiveTab('add-event')}
-            className={`px-4 py-2.5 rounded-xl text-xs sm:text-sm font-extrabold whitespace-nowrap transition ${
+            className={`px-4 py-2.5 rounded-xl text-xs sm:text-sm font-black whitespace-nowrap transition ${
               activeTab === 'add-event'
                 ? 'bg-white text-emerald-600 shadow-sm'
                 : 'text-slate-600 hover:text-slate-900'
             }`}
           >
-            📅 4. Add Event
+            📅 4. Manage Events
           </button>
           <button
             onClick={() => setActiveTab('scan-qr')}
-            className={`px-4 py-2.5 rounded-xl text-xs sm:text-sm font-extrabold whitespace-nowrap transition ${
+            className={`px-4 py-2.5 rounded-xl text-xs sm:text-sm font-black whitespace-nowrap transition ${
               activeTab === 'scan-qr'
                 ? 'bg-white text-purple-600 shadow-sm'
                 : 'text-slate-600 hover:text-slate-900'
@@ -449,7 +532,7 @@ export default function AdminDashboard() {
         </div>
 
         {/* ========================================================= */}
-        {/* TAB 1: ADMIN PROFILE & OVERVIEW STATS */}
+        {/* TAB 1: SYSTEM OVERVIEW & METRICS */}
         {/* ========================================================= */}
         {activeTab === 'profile' && (
           <div className="space-y-6">
@@ -460,8 +543,8 @@ export default function AdminDashboard() {
                 </span>
                 <div className="mt-2 flex items-baseline justify-between">
                   <span className="text-3xl font-black text-slate-900">{students.length}</span>
-                  <span className="text-xs bg-orange-50 text-orange-600 font-bold px-2 py-0.5 rounded-md">
-                    Verified
+                  <span className="text-[11px] bg-orange-50 text-orange-600 font-extrabold px-2 py-0.5 rounded-lg border border-orange-100">
+                    5 Programs
                   </span>
                 </div>
               </div>
@@ -472,8 +555,8 @@ export default function AdminDashboard() {
                 </span>
                 <div className="mt-2 flex items-baseline justify-between">
                   <span className="text-3xl font-black text-blue-600">{staffList.length}</span>
-                  <span className="text-xs bg-blue-50 text-blue-600 font-bold px-2 py-0.5 rounded-md">
-                    Scanners
+                  <span className="text-[11px] bg-blue-50 text-blue-700 font-extrabold px-2 py-0.5 rounded-lg border border-blue-100">
+                    Scanners Active
                   </span>
                 </div>
               </div>
@@ -486,8 +569,8 @@ export default function AdminDashboard() {
                   <span className="text-3xl font-black text-emerald-600">
                     {events.filter((e) => e.status === 'active').length}
                   </span>
-                  <span className="text-xs bg-emerald-50 text-emerald-700 font-bold px-2 py-0.5 rounded-md">
-                    Open
+                  <span className="text-[11px] bg-emerald-50 text-emerald-700 font-extrabold px-2 py-0.5 rounded-lg border border-emerald-100">
+                    Open Attendance
                   </span>
                 </div>
               </div>
@@ -497,58 +580,49 @@ export default function AdminDashboard() {
                   TOTAL EVENTS
                 </span>
                 <div className="mt-2 flex items-baseline justify-between">
-                  <span className="text-3xl font-black text-slate-700">{events.length}</span>
-                  <span className="text-xs bg-slate-100 text-slate-600 font-bold px-2 py-0.5 rounded-md">
-                    History
+                  <span className="text-3xl font-black text-slate-800">{events.length}</span>
+                  <span className="text-[11px] bg-slate-100 text-slate-600 font-extrabold px-2 py-0.5 rounded-lg border border-slate-200">
+                    Published
                   </span>
                 </div>
               </div>
             </div>
 
-            {/* Admin Profile Card */}
-            <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-sm space-y-4">
-              <div className="flex items-center gap-4">
-                <div className="w-16 h-16 rounded-2xl bg-orange-500 text-white flex items-center justify-center font-black text-2xl shadow-md shadow-orange-500/20">
-                  A
-                </div>
-                <div>
-                  <span className="text-[11px] font-bold uppercase text-orange-600 bg-orange-50 px-2.5 py-0.5 rounded-full">
-                    HEAD ADMINISTRATOR
-                  </span>
-                  <h2 className="text-xl font-black text-slate-900 mt-1">
-                    CEC Track Lead Admin
-                  </h2>
-                  <p className="text-xs text-slate-400">
-                    Full privileges: Whitelist enrollment, role assignment, and database management.
-                  </p>
-                </div>
-              </div>
-
-              <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 text-xs text-slate-600 space-y-2">
-                <p>
-                  🔒 <strong>Login Security Rule:</strong> Ang usa ka estudyante dili makasulod sa sistema kon ang iyang School ID wala marehistro sa Whitelist pinaagi sa <em>Tab 2: Add Student</em>.
-                </p>
-                <p>
-                  📷 <strong>Staff Permission:</strong> Ang mga Staff lamang nga narehistro sa <em>Tab 3: Add Staff</em> ang adunay katungod sa pag-scan sa mga QR codes sa mga estudyante.
-                </p>
+            {/* Department Breakdown */}
+            <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-sm">
+              <h3 className="text-base font-black text-slate-900 mb-4">
+                Students Distribution by Course
+              </h3>
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+                {courses.map((c) => {
+                  const count = students.filter((s) => s.course === c.code).length;
+                  return (
+                    <div key={c.code} className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
+                      <span className="text-xs font-black text-orange-600 block">{c.code}</span>
+                      <span className="text-2xl font-black text-slate-900 my-1 block">{count}</span>
+                      <span className="text-[10px] text-slate-400 font-medium block truncate" title={c.name}>
+                        {c.name}
+                      </span>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           </div>
         )}
 
         {/* ========================================================= */}
-        {/* TAB 2: ADD STUDENT (With 5 Courses & Strict ID Check) */}
+        {/* TAB 2: ADD STUDENT (Strict Regex 2024-0616 & 5 Courses) */}
         {/* ========================================================= */}
         {activeTab === 'add-student' && (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-            {/* Form */}
             <div className="lg:col-span-5 bg-white p-6 rounded-3xl border border-slate-200/80 shadow-sm">
               <span className="text-[11px] font-black uppercase text-orange-600">
-                WHITELIST REGISTRATION
+                OFFICIAL ENROLLMENT
               </span>
-              <h2 className="text-xl font-black text-slate-900 mb-1">Add Student Member</h2>
-              <p className="text-xs text-slate-400 mb-5">
-                Ang School ID kinahanglan gayod sundon ang format: <strong>2024-0616</strong>.
+              <h2 className="text-xl font-black text-slate-900 mb-1">Add Student (Whitelist)</h2>
+              <p className="text-xs text-slate-400 mb-5 leading-relaxed">
+                Ang estudyante dili makasulod sa portal kung wala narehistro ang iyang School ID. Sunda ang format: <strong>2024-0616</strong>.
               </p>
 
               <form onSubmit={handleAddStudent} className="space-y-4">
@@ -562,12 +636,9 @@ export default function AdminDashboard() {
                     value={studentId}
                     onChange={(e) => setStudentId(e.target.value)}
                     pattern="\d{4}-\d{4,5}"
-                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold focus:outline-none focus:ring-2 focus:ring-orange-500 focus:bg-white"
+                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-black focus:outline-none focus:ring-2 focus:ring-orange-500 focus:bg-white"
                     required
                   />
-                  <span className="text-[10px] text-slate-400 mt-1 block">
-                    * Format: 4 ka digit nga tuig, hyphen, ug numero (e.g. 2024-0616)
-                  </span>
                 </div>
 
                 <div>
@@ -590,7 +661,7 @@ export default function AdminDashboard() {
                   </label>
                   <input
                     type="email"
-                    placeholder="e.g. student@dorsu.edu.ph"
+                    placeholder="e.g. renowee.beloy@dorsu.edu.ph"
                     value={studentEmail}
                     onChange={(e) => setStudentEmail(e.target.value)}
                     className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:bg-white"
@@ -636,14 +707,14 @@ export default function AdminDashboard() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white font-extrabold py-3.5 rounded-xl shadow-md shadow-orange-500/25 transition mt-2"
+                  className="w-full bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-black py-3.5 rounded-2xl shadow-md shadow-orange-500/25 transition mt-2"
                 >
-                  {loading ? 'Ginasave...' : 'Enroll Student to Whitelist'}
+                  {loading ? 'Saving Record...' : 'Enroll to Whitelist ➔'}
                 </button>
               </form>
             </div>
 
-            {/* List */}
+            {/* Students List Table */}
             <div className="lg:col-span-7 bg-white p-6 rounded-3xl border border-slate-200/80 shadow-sm">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
                 <div>
@@ -654,42 +725,46 @@ export default function AdminDashboard() {
                 </div>
                 <input
                   type="text"
-                  placeholder="🔍 Pangitaa pinaagi sa ID..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-orange-500"
+                  placeholder="🔍 Search ID, Name or Course..."
+                  value={searchStudentQuery}
+                  onChange={(e) => setSearchStudentQuery(e.target.value)}
+                  className="px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-orange-500"
                 />
               </div>
 
               {filteredStudents.length === 0 ? (
-                <div className="text-center py-10 text-slate-400 text-xs">
-                  Walay estudyante nga nakit-an.
+                <div className="text-center py-12 text-slate-400 text-xs">
+                  Walay estudyante nga nakit-an sa maong search query.
                 </div>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full text-left border-collapse text-xs">
                     <thead>
-                      <tr className="border-b border-slate-100 text-slate-400 font-extrabold uppercase">
-                        <th className="py-2.5 px-2">School ID</th>
-                        <th className="py-2.5 px-2">Pangalan</th>
-                        <th className="py-2.5 px-2">Kurso</th>
-                        <th className="py-2.5 px-2 text-right">Aksyon</th>
+                      <tr className="border-b border-slate-100 text-slate-400 font-black uppercase text-[10px]">
+                        <th className="py-2.5 px-3">School ID</th>
+                        <th className="py-2.5 px-3">Student Name</th>
+                        <th className="py-2.5 px-3">Course & Year</th>
+                        <th className="py-2.5 px-3 text-right">Action</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
                       {filteredStudents.map((st) => (
-                        <tr key={st.id || st.school_id} className="hover:bg-slate-50">
-                          <td className="py-3 px-2 font-black text-slate-900">{st.school_id}</td>
-                          <td className="py-3 px-2 font-semibold text-slate-700">{st.full_name || st.email}</td>
-                          <td className="py-3 px-2">
-                            <span className="px-2 py-0.5 rounded font-black text-[10px] bg-blue-50 text-blue-700">
-                              {st.course || 'BSCRIM'}
-                            </span>
+                        <tr key={st.id} className="hover:bg-slate-50 transition">
+                          <td className="py-3 px-3 font-black text-slate-900">{st.school_id}</td>
+                          <td className="py-3 px-3 font-bold text-slate-700">
+                            <div>{st.full_name}</div>
+                            <div className="text-[10px] text-slate-400 font-normal">{st.email}</div>
                           </td>
-                          <td className="py-3 px-2 text-right">
+                          <td className="py-3 px-3">
+                            <span className="px-2 py-0.5 rounded-md font-black text-[10px] bg-blue-50 text-blue-700 border border-blue-100 mr-1.5">
+                              {st.course}
+                            </span>
+                            <span className="text-[10px] text-slate-500">{st.year_level}</span>
+                          </td>
+                          <td className="py-3 px-3 text-right">
                             <button
                               onClick={() => handleDeleteUser(st.id, st.school_id)}
-                              className="text-rose-600 hover:text-rose-800 font-bold px-2 py-1"
+                              className="text-rose-600 hover:text-rose-800 font-extrabold px-2 py-1 rounded-lg hover:bg-rose-50 transition"
                             >
                               Remove
                             </button>
@@ -711,11 +786,11 @@ export default function AdminDashboard() {
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
             <div className="lg:col-span-5 bg-white p-6 rounded-3xl border border-slate-200/80 shadow-sm">
               <span className="text-[11px] font-black uppercase text-blue-600">
-                STAFF PERMISSIONS
+                STAFF DELEGATION
               </span>
               <h2 className="text-xl font-black text-slate-900 mb-1">Add Staff Officer</h2>
-              <p className="text-xs text-slate-400 mb-5">
-                Ang mga opisyal nga marehistro diri makabaton og access sa <strong>QR Scanner</strong> aron maka-check sa attendance.
+              <p className="text-xs text-slate-400 mb-5 leading-relaxed">
+                Ang mga opisyal nga narehistro diri makabaton og access sa <strong>QR Camera Scanner</strong> aron maka-check sa attendance.
               </p>
 
               <form onSubmit={handleAddStaff} className="space-y-4">
@@ -759,43 +834,44 @@ export default function AdminDashboard() {
                   />
                 </div>
 
-                <div className="p-3 bg-blue-50 rounded-2xl border border-blue-100 flex items-center gap-3">
-                  <span className="text-xl">📷</span>
-                  <span className="text-xs font-bold text-blue-900">
-                    Automatic Scanner Authorization (can_scan = true)
-                  </span>
+                <div className="p-4 bg-blue-50 rounded-2xl border border-blue-100 flex items-center gap-3">
+                  <span className="text-2xl">📷</span>
+                  <div className="text-xs">
+                    <p className="font-black text-blue-900">Scanner Authorization Granted</p>
+                    <p className="text-blue-700 text-[11px]">can_scan = true is automatically enabled.</p>
+                  </div>
                 </div>
 
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-extrabold py-3.5 rounded-xl shadow-md shadow-blue-500/25 transition mt-2"
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-black py-3.5 rounded-2xl shadow-md shadow-blue-500/25 transition mt-2"
                 >
-                  {loading ? 'Ginasave...' : 'Register Staff & Enable Scanner'}
+                  {loading ? 'Saving Staff...' : 'Authorize Staff Scanner ➔'}
                 </button>
               </form>
             </div>
 
-            {/* Staff List */}
+            {/* Staff List Table */}
             <div className="lg:col-span-7 bg-white p-6 rounded-3xl border border-slate-200/80 shadow-sm">
               <h3 className="text-lg font-black text-slate-900 mb-1">
-                Authorized Staff Scanners ({staffList.length})
+                Authorized Staff Members ({staffList.length})
               </h3>
               <p className="text-xs text-slate-400 mb-4">
-                Sila ang gitugotan nga mogamit sa attendance QR scanner.
+                Sila ang gitugotan sa pag-scan sa mga student QR codes.
               </p>
 
               {staffList.length === 0 ? (
                 <div className="text-center py-10 text-slate-400 text-xs">
-                  Wala pay na-assign nga staff scanner. Pag-rehistro sa pikas porma.
+                  Wala pay na-rehistro nga staff scanner.
                 </div>
               ) : (
                 <div className="divide-y divide-slate-100 text-xs">
                   {staffList.map((st) => (
-                    <div key={st.id} className="py-3 flex items-center justify-between">
+                    <div key={st.id} className="py-3.5 flex items-center justify-between">
                       <div>
-                        <div className="font-black text-slate-900">{st.full_name}</div>
-                        <div className="text-slate-400">{st.email}</div>
+                        <div className="font-black text-slate-900 text-sm">{st.full_name}</div>
+                        <div className="text-slate-400 text-[11px]">{st.email}</div>
                       </div>
                       <div className="flex items-center gap-3">
                         <span className="bg-emerald-50 text-emerald-700 border border-emerald-200 font-black px-2.5 py-1 rounded-full text-[10px]">
@@ -817,17 +893,17 @@ export default function AdminDashboard() {
         )}
 
         {/* ========================================================= */}
-        {/* TAB 4: ADD EVENT (With Date, Time In, Time Out) */}
+        {/* TAB 4: ADD EVENT (With Date, Time In & Time Out) */}
         {/* ========================================================= */}
         {activeTab === 'add-event' && (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
             <div className="lg:col-span-5 bg-white p-6 rounded-3xl border border-slate-200/80 shadow-sm">
               <span className="text-[11px] font-black uppercase text-emerald-600">
-                EVENT MANAGEMENT
+                EVENT SCHEDULING
               </span>
-              <h2 className="text-xl font-black text-slate-900 mb-1">Create New Event</h2>
-              <p className="text-xs text-slate-400 mb-5">
-                I-set ang schedule, Required Time In, ug Time Out alang sa attendance tracking.
+              <h2 className="text-xl font-black text-slate-900 mb-1">Publish New Event</h2>
+              <p className="text-xs text-slate-400 mb-5 leading-relaxed">
+                I-set ang schedule, Required Time In, ug Time Out alang sa attendance logs.
               </p>
 
               <form onSubmit={handleAddEvent} className="space-y-4">
@@ -837,7 +913,7 @@ export default function AdminDashboard() {
                   </label>
                   <input
                     type="text"
-                    placeholder="e.g. Siglakas 2026 (2nd Day)"
+                    placeholder="e.g. Siglakas 2026 (Day 2)"
                     value={eventTitle}
                     onChange={(e) => setEventTitle(e.target.value)}
                     className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white"
@@ -861,7 +937,7 @@ export default function AdminDashboard() {
 
                   <div>
                     <label className="block text-xs font-bold uppercase text-slate-600 mb-1">
-                      Scanning Status
+                      Scanning Mode
                     </label>
                     <select
                       value={eventStatus}
@@ -887,30 +963,29 @@ export default function AdminDashboard() {
                   />
                 </div>
 
-                {/* Time In & Time Out */}
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs font-bold uppercase text-emerald-600 mb-1">
-                      ⏰ Time In *
+                      ⏰ Required Time In *
                     </label>
                     <input
                       type="time"
                       value={timeIn}
                       onChange={(e) => setTimeIn(e.target.value)}
-                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-black focus:outline-none focus:ring-2 focus:ring-emerald-500"
                       required
                     />
                   </div>
 
                   <div>
                     <label className="block text-xs font-bold uppercase text-blue-600 mb-1">
-                      ⏱️ Time Out *
+                      ⏱️ Required Time Out *
                     </label>
                     <input
                       type="time"
                       value={timeOut}
                       onChange={(e) => setTimeOut(e.target.value)}
-                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-black focus:outline-none focus:ring-2 focus:ring-blue-500"
                       required
                     />
                   </div>
@@ -918,14 +993,14 @@ export default function AdminDashboard() {
 
                 <div>
                   <label className="block text-xs font-bold uppercase text-slate-600 mb-1">
-                    Description *
+                    Event Description *
                   </label>
                   <textarea
                     rows="2"
-                    placeholder="Attendance guidelines o pahibalo..."
+                    placeholder="Attendance guidelines o announcement..."
                     value={eventDesc}
                     onChange={(e) => setEventDesc(e.target.value)}
-                    className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500"
                     required
                   />
                 </div>
@@ -933,58 +1008,83 @@ export default function AdminDashboard() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full bg-slate-900 hover:bg-slate-800 disabled:opacity-50 text-white font-extrabold py-3.5 rounded-xl shadow-md transition"
+                  className="w-full bg-slate-900 hover:bg-slate-800 text-white font-black py-3.5 rounded-2xl shadow-md transition mt-2"
                 >
-                  {loading ? 'Publishing...' : 'Publish Official Event'}
+                  {loading ? 'Publishing...' : 'Publish Official Event ➔'}
                 </button>
               </form>
             </div>
 
             {/* Events List */}
             <div className="lg:col-span-7 space-y-4">
-              <h3 className="text-lg font-black text-slate-900">
-                Published Events ({events.length})
-              </h3>
-              {events.length === 0 ? (
-                <div className="bg-white p-10 rounded-3xl border border-slate-200 text-center text-slate-400 text-xs">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-lg font-black text-slate-900">
+                  Published Events ({filteredEvents.length})
+                </h3>
+                <input
+                  type="text"
+                  placeholder="🔍 Search event..."
+                  value={searchEventQuery}
+                  onChange={(e) => setSearchEventQuery(e.target.value)}
+                  className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                />
+              </div>
+
+              {filteredEvents.length === 0 ? (
+                <div className="bg-white p-12 rounded-3xl border border-slate-200 text-center text-slate-400 text-xs">
                   Wala pay event nga napatik.
                 </div>
               ) : (
-                <div className="grid grid-cols-1 gap-3">
-                  {events.map((ev) => (
-                    <div
-                      key={ev.id}
-                      className="bg-white p-5 rounded-3xl border border-slate-200/80 shadow-sm flex items-center justify-between gap-4"
-                    >
-                      <div>
-                        <div className="flex items-center gap-2 mb-1">
-                          <span
-                            className={`text-[10px] font-black px-2 py-0.5 rounded-full ${
-                              ev.status === 'active'
-                                ? 'bg-emerald-100 text-emerald-800'
-                                : 'bg-slate-100 text-slate-600'
+                <div className="grid grid-cols-1 gap-3.5">
+                  {filteredEvents.map((ev) => {
+                    const isActive = ev.status === 'active';
+                    return (
+                      <div
+                        key={ev.id}
+                        className="bg-white p-5 rounded-3xl border border-slate-200/80 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+                      >
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <span
+                              className={`text-[10px] font-black px-2.5 py-0.5 rounded-full ${
+                                isActive
+                                  ? 'bg-emerald-100 text-emerald-800'
+                                  : 'bg-slate-200 text-slate-700'
+                              }`}
+                            >
+                              {isActive ? '● ACTIVE (OPEN)' : '✖ INACTIVE (CLOSED)'}
+                            </span>
+                            <span className="text-xs text-slate-400 font-bold">{ev.date}</span>
+                          </div>
+                          <h4 className="text-base font-black text-slate-900">{ev.title}</h4>
+                          <div className="text-xs text-slate-500 flex flex-wrap gap-x-4 gap-y-1 font-semibold pt-1">
+                            <span>🟢 In: {ev.time_in || '08:00'}</span>
+                            <span>⏱️ Out: {ev.time_out || '17:00'}</span>
+                            <span className="text-orange-600">📍 {ev.location || 'FaCET Facade'}</span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 self-end sm:self-center">
+                          <button
+                            onClick={() => handleToggleEventStatus(ev)}
+                            className={`text-xs font-black px-3 py-2 rounded-xl transition ${
+                              isActive
+                                ? 'bg-amber-50 text-amber-700 hover:bg-amber-100'
+                                : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
                             }`}
                           >
-                            {ev.status === 'active' ? '● OPEN' : '✖ CLOSED'}
-                          </span>
-                          <span className="text-xs text-slate-400 font-bold">{ev.date}</span>
-                        </div>
-                        <h4 className="font-black text-slate-900">{ev.title}</h4>
-                        <div className="text-xs text-slate-500 mt-1 flex gap-3 font-semibold">
-                          <span>🟢 In: {ev.time_in || '08:00'}</span>
-                          <span>⏱️ Out: {ev.time_out || '17:00'}</span>
-                          <span>📍 {ev.location || 'FaCET Facade'}</span>
+                            {isActive ? 'Close Scanning' : 'Open Scanning'}
+                          </button>
+                          <button
+                            onClick={() => handleDeleteEvent(ev.id, ev.title)}
+                            className="text-xs font-bold text-rose-600 hover:bg-rose-50 px-3 py-2 rounded-xl transition"
+                          >
+                            Delete
+                          </button>
                         </div>
                       </div>
-
-                      <button
-                        onClick={() => handleDeleteEvent(ev.id, ev.title)}
-                        className="text-xs text-rose-600 font-bold hover:bg-rose-50 px-3 py-1.5 rounded-xl transition"
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -996,27 +1096,26 @@ export default function AdminDashboard() {
         {/* ========================================================= */}
         {activeTab === 'scan-qr' && (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-            {/* Camera Launcher Card */}
             <div className="lg:col-span-6 bg-white p-6 rounded-3xl border border-slate-200/80 shadow-sm space-y-4">
               <span className="text-[11px] font-black uppercase text-purple-600">
                 OFFICIAL QR SCANNER
               </span>
-              <h2 className="text-xl font-black text-slate-900">Live Camera QR Scanner</h2>
-              <p className="text-xs text-slate-500">
-                Gamita ang camera sa imong cellphone o laptop aron diretsong i-scan ang Digital ID QR sa estudyante.
+              <h2 className="text-xl font-black text-slate-900">Live Camera Attendance Scanner</h2>
+              <p className="text-xs text-slate-500 leading-relaxed">
+                Gamita ang camera sa imong cellphone o laptop aron diretsong i-scan ang Digital ID QR code sa estudyante.
               </p>
 
-              <div className="bg-purple-50 p-6 rounded-3xl border border-purple-100 text-center space-y-3">
-                <div className="w-16 h-16 mx-auto rounded-2xl bg-purple-500 text-white flex items-center justify-center text-3xl shadow-lg shadow-purple-500/20">
+              <div className="bg-purple-50 p-8 rounded-3xl border border-purple-100 text-center space-y-4">
+                <div className="w-16 h-16 mx-auto rounded-3xl bg-purple-600 text-white flex items-center justify-center text-3xl shadow-lg shadow-purple-600/25">
                   📷
                 </div>
-                <h4 className="font-black text-slate-900">Launch Dedicated Scanner Window</h4>
+                <h4 className="text-base font-black text-slate-900">Dedicated Scanner Window</h4>
                 <p className="text-xs text-slate-500 max-w-sm mx-auto">
-                  Awtomatikong mo-abli sa video stream aron paspas ang pagsulod sa attendance logs.
+                  Awtomatikong magbasa sa QR streams ug mo-validate sa whitelist records.
                 </p>
                 <Link
                   href="/scanner"
-                  className="inline-block bg-purple-600 hover:bg-purple-700 text-white font-black text-xs px-6 py-3 rounded-2xl shadow-md transition"
+                  className="inline-block bg-purple-600 hover:bg-purple-700 text-white font-black text-xs px-6 py-3.5 rounded-2xl shadow-md transition"
                 >
                   Ablihi ang Camera Scanner ➔
                 </Link>
@@ -1026,17 +1125,17 @@ export default function AdminDashboard() {
             {/* Quick Manual Fallback Logger */}
             <div className="lg:col-span-6 bg-white p-6 rounded-3xl border border-slate-200/80 shadow-sm space-y-4">
               <span className="text-[11px] font-black uppercase text-orange-600">
-                MANUAL FALLBACK LOG
+                MANUAL FALLBACK LOGGER
               </span>
-              <h2 className="text-xl font-black text-slate-900">Quick School ID Attendance</h2>
-              <p className="text-xs text-slate-500">
-                Para sa mga estudyante nga walay QR code o hinay ang camera, i-type direkta ang School ID (e.g. <strong>2024-0616</strong>).
+              <h2 className="text-xl font-black text-slate-900">Quick School ID Check-in</h2>
+              <p className="text-xs text-slate-500 leading-relaxed">
+                Para sa mga estudyante nga walay dalang cellphone o hinay ang camera, i-type direkta ang School ID (e.g. <strong>2024-0616</strong>).
               </p>
 
               <form onSubmit={handleManualScanSubmit} className="space-y-4">
                 <div>
                   <label className="block text-xs font-bold uppercase text-slate-600 mb-1">
-                    Pilia ang Target Event
+                    Select Event Schedule
                   </label>
                   <select
                     value={selectedEventId}
@@ -1067,15 +1166,25 @@ export default function AdminDashboard() {
 
                 <button
                   type="submit"
-                  className="w-full bg-orange-500 hover:bg-orange-600 text-white font-extrabold py-3 rounded-xl shadow-md transition"
+                  className="w-full bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-black py-3.5 rounded-2xl shadow-md transition"
                 >
                   ✓ Mark as Present
                 </button>
               </form>
 
-              {scanLogMsg && (
-                <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-800">
-                  {scanLogMsg}
+              {scanLogMsg.text && (
+                <div
+                  className={`p-4 rounded-2xl border text-xs font-bold ${
+                    scanLogMsg.type === 'error'
+                      ? 'bg-rose-50 border-rose-200 text-rose-700'
+                      : scanLogMsg.type === 'warning'
+                      ? 'bg-amber-50 border-amber-200 text-amber-800'
+                      : scanLogMsg.type === 'success'
+                      ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                      : 'bg-slate-100 border-slate-200 text-slate-700'
+                  }`}
+                >
+                  {scanLogMsg.text}
                 </div>
               )}
             </div>
