@@ -56,11 +56,10 @@ export default function Home() {
     return () => clearInterval(timer);
   }, []);
 
-  // Kumuha ng Student Analytics at Events mula sa Supabase
+  // Fetch Student Analytics at Events mula sa Supabase
   const fetchData = async () => {
     if (!supabase) return;
     try {
-      // 1. Profiles analytics
       const { data: profilesData } = await supabase
         .from('profiles')
         .select('course, role, status');
@@ -78,7 +77,6 @@ export default function Home() {
         });
       }
 
-      // 2. Official events mula sa Admin
       setEventsLoading(true);
       const { data: eventsData } = await supabase
         .from('events')
@@ -154,14 +152,30 @@ export default function Home() {
         <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
       </Head>
 
-      {/* Header */}
+      {/* Header na may About Link at Login Button */}
       <header className={styles.header}>
         <div className={styles.headerContent} style={{ justifyContent: 'space-between' }}>
           <button onClick={() => router.push('/')} className={styles.logoText}>
             CECTRACK
           </button>
 
-          <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+            {/* About Navigation Link */}
+            <button
+              onClick={() => router.push('/about')}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: '#334155',
+                fontSize: '0.88rem',
+                fontWeight: 800,
+                cursor: 'pointer',
+                padding: '6px 10px',
+              }}
+            >
+              About
+            </button>
+
             <button
               onClick={() => router.push('/login')}
               className={styles.loginBtn}
@@ -538,9 +552,7 @@ export default function Home() {
         </section>
       </main>
 
-      {/* ======================================================== */}
-      {/* PUTING FOOTER (TUMUGMA SA BACKGROUND NG WEBSITE) */}
-      {/* ======================================================== */}
+      {/* Puti nga Footer nga may About Link */}
       <footer
         style={{
           backgroundColor: '#ffffff',
@@ -563,7 +575,6 @@ export default function Home() {
             gap: '16px',
           }}
         >
-          {/* Kaliwa: © 2026 CEC TRACK */}
           <div
             style={{
               fontSize: '0.8rem',
@@ -575,7 +586,6 @@ export default function Home() {
             © 2026 CEC TRACK. ALL RIGHTS RESERVED.
           </div>
 
-          {/* Kanan: Links at Green Badge sa Puting Background */}
           <div
             style={{
               display: 'flex',
@@ -587,9 +597,14 @@ export default function Home() {
               letterSpacing: '0.05em',
             }}
           >
+            <span
+              onClick={() => router.push('/about')}
+              style={{ cursor: 'pointer', color: '#15803d', fontWeight: 900 }}
+            >
+              ABOUT
+            </span>
             <span style={{ cursor: 'pointer', color: '#64748b' }}>PRIVACY POLICY</span>
             <span style={{ cursor: 'pointer', color: '#64748b' }}>TERMS OF USE</span>
-            <span style={{ cursor: 'pointer', color: '#64748b' }}>ACCESSIBILITY</span>
             <span
               style={{
                 border: '1px solid #bbf7d0',
