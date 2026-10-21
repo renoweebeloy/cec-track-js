@@ -14,7 +14,7 @@ export default function AdminDashboard() {
   // Authentication & Security Guard States
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [authChecking, setAuthChecking] = useState(true);
-  const [userRole, setUserRole] = useState('admin'); // 'admin' | 'staff'
+  const [userRole, setUserRole] = useState('admin');
   const [currentUser, setCurrentUser] = useState({ name: '', email: '', school_id: '' });
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
@@ -36,8 +36,8 @@ export default function AdminDashboard() {
   const [staffEmail, setStaffEmail] = useState('');
   const [staffRole, setStaffRole] = useState('Staff Officer');
 
-  // 3. Event States (Publishing & Editing)
-  const [editingEventId, setEditingEventId] = useState(null); // ID kon nag-edit og event
+  // 3. Event States (Publishing, Editing, Compression)
+  const [editingEventId, setEditingEventId] = useState(null);
   const [eventTitle, setEventTitle] = useState('');
   const [eventLocation, setEventLocation] = useState('');
   const [eventDesc, setEventDesc] = useState('');
@@ -96,6 +96,63 @@ export default function AdminDashboard() {
       setNotification({ type: '', message: '' });
     }, 4500);
   };
+
+  // ========================================================
+  // 5-MINUTE AUTOMATIC SESSION TIMEOUT & BROWSER CLOSURE GUARD
+  // ========================================================
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const FIVE_MINUTES_MS = 5 * 60 * 1000;
+
+    const checkSessionActivity = async () => {
+      const lastActive = localStorage.getItem('cec_last_active_time');
+      const now = Date.now();
+
+      if (lastActive) {
+        const timeElapsed = now - parseInt(lastActive, 10);
+        if (timeElapsed > FIVE_MINUTES_MS) {
+          sessionStorage.clear();
+          localStorage.removeItem('cec_last_active_time');
+
+          if (supabase) {
+            try {
+              await supabase.auth.signOut();
+            } catch (e) {}
+          }
+
+          alert('Your session has expired due to 5 minutes of inactivity or browser closure. Please log in again.');
+          router.replace('/login');
+          return;
+        }
+      }
+
+      localStorage.setItem('cec_last_active_time', now.toString());
+    };
+
+    checkSessionActivity();
+
+    const updateActivity = () => {
+      localStorage.setItem('cec_last_active_time', Date.now().toString());
+    };
+
+    window.addEventListener('mousemove', updateActivity);
+    window.addEventListener('keydown', updateActivity);
+    window.addEventListener('click', updateActivity);
+    window.addEventListener('scroll', updateActivity);
+    window.addEventListener('touchstart', updateActivity);
+
+    const intervalTimer = setInterval(checkSessionActivity, 10000);
+
+    return () => {
+      window.removeEventListener('mousemove', updateActivity);
+      window.removeEventListener('keydown', updateActivity);
+      window.removeEventListener('click', updateActivity);
+      window.removeEventListener('scroll', updateActivity);
+      window.removeEventListener('touchstart', updateActivity);
+      clearInterval(intervalTimer);
+    };
+  }, [router]);
 
   useEffect(() => {
     if (typeof window !== 'undefined' && !window.Html5Qrcode) {
@@ -191,8 +248,7 @@ export default function AdminDashboard() {
       if (eventsData) {
         const now = new Date();
 
-        // AUTOMATIC INACTIVE LOGIC:
-        // Kon ang Event Date ug Time Out milabay na, awtomatikong i-update sa database ngadto sa 'inactive'
+        // AUTOMATIC INACTIVE: When date and time out pass, marks as inactive
         const validatedEvents = await Promise.all(
           eventsData.map(async (ev) => {
             try {
@@ -205,7 +261,6 @@ export default function AdminDashboard() {
                 eventEndDateTime.setHours(hours, minutes, 0, 0);
 
                 if (now >= eventEndDateTime && ev.status === 'active') {
-                  // Awtomatikong i-update sa Supabase
                   await supabase
                     .from('events')
                     .update({ status: 'inactive' })
@@ -237,13 +292,12 @@ export default function AdminDashboard() {
     if (supabase) await supabase.auth.signOut();
     if (typeof window !== 'undefined') {
       sessionStorage.clear();
+      localStorage.removeItem('cec_last_active_time');
     }
     router.replace('/');
   };
 
-  // ========================================================
-  // AUTOMATIC IMAGE COMPRESSOR (PREVENTS TIMEOUTS)
-  // ========================================================
+  // AUTOMATIC IMAGE COMPRESSOR TO PREVENT TIMEOUTS
   const handleEventImageUpload = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -292,9 +346,6 @@ export default function AdminDashboard() {
     reader.readAsDataURL(file);
   };
 
-  // ========================================================
-  // START EDITING AN EVENT (POPULATES FORM)
-  // ========================================================
   const handleStartEditEvent = (ev) => {
     setEditingEventId(ev.id);
     setEventTitle(ev.title || '');
@@ -306,7 +357,6 @@ export default function AdminDashboard() {
     setEventDesc(ev.description || '');
     setEventImage(ev.image_url || '');
 
-    // Hapsay nga i-scroll pataas padulong sa form
     if (formRef.current) {
       formRef.current.scrollIntoView({ behavior: 'smooth' });
     }
@@ -324,9 +374,7 @@ export default function AdminDashboard() {
     setEventImage('');
   };
 
-  // ========================================================
   // SAVE / PUBLISH / UPDATE EVENT
-  // ========================================================
   const handleSaveEvent = async (e) => {
     e.preventDefault();
     if (compressingImage) {
@@ -349,7 +397,6 @@ export default function AdminDashboard() {
       };
 
       if (editingEventId) {
-        // UPDATE EXISTING EVENT
         const { error } = await supabase
           .from('events')
           .update(eventPayload)
@@ -358,7 +405,6 @@ export default function AdminDashboard() {
         if (error) throw new Error(error.message);
         showNotify('success', `Event "${eventTitle}" updated successfully!`);
       } else {
-        // PUBLISH NEW EVENT
         const { error } = await supabase
           .from('events')
           .insert([eventPayload]);
@@ -432,7 +478,6 @@ export default function AdminDashboard() {
     setScannedStudentData(null);
   };
 
-  // QR CODE DETECTION WITH DUPLICATE CHECK
   const handleQrCodeDetected = async (decodedText) => {
     if (!decodedText || showVerifyModal) return;
 
@@ -540,7 +585,6 @@ export default function AdminDashboard() {
     }
   };
 
-  // ADD STUDENT
   const handleAddStudent = async (e) => {
     e.preventDefault();
 
@@ -591,7 +635,6 @@ export default function AdminDashboard() {
     }
   };
 
-  // REMOVE ALL STUDENTS
   const handleRemoveAllStudents = async () => {
     if (userRole !== 'admin') {
       alert('Only administrators are authorized to remove student records.');
@@ -630,7 +673,6 @@ export default function AdminDashboard() {
     }
   };
 
-  // AUTHORIZE STAFF / SCANNER
   const handleAddStaff = async (e) => {
     e.preventDefault();
     if (userRole !== 'admin') {
@@ -700,7 +742,6 @@ export default function AdminDashboard() {
     }
   };
 
-  // MANUAL ATTENDANCE LOG CHECK-IN WITH DUPLICATE CHECK
   const handleManualScanSubmit = async (e) => {
     e.preventDefault();
     if (!manualStudentId) return;
@@ -903,15 +944,7 @@ export default function AdminDashboard() {
             }}
           >
             <span style={{ fontSize: '1rem' }}>📍</span>
-            <span
-              style={{
-                fontSize: '0.85rem',
-                fontWeight: 800,
-                color: '#15803d',
-                letterSpacing: '-0.01em',
-                lineHeight: 1.2,
-              }}
-            >
+            <span style={{ fontSize: '0.85rem', fontWeight: 800, color: '#15803d', letterSpacing: '-0.01em', lineHeight: 1.2 }}>
               Cateel Extension Campus
             </span>
           </div>
@@ -959,9 +992,7 @@ export default function AdminDashboard() {
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', paddingBottom: '16px', borderBottom: '1px solid #f1f5f9' }}>
               <div>
-                <h2 style={{ fontSize: '1.35rem', fontWeight: 900, color: '#15803d', margin: 0 }}>
-                  Portal Menu
-                </h2>
+                <h2 style={{ fontSize: '1.35rem', fontWeight: 900, color: '#15803d', margin: 0 }}>Portal Menu</h2>
                 <span style={{ fontSize: '0.72rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                   {isAdmin ? 'Administrator Access' : 'Staff Officer Access'}
                 </span>
@@ -1182,9 +1213,7 @@ export default function AdminDashboard() {
                           style={{ padding: '12px 14px', fontSize: '0.95rem' }}
                         >
                           {courses.map((c) => (
-                            <option key={c.code} value={c.code}>
-                              {c.code}
-                            </option>
+                            <option key={c.code} value={c.code}>{c.code}</option>
                           ))}
                         </select>
                       </div>
@@ -1214,9 +1243,7 @@ export default function AdminDashboard() {
                         style={{ padding: '12px 14px', fontSize: '0.95rem' }}
                       >
                         {sectionsList.map((sec) => (
-                          <option key={sec} value={sec}>
-                            {sec}
-                          </option>
+                          <option key={sec} value={sec}>{sec}</option>
                         ))}
                       </select>
                     </div>
@@ -1230,11 +1257,9 @@ export default function AdminDashboard() {
 
               <div className={styles.adminFormCard}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '8px' }}>
-                  <div>
-                    <h3 className={styles.analyticsTitle} style={{ fontSize: '0.9rem', margin: 0 }}>
-                      Enrolled Students ({filteredStudents.length})
-                    </h3>
-                  </div>
+                  <h3 className={styles.analyticsTitle} style={{ fontSize: '0.9rem', margin: 0 }}>
+                    Enrolled Students ({filteredStudents.length})
+                  </h3>
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <input
@@ -1323,7 +1348,7 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          {/* TAB 3: MANAGE STAFF & SCANNERS */}
+          {/* TAB 3: MANAGE STAFF */}
           {activeTab === 'add-staff' && isAdmin && (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '24px' }}>
               <div className={styles.adminFormCard}>
@@ -1413,12 +1438,9 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          {/* ======================================================== */}
-          {/* TAB 4: MANAGE EVENTS (WITH FULL EDITING & AUTO INACTIVE) */}
-          {/* ======================================================== */}
+          {/* TAB 4: MANAGE EVENTS (WITH EDIT & AUTO INACTIVE) */}
           {activeTab === 'add-event' && (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '24px' }}>
-              {/* Event Creation & Edit Form */}
               <div className={styles.adminFormCard} ref={formRef}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
                   <h3 className={styles.analyticsTitle} style={{ fontSize: '0.9rem', margin: 0 }}>
@@ -1445,7 +1467,6 @@ export default function AdminDashboard() {
                 </div>
 
                 <form onSubmit={handleSaveEvent} className={styles.loginForm}>
-                  {/* Event Picture Banner Upload */}
                   <div className={styles.inputGroup}>
                     <label className={styles.inputLabel} style={{ fontSize: '0.78rem' }}>Event Poster / Picture</label>
                     <input
@@ -1497,7 +1518,6 @@ export default function AdminDashboard() {
                     </div>
                   </div>
 
-                  {/* EVENT TITLE */}
                   <div className={styles.inputGroup}>
                     <label className={styles.inputLabel} style={{ fontSize: '0.78rem' }}>Event Title *</label>
                     <input
@@ -1511,7 +1531,6 @@ export default function AdminDashboard() {
                   </div>
 
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                    {/* LOCATION */}
                     <div className={styles.inputGroup}>
                       <label className={styles.inputLabel} style={{ fontSize: '0.78rem' }}>Location *</label>
                       <input
@@ -1622,7 +1641,6 @@ export default function AdminDashboard() {
                 </form>
               </div>
 
-              {/* Published Events Table with Edit and Delete Actions */}
               <div className={styles.adminFormCard}>
                 <h3 className={styles.analyticsTitle} style={{ fontSize: '0.9rem', marginBottom: '16px' }}>
                   Published Events ({filteredEvents.length})
@@ -1890,15 +1908,7 @@ export default function AdminDashboard() {
             >
               <div id="interactive-qr-reader" style={{ width: '100%', height: '100%' }} />
 
-              <div
-                style={{
-                  position: 'absolute',
-                  width: '210px',
-                  height: '210px',
-                  pointerEvents: 'none',
-                  boxSizing: 'border-box',
-                }}
-              >
+              <div style={{ position: 'absolute', width: '210px', height: '210px', pointerEvents: 'none', boxSizing: 'border-box' }}>
                 <div style={{ position: 'absolute', top: 0, left: 0, width: '32px', height: '32px', borderTop: '4px solid #ffffff', borderLeft: '4px solid #ffffff', borderTopLeftRadius: '8px' }} />
                 <div style={{ position: 'absolute', top: 0, right: 0, width: '32px', height: '32px', borderTop: '4px solid #ffffff', borderRight: '4px solid #ffffff', borderTopRightRadius: '8px' }} />
                 <div style={{ position: 'absolute', bottom: 0, left: 0, width: '32px', height: '32px', borderBottom: '4px solid #ffffff', borderLeft: '4px solid #ffffff', borderBottomLeftRadius: '8px' }} />
@@ -2017,11 +2027,7 @@ export default function AdminDashboard() {
               }}
             >
               {scannedStudentData.avatar_url ? (
-                <img
-                  src={scannedStudentData.avatar_url}
-                  alt={scannedStudentData.full_name}
-                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                />
+                <img src={scannedStudentData.avatar_url} alt={scannedStudentData.full_name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
               ) : (
                 <span style={{ fontSize: '2.5rem' }}>👤</span>
               )}
