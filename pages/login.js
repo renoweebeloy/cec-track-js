@@ -16,12 +16,12 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  // Data Privacy Modal & Checkbox States
+  // Data Privacy Modal States
   const [showPrivacyModal, setShowPrivacyModal] = useState(false);
   const [hasAgreedTerms, setHasAgreedTerms] = useState(false);
 
   // ========================================================
-  // LOGIN SUBMIT HANDLER (Direct Database Password Auth)
+  // BULLETPROOF LOGIN HANDLER
   // ========================================================
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -37,51 +37,62 @@ export default function Login() {
         throw new Error('Database connection failed.');
       }
 
-      // 1. Kunin ang user profile mula sa profiles database table
-      const { data: profile, error: profileErr } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('email', cleanEmail)
-        .single();
+      let authenticatedProfile = null;
 
-      if (profileErr || !profile || (profile.status && profile.status.toLowerCase() === 'inactive')) {
-        throw new Error('Invalid credentials.');
-      }
-
-      // 2. Suriin ang password gamit ang database profile record (password column o default school_id)
-      const validDbPassword = profile.password || profile.school_id;
-      const isPasswordCorrect = validDbPassword && validDbPassword.trim() === cleanPassword;
-
+      // 1. Una, suwayan ang secure Bcrypt RPC check sa Supabase
       try {
-        await supabase.auth.signInWithPassword({
-          email: cleanEmail,
-          password: cleanPassword,
+        const { data: rpcData, error: rpcErr } = await supabase.rpc('check_profile_login', {
+          user_email: cleanEmail,
+          input_password: cleanPassword,
         });
-      } catch (authErr) {
-        // Huwag i-block kung nabigo ang auth session basta tama ang database password
+
+        if (!rpcErr && rpcData) {
+          authenticatedProfile = rpcData;
+        }
+      } catch (rpcException) {
+        console.warn('RPC check bypassed, checking direct fallback...', rpcException);
       }
 
-      if (!isPasswordCorrect) {
-        throw new Error('Invalid credentials.');
+      // 2. Direct Fallback: kon wala pa na-trigger ang RPC o plain text ang password
+      if (!authenticatedProfile) {
+        const { data: directProfile } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('email', cleanEmail)
+          .single();
+
+        if (directProfile && (directProfile.status === 'Active' || !directProfile.status)) {
+          // Check plain text password or default school_id
+          if (
+            directProfile.password === cleanPassword ||
+            directProfile.school_id === cleanPassword
+          ) {
+            authenticatedProfile = directProfile;
+          }
+        }
       }
 
-      // 3. I-save ang session data sa SessionStorage
-      const userRole = profile.role || 'student';
+      // Kon wala gihapoy nakit-an nga motakdo
+      if (!authenticatedProfile) {
+        throw new Error('Invalid email or password.');
+      }
+
+      // 3. I-save ang session data sa browser
+      const userRole = authenticatedProfile.role || 'student';
       sessionStorage.setItem('cec_role', userRole);
-      sessionStorage.setItem('cec_user_email', profile.email);
-      sessionStorage.setItem('cec_school_id', profile.school_id || '');
-      sessionStorage.setItem('cec_full_name', profile.full_name || '');
-      sessionStorage.setItem('cec_can_scan', profile.can_scan ? 'true' : 'false');
+      sessionStorage.setItem('cec_user_email', authenticatedProfile.email);
+      sessionStorage.setItem('cec_school_id', authenticatedProfile.school_id || '');
+      sessionStorage.setItem('cec_full_name', authenticatedProfile.full_name || '');
+      sessionStorage.setItem('cec_can_scan', authenticatedProfile.can_scan ? 'true' : 'false');
 
-      // 4. Role & Password Verification Routing
+      // 4. Role Routing
       if (userRole === 'admin') {
         router.push('/admin');
-      } else if (profile.must_change_password) {
+      } else if (authenticatedProfile.must_change_password) {
         router.push('/update-password');
       } else if (userRole === 'staff') {
         router.push('/admin');
       } else {
-        // Para sa mga estudyante: buksan ang Data Privacy Notice modal bago pumasok
         setHasAgreedTerms(false);
         setShowPrivacyModal(true);
       }
@@ -127,7 +138,7 @@ export default function Login() {
       </Head>
 
       <div className={styles.loginCard}>
-        {/* Compact Logo Header */}
+        {/* Compact Logo */}
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1.25rem' }}>
           <div
             style={{
@@ -162,7 +173,6 @@ export default function Login() {
                 fontWeight: 900,
                 color: '#15803d',
                 fontSize: '0.95rem',
-                letterSpacing: '-0.025em',
               }}
             >
               CEC
@@ -170,7 +180,7 @@ export default function Login() {
           </div>
         </div>
 
-        {/* Title Header */}
+        {/* Title */}
         <div className={styles.loginHeader}>
           <h1 className={styles.loginTitle}>
             Welcome to <br />
@@ -181,9 +191,8 @@ export default function Login() {
           </p>
         </div>
 
-        {/* Credentials Form */}
+        {/* Form Inputs */}
         <form onSubmit={handleLogin} className={styles.loginForm}>
-          {/* Email Address */}
           <div className={styles.inputGroup}>
             <label className={styles.inputLabel}>Email Address</label>
             <div className={styles.inputWrapper}>
@@ -208,7 +217,6 @@ export default function Login() {
             </div>
           </div>
 
-          {/* Password */}
           <div className={styles.inputGroup}>
             <label className={styles.inputLabel}>Password</label>
             <div className={styles.inputWrapper}>
@@ -241,7 +249,6 @@ export default function Login() {
             </div>
           </div>
 
-          {/* Forgot Password Link */}
           <div className={styles.forgotPasswordWrapper}>
             <button
               type="button"
@@ -252,13 +259,11 @@ export default function Login() {
             </button>
           </div>
 
-          {/* Submit Button */}
           <button type="submit" disabled={loading} className={styles.submitBtn}>
             {loading ? 'Authenticating...' : 'Log In'}
           </button>
         </form>
 
-        {/* Message Alert */}
         {message && (
           <div
             className={styles.alertMessage}
@@ -276,7 +281,6 @@ export default function Login() {
           </div>
         )}
 
-        {/* Back to Home Link */}
         <div className={styles.backLinkWrapper}>
           <Link href="/" className={styles.backLink}>
             <svg
@@ -297,9 +301,7 @@ export default function Login() {
         </div>
       </div>
 
-      {/* ======================================================== */}
-      {/* DATA PRIVACY NOTICE MODAL (4 TERMS + CHECKBOX) */}
-      {/* ======================================================== */}
+      {/* Data Privacy Modal */}
       {showPrivacyModal && (
         <div
           style={{
@@ -330,7 +332,6 @@ export default function Login() {
               boxSizing: 'border-box',
             }}
           >
-            {/* Modal Header */}
             <div
               style={{
                 display: 'flex',
@@ -357,14 +358,7 @@ export default function Login() {
                 🛡️
               </div>
               <div>
-                <h3
-                  style={{
-                    fontSize: '1.2rem',
-                    fontWeight: 900,
-                    color: '#0f172a',
-                    margin: 0,
-                  }}
-                >
+                <h3 style={{ fontSize: '1.2rem', fontWeight: 900, color: '#0f172a', margin: 0 }}>
                   Data Privacy Notice
                 </h3>
                 <span
@@ -381,9 +375,7 @@ export default function Login() {
               </div>
             </div>
 
-            {/* Apat (4) na Detalyadong Patakaran */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-              {/* 1. Confidentiality */}
               <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
                 <div
                   style={{
@@ -413,7 +405,6 @@ export default function Login() {
                 </div>
               </div>
 
-              {/* 2. Personal Data Protection */}
               <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
                 <div
                   style={{
@@ -443,7 +434,6 @@ export default function Login() {
                 </div>
               </div>
 
-              {/* 3. Digital ID & QR Security */}
               <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
                 <div
                   style={{
@@ -473,7 +463,6 @@ export default function Login() {
                 </div>
               </div>
 
-              {/* 4. Account Integrity */}
               <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
                 <div
                   style={{
@@ -504,7 +493,6 @@ export default function Login() {
               </div>
             </div>
 
-            {/* Checkbox Agreement Section */}
             <label
               style={{
                 display: 'flex',
@@ -543,7 +531,6 @@ export default function Login() {
               </span>
             </label>
 
-            {/* Action Buttons */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               <button
                 type="button"
