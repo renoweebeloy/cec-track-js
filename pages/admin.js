@@ -20,7 +20,7 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(false);
   const [notification, setNotification] = useState({ type: '', message: '' });
 
-  // 1. Student States
+  // 1. Student States (Strict ID validation & 5 Courses)
   const [studentId, setStudentId] = useState('');
   const [studentName, setStudentName] = useState('');
   const [studentEmail, setStudentEmail] = useState('');
@@ -41,7 +41,7 @@ export default function AdminDashboard() {
   const [timeOut, setTimeOut] = useState('17:00');
   const [eventStatus, setEventStatus] = useState('active');
 
-  // 4. Manual Logger States
+  // 4. Manual Attendance Logger States
   const [manualStudentId, setManualStudentId] = useState('');
   const [selectedEventId, setSelectedEventId] = useState('');
   const [scanLogMsg, setScanLogMsg] = useState({ type: '', text: '' });
@@ -53,6 +53,7 @@ export default function AdminDashboard() {
   const [searchStudentQuery, setSearchStudentQuery] = useState('');
   const [searchEventQuery, setSearchEventQuery] = useState('');
 
+  // 5 Official College Courses
   const courses = [
     { code: 'BSCRIM', name: 'Bachelor of Science in Criminology', badge: styles.bscrimBadge },
     { code: 'BSBA', name: 'Bachelor of Science in Business Administration', badge: styles.bsbaBadge },
@@ -68,6 +69,9 @@ export default function AdminDashboard() {
     }, 4500);
   };
 
+  // ========================================================
+  // ROUTE GUARD: Admin and Staff Authorization Check
+  // ========================================================
   useEffect(() => {
     const verifyPortalAccess = async () => {
       try {
@@ -167,7 +171,9 @@ export default function AdminDashboard() {
     router.replace('/');
   };
 
-  // Enrolling a student generates their Auth account with School ID as default password
+  // ========================================================
+  // ADD STUDENT: Direct Database Credential Assignment
+  // ========================================================
   const handleAddStudent = async (e) => {
     e.preventDefault();
 
@@ -183,22 +189,13 @@ export default function AdminDashboard() {
       const cleanEmail = studentEmail.trim().toLowerCase();
       const defaultPassword = studentId.trim();
 
-      // Create authentication user
-      const { error: authError } = await supabase.auth.signUp({
-        email: cleanEmail,
-        password: defaultPassword,
-      });
-
-      if (authError && !authError.message.includes('already registered')) {
-        throw new Error(`Authentication Error: ${authError.message}`);
-      }
-
-      // Record profile with required password change flag
+      // I-save sa database profiles table uban ang password = School ID
       const { error: profileError } = await supabase.from('profiles').insert([
         {
           school_id: studentId.trim(),
           full_name: studentName.trim(),
           email: cleanEmail,
+          password: defaultPassword, // Direct database credential
           course: studentCourse,
           year_level: studentYear,
           role: 'student',
@@ -214,7 +211,7 @@ export default function AdminDashboard() {
 
       showNotify(
         'success',
-        `Student enrolled. Default password is the School ID (${defaultPassword}).`
+        `Student enrolled! Default password is the School ID (${defaultPassword}).`
       );
       setStudentId('');
       setStudentName('');
@@ -227,6 +224,9 @@ export default function AdminDashboard() {
     }
   };
 
+  // ========================================================
+  // ADD STAFF OFFICER: Direct Database Credential Assignment
+  // ========================================================
   const handleAddStaff = async (e) => {
     e.preventDefault();
     if (userRole !== 'admin') {
@@ -241,20 +241,12 @@ export default function AdminDashboard() {
       const cleanEmail = staffEmail.trim().toLowerCase();
       const defaultPassword = generatedStaffId;
 
-      const { error: authError } = await supabase.auth.signUp({
-        email: cleanEmail,
-        password: defaultPassword,
-      });
-
-      if (authError && !authError.message.includes('already registered')) {
-        throw new Error(`Authentication Error: ${authError.message}`);
-      }
-
       const { error: profileError } = await supabase.from('profiles').insert([
         {
           school_id: generatedStaffId,
           full_name: staffName.trim(),
           email: cleanEmail,
+          password: defaultPassword, // Direct database credential
           role: 'staff',
           can_scan: true,
           status: 'Active',
@@ -268,7 +260,7 @@ export default function AdminDashboard() {
 
       showNotify(
         'success',
-        `Staff officer ${staffName} registered. Default password: ${defaultPassword}`
+        `Staff officer ${staffName} registered! Default password is: ${defaultPassword}`
       );
       setStaffName('');
       setStaffEmail('');
@@ -280,6 +272,9 @@ export default function AdminDashboard() {
     }
   };
 
+  // ========================================================
+  // ADD EVENT HANDLER
+  // ========================================================
   const handleAddEvent = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -311,6 +306,9 @@ export default function AdminDashboard() {
     }
   };
 
+  // ========================================================
+  // MANUAL ATTENDANCE LOG CHECK-IN
+  // ========================================================
   const handleManualScanSubmit = async (e) => {
     e.preventDefault();
     if (!manualStudentId) return;
