@@ -8,9 +8,8 @@ export default function Home() {
   const router = useRouter();
   const [currentTime, setCurrentTime] = useState('');
   const [currentDate, setCurrentDate] = useState('');
-  const [menuOpen, setMenuOpen] = useState(false);
 
-  // Dynamic Course Counts gikan sa Database
+  // Dynamic Course Counts galing sa Database
   const [counts, setCounts] = useState({
     BSBA: 0,
     BSCRIM: 0,
@@ -40,9 +39,9 @@ export default function Home() {
       setCurrentDate(
         now.toLocaleDateString('en-US', {
           timeZone: 'Asia/Manila',
-          weekday: 'long',
+          weekday: 'short',
           year: 'numeric',
-          month: 'long',
+          month: 'short',
           day: 'numeric',
         })
       );
@@ -53,16 +52,16 @@ export default function Home() {
     return () => clearInterval(timer);
   }, []);
 
-  // Fetch Live Database Student Counts
+  // Kumuha ng Live Student Counts mula sa Supabase
   const fetchAnalytics = async () => {
     if (!supabase) return;
     try {
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from('profiles')
         .select('course, role, status');
 
       if (data) {
-        // Estudyante lamang (dili apil ang staff o admin)
+        // Mga estudyante lamang (hindi kasama ang staff o admin)
         const studentMembers = data.filter((p) => p.role !== 'admin' && p.role !== 'staff');
 
         setCounts({
@@ -83,14 +82,14 @@ export default function Home() {
     fetchAnalytics();
   }, []);
 
-  // Check Student ID Whitelist Record
+  // Quick Verification ng Student ID
   const handleCheckRecord = async (e) => {
     e.preventDefault();
     if (!searchId.trim()) return;
 
     setSearchLoading(true);
     try {
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from('profiles')
         .select('school_id, full_name, course, year_level, status')
         .eq('school_id', searchId.trim())
@@ -103,7 +102,7 @@ export default function Home() {
           open: true,
           success: true,
           data: data,
-          msg: `Student ID "${data.school_id}" is officially verified and whitelisted!`,
+          msg: `Student ID "${data.school_id}" is verified and active on the whitelist.`,
         });
       } else {
         setSearchModal({
@@ -119,17 +118,9 @@ export default function Home() {
         open: true,
         success: false,
         data: null,
-        msg: `Unable to verify "${searchId.trim()}". Please verify the ID format (e.g. 2024-0616).`,
+        msg: `Unable to verify "${searchId.trim()}". Please check your ID format (e.g. 2024-0616).`,
       });
     }
-  };
-
-  const scrollToSection = (id) => {
-    const el = document.getElementById(id);
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth' });
-    }
-    setMenuOpen(false);
   };
 
   return (
@@ -139,34 +130,20 @@ export default function Home() {
         <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
       </Head>
 
-      {/* Header Navigation Bar */}
+      {/* Header: Tinanggal ang About, Events, Members — Malinis na Logo at Login Button */}
       <header className={styles.header}>
-        <div className={styles.headerContent}>
+        <div className={styles.headerContent} style={{ justifyContent: 'space-between' }}>
           <button onClick={() => router.push('/')} className={styles.logoText}>
             CECTRACK
           </button>
 
-          {/* Mobile Hamburger Button */}
-          <button
-            className={styles.hamburgerBtn}
-            onClick={() => setMenuOpen(!menuOpen)}
-            aria-label="Toggle navigation menu"
-          >
-            ☰
-          </button>
-
-          {/* Navigation Links (Matches Screenshot: About, Events, Members, Login) */}
-          <div className={`${styles.navLinks} ${menuOpen ? styles.navLinksMobileOpen : ''}`}>
-            <button onClick={() => scrollToSection('about')} className={styles.navItem}>
-              About
-            </button>
-            <button onClick={() => router.push('/login')} className={styles.navItem}>
-              Events
-            </button>
-            <button onClick={() => scrollToSection('analytics')} className={styles.navItem}>
-              Members
-            </button>
-            <button onClick={() => router.push('/login')} className={styles.loginBtn}>
+          {/* Direktang Login Button (Swak sa Mobile at Desktop) */}
+          <div>
+            <button
+              onClick={() => router.push('/login')}
+              className={styles.loginBtn}
+              style={{ padding: '8px 18px', fontSize: '0.85rem' }}
+            >
               <span>➔</span> Login
             </button>
           </div>
@@ -174,30 +151,79 @@ export default function Home() {
       </header>
 
       <main className={styles.main}>
-        {/* Live Status Row Badges */}
-        <div className={styles.statusRow}>
-          <div className={styles.statusBadgeLeft}>
-            <span><span className={styles.liveDot}></span> LIVE PHT</span>
-            <span>|</span>
+        {/* Status Row: Pinaliit ang font at nilagyan ng tamang espasyo para sa CP screen */}
+        <div
+          style={{
+            width: '100%',
+            maxWidth: '900px',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            gap: '12px',
+            flexWrap: 'wrap',
+            margin: '0 auto 24px auto',
+            padding: '0 8px',
+            boxSizing: 'border-box',
+          }}
+        >
+          {/* Live Clock Badge */}
+          <div
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              backgroundColor: '#ffffff',
+              border: '1px solid #e2e8f0',
+              borderRadius: '9999px',
+              padding: '6px 12px',
+              fontSize: '0.68rem',
+              fontWeight: 800,
+              color: '#334155',
+              boxShadow: '0 1px 2px rgba(0, 0, 0, 0.04)',
+              letterSpacing: '0.01em',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            <span style={{ display: 'inline-flex', alignItems: 'center', color: '#15803d' }}>
+              <span className={styles.liveDot} style={{ width: '6px', height: '6px', marginRight: '4px' }}></span>
+              LIVE PHT
+            </span>
+            <span style={{ color: '#cbd5e1' }}>|</span>
             <span>🕒 {currentTime || 'Loading...'}</span>
-            <span>|</span>
-            <span>📅 {currentDate || 'Tuesday, October 20, 2026'}</span>
+            <span style={{ color: '#cbd5e1' }}>|</span>
+            <span>📅 {currentDate || 'Oct 21, 2026'}</span>
           </div>
-          <div className={styles.statusBadgeRight}>
+
+          {/* Official Portal Badge na may kaunting space */}
+          <div
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              backgroundColor: '#ffffff',
+              border: '1px solid #bbf7d0',
+              borderRadius: '9999px',
+              padding: '6px 14px',
+              fontSize: '0.68rem',
+              fontWeight: 800,
+              color: '#15803d',
+              boxShadow: '0 1px 2px rgba(21, 128, 61, 0.05)',
+              whiteSpace: 'nowrap',
+            }}
+          >
             🛡️ Official CEC Portal
           </div>
         </div>
 
         {/* Hero Section */}
-        <section className={styles.heroSection} id="about">
-          {/* Logo Container with Balanced Dimensions */}
-          <div className={styles.logoContainer} style={{ marginBottom: '18px' }}>
+        <section className={styles.heroSection}>
+          <div className={styles.logoContainer} style={{ marginBottom: '16px' }}>
             <img
               src="/logo.png"
               alt="Cateel Extension Campus Logo"
               style={{
-                width: '135px',
-                height: '135px',
+                width: '125px',
+                height: '125px',
                 objectFit: 'contain',
                 display: 'block',
                 margin: '0 auto',
@@ -210,10 +236,10 @@ export default function Home() {
           </div>
 
           <div className={styles.tagBadge}>✨ EMPOWERING FUTURE LEADERS</div>
-          <h1 className={styles.heroTitle} style={{ fontSize: '3.2rem', marginBottom: '4px' }}>
+          <h1 className={styles.heroTitle} style={{ fontSize: '3rem', marginBottom: '2px' }}>
             CEC
           </h1>
-          <h2 className={styles.heroSubtitle} style={{ fontSize: '1.25rem', marginBottom: '10px' }}>
+          <h2 className={styles.heroSubtitle} style={{ fontSize: '1.2rem', marginBottom: '10px' }}>
             Cateel Extension Campus
           </h2>
           <p className={styles.heroDescription}>
@@ -222,7 +248,7 @@ export default function Home() {
           </p>
         </section>
 
-        {/* Search Student ID & Action Buttons */}
+        {/* Search Student ID & Actions */}
         <section className={styles.actionArea}>
           <form onSubmit={handleCheckRecord} className={styles.searchBox}>
             <input
@@ -247,8 +273,8 @@ export default function Home() {
           </div>
         </section>
 
-        {/* Department Members Analytics Grid (Real-time Supabase Data) */}
-        <section className={styles.analyticsSection} id="analytics">
+        {/* Live Course Analytics Grid */}
+        <section className={styles.analyticsSection}>
           <div className={styles.analyticsHeader}>
             <div className={styles.analyticsTitle}>
               👥 DEPARTMENT MEMBERS BY COURSE
@@ -346,7 +372,7 @@ export default function Home() {
         </section>
       </main>
 
-      {/* Search Record Modal Notification */}
+      {/* Result Modal kapag nag-check ng Student ID */}
       {searchModal.open && (
         <div
           style={{
@@ -365,7 +391,7 @@ export default function Home() {
             style={{
               backgroundColor: '#ffffff',
               width: '100%',
-              maxWidth: '420px',
+              maxWidth: '400px',
               borderRadius: '24px',
               padding: '24px',
               boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)',
@@ -374,26 +400,26 @@ export default function Home() {
           >
             <div
               style={{
-                width: '50px',
-                height: '50px',
+                width: '48px',
+                height: '48px',
                 borderRadius: '16px',
                 backgroundColor: searchModal.success ? '#dcfce7' : '#fee2e2',
                 color: searchModal.success ? '#15803d' : '#b91c1c',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                fontSize: '1.5rem',
+                fontSize: '1.4rem',
                 margin: '0 auto 12px auto',
               }}
             >
               {searchModal.success ? '✓' : '✕'}
             </div>
 
-            <h3 style={{ fontSize: '1.15rem', fontWeight: 900, color: '#0f172a', margin: '0 0 6px 0' }}>
+            <h3 style={{ fontSize: '1.1rem', fontWeight: 900, color: '#0f172a', margin: '0 0 6px 0' }}>
               {searchModal.success ? 'Record Verified' : 'Record Not Found'}
             </h3>
 
-            <p style={{ fontSize: '0.82rem', color: '#64748b', lineHeight: 1.5, margin: '0 0 16px 0' }}>
+            <p style={{ fontSize: '0.8rem', color: '#64748b', lineHeight: 1.5, margin: '0 0 16px 0' }}>
               {searchModal.msg}
             </p>
 
@@ -403,13 +429,13 @@ export default function Home() {
                   backgroundColor: '#f8fafc',
                   border: '1px solid #e2e8f0',
                   borderRadius: '16px',
-                  padding: '14px',
+                  padding: '12px',
                   marginBottom: '16px',
                   textAlign: 'left',
-                  fontSize: '0.8rem',
+                  fontSize: '0.78rem',
                   display: 'flex',
                   flexDirection: 'column',
-                  gap: '6px',
+                  gap: '5px',
                 }}
               >
                 <div><strong>Name:</strong> {searchModal.data.full_name}</div>
@@ -424,7 +450,7 @@ export default function Home() {
                 <button
                   onClick={() => router.push('/login')}
                   className={styles.portalBtn}
-                  style={{ width: '100%', padding: '10px 14px', fontSize: '0.82rem' }}
+                  style={{ width: '100%', padding: '10px 14px', fontSize: '0.8rem' }}
                 >
                   Proceed to Login ➔
                 </button>
@@ -432,7 +458,7 @@ export default function Home() {
               <button
                 onClick={() => setSearchModal({ open: false, success: false, data: null, msg: '' })}
                 className={styles.eventsBtn}
-                style={{ width: '100%', padding: '10px 14px', fontSize: '0.82rem' }}
+                style={{ width: '100%', padding: '10px 14px', fontSize: '0.8rem' }}
               >
                 Close
               </button>
