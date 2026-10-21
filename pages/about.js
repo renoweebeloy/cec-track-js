@@ -1,11 +1,14 @@
 import React from 'react';
 import Head from 'next/head';
-import Link from 'next/link';
 import { useRouter } from 'next/router';
 import styles from '../styles/Home.module.css';
 
 export default function About() {
   const router = useRouter();
+
+  // I-PASTE DIRE ANG LINK SA IMONG LITRATO GIKAN SA GITHUB
+  // Pananglitan: 'https://github.com/imong-username.png' o raw link sa imong repo
+  const githubPhotoUrl = 'https://github.com/renoweebeloy.png';
 
   return (
     <div className={styles.container} style={{ paddingBottom: 0, backgroundColor: '#f8fafc' }}>
@@ -96,7 +99,7 @@ export default function About() {
           </p>
         </section>
 
-        {/* Section 1: What is CECTRACK? (Summarized & Rephrased) */}
+        {/* Section 1: What is CECTRACK? */}
         <section
           style={{
             backgroundColor: '#ffffff',
@@ -142,7 +145,7 @@ export default function About() {
           </p>
         </section>
 
-        {/* Section 2: Who Uses CECTRACK? (4 Responsive Cards) */}
+        {/* Section 2: Who Uses CECTRACK? */}
         <section style={{ marginBottom: '60px' }}>
           <div style={{ textAlign: 'center', marginBottom: '32px' }}>
             <h2 style={{ fontSize: '1.9rem', fontWeight: 900, color: '#0f172a', margin: '0 0 8px 0' }}>
@@ -298,70 +301,86 @@ export default function About() {
           </div>
         </section>
 
-        {/* Section 3: Developer Profile Card (Matching Screenshot 3 Style) */}
+        {/* ======================================================== */}
+        {/* SECTION 3: DEVELOPER PROFILE (GREEN COLOR & UPDATED TEXT) */}
+        {/* ======================================================== */}
         <section
           style={{
-            backgroundColor: '#0b1329',
+            background: 'linear-gradient(145deg, #064e3b 0%, #022c22 100%)',
             borderRadius: '28px',
             padding: '36px 30px',
             color: '#ffffff',
-            boxShadow: '0 20px 40px rgba(11, 19, 41, 0.25)',
+            boxShadow: '0 20px 40px rgba(6, 78, 59, 0.3)',
+            border: '1px solid rgba(52, 211, 153, 0.25)',
             display: 'flex',
             flexDirection: 'column',
             gap: '20px',
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '22px', flexWrap: 'wrap' }}>
-            {/* Developer Photo/Avatar */}
+            {/* Developer Picture gikan sa GitHub */}
             <div
               style={{
-                width: '100px',
-                height: '100px',
+                width: '105px',
+                height: '105px',
                 borderRadius: '24px',
-                backgroundColor: '#1e293b',
-                border: '3px solid #38bdf8',
+                backgroundColor: '#065f46',
+                border: '3px solid #34d399',
                 overflow: 'hidden',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 fontSize: '2.5rem',
                 flexShrink: 0,
-                boxShadow: '0 8px 20px rgba(0, 0, 0, 0.4)',
+                boxShadow: '0 8px 20px rgba(0, 0, 0, 0.35)',
               }}
             >
-              👨‍💻
+              <img
+                src={githubPhotoUrl}
+                alt="Renowee Beloy"
+                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                onError={(e) => {
+                  e.currentTarget.style.display = 'none';
+                  if (e.currentTarget.nextSibling) {
+                    e.currentTarget.nextSibling.style.display = 'block';
+                  }
+                }}
+              />
+              <span style={{ display: 'none', fontSize: '2.5rem' }}>👨‍💻</span>
             </div>
 
             <div>
+              {/* GITANGTANG ANG '& ENGINEERED' */}
               <span
                 style={{
                   fontSize: '0.72rem',
                   fontWeight: 900,
-                  color: '#fb923c',
+                  color: '#fbbf24',
                   letterSpacing: '0.08em',
                   textTransform: 'uppercase',
                   display: 'block',
                   marginBottom: '4px',
                 }}
               >
-                DEVELOPED &amp; ENGINEERED BY
+                DEVELOPED BY
               </span>
-              <h2 style={{ fontSize: '1.85rem', fontWeight: 900, margin: '0 0 6px 0', letterSpacing: '-0.02em' }}>
+              <h2 style={{ fontSize: '1.85rem', fontWeight: 900, margin: '0 0 6px 0', letterSpacing: '-0.02em', color: '#ffffff' }}>
                 Renowee Beloy
               </h2>
-              <p style={{ fontSize: '0.88rem', color: '#94a3b8', margin: 0, fontWeight: 600 }}>
-                Lead Software Architect &amp; Creator • BS Information Technology (BSIT)
+              {/* GITANGTANG ANG 'Software Architect' */}
+              <p style={{ fontSize: '0.88rem', color: '#a7f3d0', margin: 0, fontWeight: 700 }}>
+                Lead Creator • BS Information Technology (BSIT)
               </p>
             </div>
           </div>
 
-          {/* Achievement & Inspiration Badges */}
+          {/* Achievement & Location Badges */}
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
             <span
               style={{
-                backgroundColor: 'rgba(56, 189, 248, 0.12)',
-                color: '#38bdf8',
-                border: '1px solid rgba(56, 189, 248, 0.3)',
+                backgroundColor: 'rgba(52, 211, 153, 0.15)',
+                color: '#6ee7b7',
+                border: '1px solid rgba(52, 211, 153, 0.35)',
                 padding: '6px 14px',
                 borderRadius: '9999px',
                 fontSize: '0.75rem',
@@ -370,11 +389,12 @@ export default function About() {
             >
               🎓 Class of 2026 Developer
             </span>
+
             <span
               style={{
-                backgroundColor: 'rgba(16, 185, 129, 0.12)',
-                color: '#34d399',
-                border: '1px solid rgba(16, 185, 129, 0.3)',
+                backgroundColor: 'rgba(56, 189, 248, 0.15)',
+                color: '#7dd3fc',
+                border: '1px solid rgba(56, 189, 248, 0.35)',
                 padding: '6px 14px',
                 borderRadius: '9999px',
                 fontSize: '0.75rem',
@@ -383,33 +403,35 @@ export default function About() {
             >
               💻 Full-Stack Web &amp; Database Systems
             </span>
+
+            {/* GI-UPDATE: DAVAO ORIENTAL STATE UNIVERSITY MAIN CAMPUS */}
             <span
               style={{
-                backgroundColor: 'rgba(244, 63, 94, 0.12)',
-                color: '#fb7185',
-                border: '1px solid rgba(244, 63, 94, 0.3)',
+                backgroundColor: 'rgba(251, 191, 36, 0.15)',
+                color: '#fde68a',
+                border: '1px solid rgba(251, 191, 36, 0.35)',
                 padding: '6px 14px',
                 borderRadius: '9999px',
                 fontSize: '0.75rem',
                 fontWeight: 800,
               }}
             >
-              📍 DOrSU - Cateel Extension Campus
+              📍 Davao Oriental State University Main Campus
             </span>
           </div>
 
-          {/* Bio / Project Inspiration */}
+          {/* Bio Description */}
           <p
             style={{
               fontSize: '0.88rem',
-              color: '#cbd5e1',
+              color: '#d1fae5',
               lineHeight: 1.65,
               margin: 0,
-              borderTop: '1px solid rgba(255, 255, 255, 0.08)',
+              borderTop: '1px solid rgba(52, 211, 153, 0.2)',
               paddingTop: '18px',
             }}
           >
-            CECTRACK was conceptualized, architected, and developed by <strong>Renowee Beloy</strong> as a specialized institutional initiative for Davao Oriental State University – Cateel Extension Campus. Designed to resolve manual bottlenecks, it replaces tedious paper logs with reliable digital identification, camera-based QR scanning, and automated attendance reporting.
+            CECTRACK was conceptualized and developed by <strong>Renowee Beloy</strong> as a specialized institutional software initiative for Davao Oriental State University. Engineered to resolve manual attendance bottlenecks, it replaces tedious paper logs with reliable digital identification, camera-based QR scanning, and automated attendance reporting.
           </p>
         </section>
       </main>
@@ -441,7 +463,7 @@ export default function About() {
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '18px', flexWrap: 'wrap', fontSize: '0.75rem', fontWeight: 800 }}>
-            <span onClick={() => router.push('/about')} style={{ cursor: 'pointer', color: '#15803d' }}>
+            <span onClick={() => router.push('/about')} style={{ cursor: 'pointer', color: '#15803d', fontWeight: 900 }}>
               ABOUT
             </span>
             <span style={{ cursor: 'pointer', color: '#64748b' }}>PRIVACY POLICY</span>
