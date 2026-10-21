@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
@@ -7,9 +7,12 @@ import styles from '../styles/Home.module.css';
 
 export default function StudentDashboard() {
   const router = useRouter();
+  const fileInputRef = useRef(null);
+
   const [activeTab, setActiveTab] = useState('my-id'); // 'my-id' | 'attendance' | 'events' | 'profile'
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
 
   // Student Profile Data
   const [profile, setProfile] = useState({
@@ -19,6 +22,7 @@ export default function StudentDashboard() {
     course: 'BSCRIM',
     section: 'Section A',
     year_level: '3rd Year',
+    avatar_url: '', // Gi-save nga ID photo
   });
 
   // Events & Attendance States
@@ -50,6 +54,7 @@ export default function StudentDashboard() {
           .single();
 
         if (userProfile) {
+          const cachedPhoto = typeof window !== 'undefined' ? localStorage.getItem(`cec_photo_${userProfile.school_id}`) : '';
           setProfile((prev) => ({
             ...prev,
             full_name: userProfile.full_name || prev.full_name,
@@ -58,11 +63,12 @@ export default function StudentDashboard() {
             course: userProfile.course || prev.course,
             year_level: userProfile.year_level || prev.year_level,
             section: userProfile.section || prev.section,
+            avatar_url: userProfile.avatar_url || cachedPhoto || '',
           }));
         }
       }
 
-      // Fetch official events
+      // Fetch events
       const { data: eventsData } = await supabase
         .from('events')
         .select('*')
@@ -72,7 +78,7 @@ export default function StudentDashboard() {
         setEvents(eventsData);
       }
 
-      // Fetch attendance records
+      // Fetch attendance logs
       const { data: logsData } = await supabase
         .from('attendance')
         .select('*')
@@ -81,7 +87,6 @@ export default function StudentDashboard() {
       if (logsData && logsData.length > 0) {
         setAttendanceLogs(logsData);
       } else {
-        // Default sample records if database table is newly initialized
         setAttendanceLogs([
           {
             id: 1,
@@ -122,6 +127,44 @@ export default function StudentDashboard() {
     }
   };
 
+  // PHOTO UPLOAD HANDLER
+  const handlePhotoUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      alert('Palihug pagpili og valid nga hulagway (PNG, JPG, o JPEG).');
+      return;
+    }
+
+    setUploadingPhoto(true);
+
+    const reader = new FileReader();
+    reader.onload = async (uploadEvent) => {
+      const base64Photo = uploadEvent.target.result;
+
+      // I-update sa local state ug browser storage
+      setProfile((prev) => ({ ...prev, avatar_url: base64Photo }));
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(`cec_photo_${profile.school_id}`, base64Photo);
+      }
+
+      // I-save usab sa database profiles table kon aduna ma'y avatar_url column
+      try {
+        await supabase
+          .from('profiles')
+          .update({ avatar_url: base64Photo })
+          .eq('school_id', profile.school_id);
+      } catch (err) {
+        console.warn('Database avatar save error (fallback to local photo):', err);
+      }
+
+      setUploadingPhoto(false);
+    };
+
+    reader.readAsDataURL(file);
+  };
+
   const handleSignOut = async () => {
     if (supabase) await supabase.auth.signOut();
     if (typeof window !== 'undefined') {
@@ -130,13 +173,12 @@ export default function StudentDashboard() {
     router.replace('/');
   };
 
-  // Calculations for Attendance stats
+  // Attendance stats
   const totalEventsCount = attendanceLogs.length;
   const totalPresentCount = attendanceLogs.filter((l) => l.status === 'PRESENT').length;
   const totalAbsencesCount = attendanceLogs.filter((l) => l.status === 'ABSENT').length;
   const complianceRate = totalEventsCount > 0 ? Math.round((totalPresentCount / totalEventsCount) * 100) : 0;
 
-  // Filter attendance logs
   const filteredLogs = attendanceLogs.filter((log) => {
     if (attendanceFilter === 'present') return log.status === 'PRESENT';
     if (attendanceFilter === 'absent') return log.status === 'ABSENT';
@@ -147,7 +189,7 @@ export default function StudentDashboard() {
   );
 
   // Dynamic QR Code generation based on School ID
-  const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(
+  const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(
     profile.school_id
   )}`;
 
@@ -155,11 +197,10 @@ export default function StudentDashboard() {
     <div className={styles.container} style={{ paddingBottom: 0 }}>
       <Head>
         <title>Student Portal • CEC TRACK</title>
-        {/* RESPONSIVE VIEWPORT TO PREVENT OVERFLOW AND ENSURE LARGE READABLE TEXT */}
         <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
       </Head>
 
-      {/* TOP HEADER: HAMBURGER & USER BADGE ALIGNED SIDE BY SIDE IN THE SAME ROW */}
+      {/* TOP HEADER */}
       <header
         style={{
           position: 'sticky',
@@ -183,7 +224,7 @@ export default function StudentDashboard() {
             boxSizing: 'border-box',
           }}
         >
-          {/* LEFT: HAMBURGER BUTTON & BRAND TITLE */}
+          {/* Left: Hamburger & Brand */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <button
               onClick={() => setIsSidebarOpen(!isSidebarOpen)}
@@ -233,7 +274,7 @@ export default function StudentDashboard() {
             </div>
           </div>
 
-          {/* RIGHT: STUDENT PROFILE BADGE (ALIGNED SIDE BY SIDE IN THE SAME ROW) */}
+          {/* Right: Student Profile Badge */}
           <div
             style={{
               display: 'flex',
@@ -282,9 +323,14 @@ export default function StudentDashboard() {
                 fontSize: '1rem',
                 flexShrink: 0,
                 border: '1px solid #bbf7d0',
+                overflow: 'hidden',
               }}
             >
-              {profile.full_name.charAt(0).toUpperCase()}
+              {profile.avatar_url ? (
+                <img src={profile.avatar_url} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              ) : (
+                profile.full_name.charAt(0).toUpperCase()
+              )}
             </div>
           </div>
         </div>
@@ -305,7 +351,7 @@ export default function StudentDashboard() {
       )}
 
       <div className={styles.portalWrapper}>
-        {/* SIDEBAR NAVIGATION DRAWER (WITH PINNED SIGN OUT AT BOTTOM) */}
+        {/* SIDEBAR NAVIGATION DRAWER */}
         <aside
           style={{
             position: 'fixed',
@@ -354,7 +400,6 @@ export default function StudentDashboard() {
               </button>
             </div>
 
-            {/* NAVIGATION BUTTONS (PROPORTIONAL & TOUCH-FRIENDLY) */}
             <nav style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               <button
                 onClick={() => { setActiveTab('my-id'); setIsSidebarOpen(false); }}
@@ -411,7 +456,6 @@ export default function StudentDashboard() {
             </nav>
           </div>
 
-          {/* SIGN OUT PINNED AT THE BOTTOM */}
           <div style={{ borderTop: '1px solid #f1f5f9', paddingTop: '18px', marginTop: '20px' }}>
             <button
               onClick={handleSignOut}
@@ -436,42 +480,188 @@ export default function StudentDashboard() {
                   <h1 className={styles.adminTitle}>My Digital ID</h1>
                   <p className={styles.adminSubtitle}>Your official scannable organization credentials.</p>
                 </div>
-                <button onClick={() => window.print()} className={styles.adminPrimaryBtn} style={{ minHeight: '48px', fontSize: '0.95rem' }}>
-                  📥 Download Official ID
-                </button>
+                {profile.avatar_url && (
+                  <button onClick={() => window.print()} className={styles.adminPrimaryBtn} style={{ minHeight: '48px', fontSize: '0.95rem' }}>
+                    📥 Download Official ID
+                  </button>
+                )}
               </div>
+
+              {/* Hidden file input for uploading photo */}
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handlePhotoUpload}
+                accept="image/*"
+                style={{ display: 'none' }}
+              />
 
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '28px', alignItems: 'start' }}>
                 {/* ID Card Front */}
                 <div className={styles.digitalIdCard}>
                   <div className={styles.idCardInner}>
+                    {/* Header Green Curve Cover */}
                     <div className={styles.idCardHeaderCover} />
-                    <span className={styles.idBadgePill}>• CEC TRACK • ACES •</span>
 
-                    <div className={styles.idPhotoWrap}>
-                      <span style={{ fontSize: '2.5rem' }}>👤</span>
+                    {/* CECTRACK BADGE SA IBABAW SA ICON */}
+                    <span
+                      style={{
+                        position: 'relative',
+                        zIndex: 10,
+                        display: 'inline-block',
+                        backgroundColor: 'rgba(255, 255, 255, 0.25)',
+                        backdropFilter: 'blur(4px)',
+                        color: '#ffffff',
+                        fontSize: '0.75rem',
+                        fontWeight: 900,
+                        letterSpacing: '0.12em',
+                        padding: '4px 16px',
+                        borderRadius: '9999px',
+                        textTransform: 'uppercase',
+                        border: '1px solid rgba(255, 255, 255, 0.4)',
+                        marginBottom: '14px',
+                      }}
+                    >
+                      CECTRACK
+                    </span>
+
+                    {/* PHOTO CONTAINER (CLICK TO UPLOAD) */}
+                    <div
+                      onClick={() => fileInputRef.current?.click()}
+                      className={styles.idPhotoWrap}
+                      style={{
+                        cursor: 'pointer',
+                        position: 'relative',
+                        border: '4px solid #ffffff',
+                        overflow: 'hidden',
+                        backgroundColor: '#f1f5f9',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                      title="Click to upload/change ID photo"
+                    >
+                      {profile.avatar_url ? (
+                        <img
+                          src={profile.avatar_url}
+                          alt="Student ID Photo"
+                          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                        />
+                      ) : (
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', color: '#64748b' }}>
+                          <span style={{ fontSize: '2rem' }}>👤</span>
+                          <span style={{ fontSize: '0.62rem', fontWeight: 900, color: '#15803d', marginTop: '2px' }}>
+                            + Upload
+                          </span>
+                        </div>
+                      )}
                     </div>
 
-                    <h2 className={styles.idStudentName}>{profile.full_name}</h2>
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: '#15803d',
+                        fontSize: '0.72rem',
+                        fontWeight: 800,
+                        cursor: 'pointer',
+                        marginTop: '4px',
+                        textDecoration: 'underline',
+                      }}
+                    >
+                      {uploadingPhoto ? 'Uploading photo...' : profile.avatar_url ? 'Change Photo' : 'Upload 2x2 Photo'}
+                    </button>
+
+                    <h2 className={styles.idStudentName} style={{ marginTop: '8px' }}>
+                      {profile.full_name}
+                    </h2>
 
                     <div className={styles.idLabel}>STUDENT ID</div>
                     <div className={styles.idSchoolNumber}>{profile.school_id}</div>
 
-                    <div className={styles.idQrBox}>
-                      <img src={qrCodeUrl} alt="Student QR Code" />
-                    </div>
+                    {/* QR CODE CONDITION: IPAGAWAS LAMANG KUNG NAKA-UPLOAD NA OG PHOTO */}
+                    {profile.avatar_url ? (
+                      <div>
+                        <div className={styles.idQrBox}>
+                          <img src={qrCodeUrl} alt="Student QR Code" />
+                        </div>
 
-                    <div className={styles.idScanNotice}>SCAN FOR ATTENDANCE</div>
+                        {/* SCAN FOR ATTENDANCE SA UBOS SA QR CODE */}
+                        <div
+                          style={{
+                            fontSize: '0.78rem',
+                            fontWeight: 900,
+                            color: '#15803d',
+                            letterSpacing: '0.08em',
+                            textTransform: 'uppercase',
+                            marginTop: '10px',
+                          }}
+                        >
+                          SCAN FOR ATTENDANCE
+                        </div>
+                      </div>
+                    ) : (
+                      /* LOCKED STATE KUNG WALA PA'Y LITRATO */
+                      <div
+                        style={{
+                          margin: '18px 0',
+                          padding: '18px 14px',
+                          backgroundColor: '#fef2f2',
+                          border: '1px dashed #fca5a5',
+                          borderRadius: '20px',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          gap: '8px',
+                        }}
+                      >
+                        <span style={{ fontSize: '1.8rem' }}>🔒</span>
+                        <div style={{ fontSize: '0.85rem', fontWeight: 900, color: '#991b1b' }}>
+                          QR Code Locked
+                        </div>
+                        <p style={{ fontSize: '0.72rem', color: '#b91c1c', margin: 0, lineHeight: 1.4, maxWidth: '220px' }}>
+                          Please upload your official ID photo above to activate and display your Attendance QR Code.
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => fileInputRef.current?.click()}
+                          style={{
+                            marginTop: '4px',
+                            backgroundColor: '#15803d',
+                            color: '#ffffff',
+                            border: 'none',
+                            borderRadius: '10px',
+                            padding: '6px 14px',
+                            fontSize: '0.75rem',
+                            fontWeight: 800,
+                            cursor: 'pointer',
+                          }}
+                        >
+                          📷 Upload Photo Now
+                        </button>
+                      </div>
+                    )}
 
+                    {/* FOOTER: CATEEL EXTENSION CAMPUS */}
                     <div style={{ borderTop: '1px solid #f1f5f9', marginTop: '16px', paddingTop: '10px' }}>
-                      <span style={{ fontSize: '0.68rem', fontWeight: 900, color: '#94a3b8', textTransform: 'uppercase' }}>
-                        College of Engineering and Computing
+                      <span
+                        style={{
+                          fontSize: '0.7rem',
+                          fontWeight: 900,
+                          color: '#94a3b8',
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.06em',
+                        }}
+                      >
+                        CATEEL EXTENSION CAMPUS
                       </span>
                     </div>
                   </div>
                 </div>
 
-                {/* Info Guide Cards */}
+                {/* Right Column: Info Guide Cards */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                   <div className={styles.adminFormCard} style={{ backgroundColor: '#f0fdf4', borderColor: '#bbf7d0', padding: '20px' }}>
                     <div style={{ display: 'flex', gap: '14px', alignItems: 'flex-start' }}>
@@ -719,8 +909,8 @@ export default function StudentDashboard() {
               <div style={{ textAlign: 'center', marginBottom: '24px' }}>
                 <div
                   style={{
-                    width: '80px',
-                    height: '80px',
+                    width: '84px',
+                    height: '84px',
                     borderRadius: '24px',
                     backgroundColor: '#dcfce7',
                     color: '#15803d',
@@ -730,9 +920,14 @@ export default function StudentDashboard() {
                     fontSize: '2.2rem',
                     margin: '0 auto 12px auto',
                     border: '1px solid #bbf7d0',
+                    overflow: 'hidden',
                   }}
                 >
-                  👤
+                  {profile.avatar_url ? (
+                    <img src={profile.avatar_url} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  ) : (
+                    '👤'
+                  )}
                 </div>
                 <h1 className={styles.adminTitle} style={{ fontSize: '1.75rem' }}>{profile.full_name}</h1>
                 <p className={styles.adminSubtitle} style={{ fontSize: '0.9rem' }}>
