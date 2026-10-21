@@ -8,6 +8,7 @@ import styles from '../styles/Home.module.css';
 export default function Login() {
   const router = useRouter();
 
+  // Form States
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [message, setMessage] = useState('');
@@ -15,8 +16,12 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  // Data Privacy Modal State para sa mga Estudyante
   const [showPrivacyModal, setShowPrivacyModal] = useState(false);
 
+  // ========================================================
+  // LOGIN SUBMIT HANDLER (Direct Database Password Auth)
+  // ========================================================
   const handleLogin = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -31,39 +36,38 @@ export default function Login() {
         throw new Error('Database connection failed.');
       }
 
-      // 1. Kuhaa ang record gikan sa database profiles
+      // 1. Kunin ang user profile mula sa profiles database table
       const { data: profile, error: profileErr } = await supabase
         .from('profiles')
         .select('*')
         .eq('email', cleanEmail)
         .single();
 
+      // Kung wala sa profiles o inactive ang status
       if (profileErr || !profile || (profile.status && profile.status.toLowerCase() === 'inactive')) {
         throw new Error('Invalid credentials.');
       }
 
-      // 2. Password Check: Susiha ang database password o default school_id
+      // 2. Suriin ang password gamit ang database profile record (password column o default school_id)
       const validDbPassword = profile.password || profile.school_id;
       const isPasswordCorrect = validDbPassword && validDbPassword.trim() === cleanPassword;
 
-      // Susiha usab sa Supabase Auth kung naka-set didto
-      let authSuccess = false;
+      // Subukang mag-sign in din sa Supabase Auth kung sakaling may active auth record
       try {
-        const { error: authErr } = await supabase.auth.signInWithPassword({
+        await supabase.auth.signInWithPassword({
           email: cleanEmail,
           password: cleanPassword,
         });
-        if (!authErr) authSuccess = true;
-      } catch (e) {
-        authSuccess = false;
+      } catch (authErr) {
+        // Huwag i-block kung nabigo ang auth session basta tama ang database password
       }
 
-      // Kung sayop ang gi-type nga password sa database ug auth
-      if (!isPasswordCorrect && !authSuccess) {
+      // Kung hindi tugma ang inilagay na password
+      if (!isPasswordCorrect) {
         throw new Error('Invalid credentials.');
       }
 
-      // 3. I-save ang session data sa SessionStorage
+      // 3. I-save ang mahahalagang session data sa SessionStorage
       const userRole = profile.role || 'student';
       sessionStorage.setItem('cec_role', userRole);
       sessionStorage.setItem('cec_user_email', profile.email);
@@ -73,13 +77,16 @@ export default function Login() {
 
       // 4. Role & Password Verification Routing
       if (userRole === 'admin') {
+        // Ang Admin ay didiretso agad sa Admin Dashboard
         router.push('/admin');
       } else if (profile.must_change_password) {
-        // I-require ang pag-set og bag-ong password sa unang higayon
+        // Kung unang login ng Student o Staff, kailangan nilang magpalit ng password
         router.push('/update-password');
       } else if (userRole === 'staff') {
+        // Kung nakapagpalit na ng password ang Staff, dadalhin sa Admin/Staff command center
         router.push('/admin');
       } else {
+        // Para sa mga estudyanteng nakapagpalit na ng password, buksan ang privacy agreement
         setShowPrivacyModal(true);
       }
     } catch (err) {
@@ -123,6 +130,7 @@ export default function Login() {
       </Head>
 
       <div className={styles.loginCard}>
+        {/* Compact Logo Header */}
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1.25rem' }}>
           <div
             style={{
@@ -165,6 +173,7 @@ export default function Login() {
           </div>
         </div>
 
+        {/* Title Header */}
         <div className={styles.loginHeader}>
           <h1 className={styles.loginTitle}>
             Welcome to <br />
@@ -175,7 +184,9 @@ export default function Login() {
           </p>
         </div>
 
+        {/* Form Inputs */}
         <form onSubmit={handleLogin} className={styles.loginForm}>
+          {/* Email Address */}
           <div className={styles.inputGroup}>
             <label className={styles.inputLabel}>Email Address</label>
             <div className={styles.inputWrapper}>
@@ -200,6 +211,7 @@ export default function Login() {
             </div>
           </div>
 
+          {/* Password */}
           <div className={styles.inputGroup}>
             <label className={styles.inputLabel}>Password</label>
             <div className={styles.inputWrapper}>
@@ -232,6 +244,7 @@ export default function Login() {
             </div>
           </div>
 
+          {/* Forgot Password Link */}
           <div className={styles.forgotPasswordWrapper}>
             <button
               type="button"
@@ -242,11 +255,13 @@ export default function Login() {
             </button>
           </div>
 
+          {/* Submit Button */}
           <button type="submit" disabled={loading} className={styles.submitBtn}>
             {loading ? 'Authenticating...' : 'Log In'}
           </button>
         </form>
 
+        {/* Message Alert */}
         {message && (
           <div
             className={styles.alertMessage}
@@ -264,6 +279,7 @@ export default function Login() {
           </div>
         )}
 
+        {/* Back to Home Link */}
         <div className={styles.backLinkWrapper}>
           <Link href="/" className={styles.backLink}>
             <svg
@@ -284,6 +300,7 @@ export default function Login() {
         </div>
       </div>
 
+      {/* RA 10173 Student Data Privacy Modal */}
       {showPrivacyModal && (
         <div
           style={{
@@ -346,7 +363,7 @@ export default function Login() {
             </div>
 
             <p style={{ fontSize: '0.82rem', color: '#64748b', lineHeight: 1.5, margin: 0 }}>
-              By logging into CEC TRACK, you confirm that personal information, attendance records, and generated QR credentials remain private and confidential. Sharing Digital IDs for proxy attendance is prohibited.
+              By logging into CEC TRACK, you confirm that personal information, attendance records, and generated QR credentials remain private and confidential. Sharing Digital IDs for proxy attendance is strictly prohibited.
             </p>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '8px' }}>
