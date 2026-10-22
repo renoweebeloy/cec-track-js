@@ -36,7 +36,7 @@ export default function AdminDashboard() {
   const [staffEmail, setStaffEmail] = useState('');
   const [staffRole, setStaffRole] = useState('Staff Officer');
 
-  // 3. Event States (Publishing, Editing, Compression)
+  // 3. Event States
   const [editingEventId, setEditingEventId] = useState(null);
   const [eventTitle, setEventTitle] = useState('');
   const [eventLocation, setEventLocation] = useState('');
@@ -53,14 +53,14 @@ export default function AdminDashboard() {
   const [selectedEventId, setSelectedEventId] = useState('');
   const [scanLogMsg, setScanLogMsg] = useState({ type: '', text: '' });
 
-  // 5. Live Camera Scanner & Scanned Student Modal
+  // 5. Live Camera Scanner & Modal
   const [isCameraModalOpen, setIsCameraModalOpen] = useState(false);
   const [isScannerRunning, setIsScannerRunning] = useState(false);
   const [scannedStudentData, setScannedStudentData] = useState(null);
   const [showVerifyModal, setShowVerifyModal] = useState(false);
   const [confirmingAttendance, setConfirmingAttendance] = useState(false);
 
-  // 6. BAGONG FEATURE: Search Student Attendance History States
+  // 6. Search Student Attendance History States
   const [searchHistoryId, setSearchHistoryId] = useState('');
   const [searchingHistory, setSearchingHistory] = useState(false);
   const [searchedStudent, setSearchedStudent] = useState(null);
@@ -74,7 +74,6 @@ export default function AdminDashboard() {
   const [searchStudentQuery, setSearchStudentQuery] = useState('');
   const [searchEventQuery, setSearchEventQuery] = useState('');
 
-  // 5 Opisyal na Kurso sa Kolehiyo
   const courses = [
     { code: 'BSCRIM', name: 'Bachelor of Science in Criminology', badge: styles.bscrimBadge },
     { code: 'BSBA', name: 'Bachelor of Science in Business Administration', badge: styles.bsbaBadge },
@@ -95,9 +94,6 @@ export default function AdminDashboard() {
     }, 4500);
   };
 
-  // ========================================================
-  // BEEP SOUND GENERATOR ("TIT" SOUND PAGKA-SCAN)
-  // ========================================================
   const playBeepSound = () => {
     try {
       const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -105,7 +101,7 @@ export default function AdminDashboard() {
       const gainNode = audioCtx.createGain();
 
       oscillator.type = 'sine';
-      oscillator.frequency.setValueAtTime(880, audioCtx.currentTime); // 880 Hz standard scanner pitch
+      oscillator.frequency.setValueAtTime(880, audioCtx.currentTime);
       gainNode.gain.setValueAtTime(0.2, audioCtx.currentTime);
       gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.16);
 
@@ -119,9 +115,6 @@ export default function AdminDashboard() {
     }
   };
 
-  // ========================================================
-  // 5-MINUTE AUTOMATIC SESSION TIMEOUT GUARD
-  // ========================================================
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
@@ -185,7 +178,6 @@ export default function AdminDashboard() {
     }
   }, []);
 
-  // Route Guard
   useEffect(() => {
     const verifyPortalAccess = async () => {
       try {
@@ -315,7 +307,6 @@ export default function AdminDashboard() {
     router.replace('/');
   };
 
-  // Image compressor
   const handleEventImageUpload = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -439,9 +430,6 @@ export default function AdminDashboard() {
     }
   };
 
-  // ========================================================
-  // CAMERA SCANNER FUNCTION (MAY SOUND AT MALINIS NA VIEWPORT)
-  // ========================================================
   const startCameraScanner = async () => {
     if (!selectedEventId) {
       showNotify('error', 'Pumili muna ng Active Event Schedule bago mag-scan.');
@@ -506,7 +494,6 @@ export default function AdminDashboard() {
       } catch (e) {}
     }
 
-    // PATUNUGIN ANG BEEP ("TIT")
     playBeepSound();
 
     const cleanSchoolId = decodedText.trim();
@@ -519,7 +506,7 @@ export default function AdminDashboard() {
         .single();
 
       if (error || !student) {
-        alert(`❌ ACCESS DENIED:\nAng School ID na "${cleanSchoolId}" ay hindi rehistrado sa database!`);
+        alert(`ACCESS DENIED:\nAng School ID na "${cleanSchoolId}" ay hindi rehistrado sa database.`);
         if (scannerRef.current) {
           try {
             await scannerRef.current.resume();
@@ -537,7 +524,7 @@ export default function AdminDashboard() {
 
       if (existingAttendance) {
         alert(
-          `🚫 ALREADY SCANNED!\n\n` +
+          `ALREADY SCANNED:\n\n` +
           `Pangalan: ${student.full_name}\n` +
           `School ID: ${student.school_id}\n` +
           `Naitalang Time In: ${existingAttendance.time_in}\n\n` +
@@ -552,7 +539,6 @@ export default function AdminDashboard() {
         return;
       }
 
-      // Awtomatikong ipakita ang Profile Modal
       setScannedStudentData(student);
       setShowVerifyModal(true);
     } catch (err) {
@@ -581,7 +567,7 @@ export default function AdminDashboard() {
         if (error.code === '23505') {
           showNotify(
             'error',
-            `⚠️ Already scanned: ${scannedStudentData.full_name} (${scannedStudentData.school_id}) ay naitala na!`
+            `Already scanned: ${scannedStudentData.full_name} (${scannedStudentData.school_id}) ay naitala na.`
           );
         } else {
           showNotify('error', `Attendance error: ${error.message}`);
@@ -589,7 +575,7 @@ export default function AdminDashboard() {
       } else {
         showNotify(
           'success',
-          `✅ ATTENDANCE CONFIRMED: Naitala si ${scannedStudentData.full_name} (${scannedStudentData.school_id})!`
+          `Attendance confirmed: ${scannedStudentData.full_name} (${scannedStudentData.school_id})`
         );
       }
 
@@ -608,9 +594,6 @@ export default function AdminDashboard() {
     }
   };
 
-  // ========================================================
-  // BAGONG FEATURE: SEARCH STUDENT ATTENDANCE HISTORY
-  // ========================================================
   const handleSearchStudentHistory = async (e) => {
     e.preventDefault();
     const cleanId = searchHistoryId.trim();
@@ -626,7 +609,6 @@ export default function AdminDashboard() {
     setStudentAttendanceRecords([]);
 
     try {
-      // 1. Hanapin ang detalye ng estudyante sa profiles
       const { data: student, error: studentErr } = await supabase
         .from('profiles')
         .select('*')
@@ -641,13 +623,11 @@ export default function AdminDashboard() {
 
       setSearchedStudent(student);
 
-      // 2. Kunin ang lahat ng opisyal na events
       const { data: allEvents } = await supabase
         .from('events')
         .select('*')
         .order('date', { ascending: false });
 
-      // 3. Kunin ang attendance records ng estudyante
       const { data: attLogs } = await supabase
         .from('attendance')
         .select('*')
@@ -660,7 +640,6 @@ export default function AdminDashboard() {
         });
       }
 
-      // 4. I-combine ang lahat ng events upang makita kung Present o Absent ang estudyante
       const combinedRecords = (allEvents || []).map((ev) => {
         const matchingLog = logsMap[ev.id];
         const isPresent = Boolean(matchingLog && matchingLog.status === 'PRESENT');
@@ -725,7 +704,7 @@ export default function AdminDashboard() {
 
       showNotify(
         'success',
-        `Matagumpay na naidagdag si ${studentName.trim()} (${studentSection})! Default password: ${defaultPassword}`
+        `Matagumpay na naidagdag si ${studentName.trim()} (${studentSection}). Default password: ${defaultPassword}`
       );
       setStudentId('');
       setStudentName('');
@@ -751,7 +730,7 @@ export default function AdminDashboard() {
 
     const isConfirmed = window.confirm(
       'Sigurado ka bang nais mong tanggalin ang LAHAT ng student records?\n\n' +
-      'Babala: Mabubura ang lahat ng estudyante sa database at hindi na ito mababawi. Pindutin ang OK upang kumpirmahin.'
+      'Babala: Mabubura ang lahat ng estudyante sa database at hindi na ito mababawi.'
     );
 
     if (!isConfirmed) return;
@@ -808,7 +787,7 @@ export default function AdminDashboard() {
 
         showNotify(
           'success',
-          `Na-upgrade ang account! May scanner clearance na si ${existingUser.full_name}.`
+          `Na-upgrade ang account. May scanner clearance na si ${existingUser.full_name}.`
         );
       } else {
         const generatedStaffId = `STAFF-${Math.floor(1000 + Math.random() * 9000)}`;
@@ -831,7 +810,7 @@ export default function AdminDashboard() {
 
         showNotify(
           'success',
-          `Matagumpay na nairehistro si ${staffName}! Default password: ${generatedStaffId}`
+          `Matagumpay na nairehistro si ${staffName}. Default password: ${generatedStaffId}`
         );
       }
 
@@ -873,7 +852,7 @@ export default function AdminDashboard() {
     if (existing) {
       setScanLogMsg({
         type: 'warning',
-        text: `🚫 ALREADY SCANNED: Naitala na noong ${existing.time_in} si ${studentMatch.full_name} (${studentMatch.school_id})!`,
+        text: `ALREADY SCANNED: Naitala na noong ${existing.time_in} si ${studentMatch.full_name} (${studentMatch.school_id}).`,
       });
       return;
     }
@@ -895,7 +874,7 @@ export default function AdminDashboard() {
       playBeepSound();
       setScanLogMsg({
         type: 'success',
-        text: `Done scanning! Kinumpirma ang attendance para kay ${studentMatch.full_name} (${studentMatch.school_id}).`,
+        text: `Attendance confirmed: ${studentMatch.full_name} (${studentMatch.school_id}).`,
       });
       setManualStudentId('');
     }
@@ -956,7 +935,6 @@ export default function AdminDashboard() {
 
   const isAdmin = userRole === 'admin';
 
-  // Stats para sa Seach Student History
   const historyPresentCount = studentAttendanceRecords.filter((r) => r.status === 'PRESENT').length;
   const historyAbsentCount = studentAttendanceRecords.filter((r) => r.status === 'ABSENT').length;
   const historyTotalEvents = studentAttendanceRecords.length;
@@ -996,7 +974,6 @@ export default function AdminDashboard() {
             width: '100%',
           }}
         >
-          {/* LEFT: HAMBURGER & BRAND */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, flexShrink: 1 }}>
             <button
               onClick={() => setIsSidebarOpen(!isSidebarOpen)}
@@ -1052,12 +1029,10 @@ export default function AdminDashboard() {
             </div>
           </div>
 
-          {/* RIGHT: CAMPUS BADGE */}
           <div
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: '6px',
               backgroundColor: '#f0fdf4',
               border: '1px solid #bbf7d0',
               borderRadius: '12px',
@@ -1067,7 +1042,6 @@ export default function AdminDashboard() {
               maxWidth: '145px',
             }}
           >
-            <span style={{ fontSize: '0.85rem' }}>📍</span>
             <span
               style={{
                 fontSize: '0.75rem',
@@ -1101,7 +1075,7 @@ export default function AdminDashboard() {
       )}
 
       <div className={styles.portalWrapper}>
-        {/* SIDEBAR NAVIGATION */}
+        {/* SIDEBAR NAVIGATION (WALANG EMOJI) */}
         <aside
           style={{
             position: 'fixed',
@@ -1152,18 +1126,16 @@ export default function AdminDashboard() {
               <button
                 onClick={() => { setActiveTab('profile'); setIsSidebarOpen(false); }}
                 className={activeTab === 'profile' ? `${styles.portalNavLink} ${styles.portalNavLinkActive}` : styles.portalNavLink}
-                style={{ fontSize: '0.92rem', padding: '12px 14px' }}
+                style={{ fontSize: '0.92rem', padding: '12px 14px', justifyContent: 'flex-start' }}
               >
-                <span>👤</span>
                 <span>System Overview</span>
               </button>
 
               <button
                 onClick={() => { setActiveTab('add-student'); setIsSidebarOpen(false); }}
                 className={activeTab === 'add-student' ? `${styles.portalNavLink} ${styles.portalNavLinkActive}` : styles.portalNavLink}
-                style={{ fontSize: '0.92rem', padding: '12px 14px' }}
+                style={{ fontSize: '0.92rem', padding: '12px 14px', justifyContent: 'flex-start' }}
               >
-                <span>🎓</span>
                 <span>Add Student</span>
               </button>
 
@@ -1171,9 +1143,8 @@ export default function AdminDashboard() {
                 <button
                   onClick={() => { setActiveTab('add-staff'); setIsSidebarOpen(false); }}
                   className={activeTab === 'add-staff' ? `${styles.portalNavLink} ${styles.portalNavLinkActive}` : styles.portalNavLink}
-                  style={{ fontSize: '0.92rem', padding: '12px 14px' }}
+                  style={{ fontSize: '0.92rem', padding: '12px 14px', justifyContent: 'flex-start' }}
                 >
-                  <span>🛡️</span>
                   <span>Manage Staff &amp; Scanners</span>
                 </button>
               )}
@@ -1181,22 +1152,19 @@ export default function AdminDashboard() {
               <button
                 onClick={() => { setActiveTab('add-event'); setIsSidebarOpen(false); }}
                 className={activeTab === 'add-event' ? `${styles.portalNavLink} ${styles.portalNavLinkActive}` : styles.portalNavLink}
-                style={{ fontSize: '0.92rem', padding: '12px 14px' }}
+                style={{ fontSize: '0.92rem', padding: '12px 14px', justifyContent: 'flex-start' }}
               >
-                <span>📅</span>
                 <span>Manage Events</span>
               </button>
 
               <button
                 onClick={() => { setActiveTab('scan-qr'); setIsSidebarOpen(false); }}
                 className={activeTab === 'scan-qr' ? `${styles.portalNavLink} ${styles.portalNavLinkActive}` : styles.portalNavLink}
-                style={{ fontSize: '0.92rem', padding: '12px 14px' }}
+                style={{ fontSize: '0.92rem', padding: '12px 14px', justifyContent: 'flex-start' }}
               >
-                <span>📷</span>
                 <span>Scan QR &amp; Quick Log</span>
               </button>
 
-              {/* BAGONG NAV BUTTON PARA SA SEARCH STUDENT ATTENDANCE */}
               <button
                 onClick={() => { setActiveTab('search-student'); setIsSidebarOpen(false); }}
                 className={activeTab === 'search-student' ? `${styles.portalNavLink} ${styles.portalNavLinkActive}` : styles.portalNavLink}
@@ -1207,9 +1175,9 @@ export default function AdminDashboard() {
                   color: '#15803d',
                   border: '1px solid #bbf7d0',
                   fontWeight: 900,
+                  justifyContent: 'flex-start',
                 }}
               >
-                <span>🔍</span>
                 <span>Student Records &amp; Logs</span>
               </button>
             </nav>
@@ -1219,9 +1187,8 @@ export default function AdminDashboard() {
             <button
               onClick={handleSignOut}
               className={styles.portalNavLink}
-              style={{ color: '#b91c1c', fontWeight: 900, fontSize: '0.92rem', padding: '12px 14px' }}
+              style={{ color: '#b91c1c', fontWeight: 900, fontSize: '0.92rem', padding: '12px 14px', justifyContent: 'flex-start' }}
             >
-              <span>➔</span>
               <span>Sign Out</span>
             </button>
           </div>
@@ -1418,7 +1385,7 @@ export default function AdminDashboard() {
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <input
                       type="text"
-                      placeholder="🔍 Search..."
+                      placeholder="Search..."
                       value={searchStudentQuery}
                       onChange={(e) => setSearchStudentQuery(e.target.value)}
                       className={styles.loginInput}
@@ -1441,7 +1408,7 @@ export default function AdminDashboard() {
                           cursor: 'pointer',
                         }}
                       >
-                        🗑️ All
+                        Remove All
                       </button>
                     )}
                   </div>
@@ -1585,7 +1552,7 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          {/* TAB 4: MANAGE EVENTS (FULL-WIDTH & RESPONSIVE NA PARA HINDI NAPUPUTOL) */}
+          {/* TAB 4: MANAGE EVENTS */}
           {activeTab === 'add-event' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '22px', width: '100%' }}>
               <div className={styles.adminFormCard} ref={formRef} style={{ width: '100%', boxSizing: 'border-box' }}>
@@ -1637,7 +1604,7 @@ export default function AdminDashboard() {
                     >
                       {compressingImage ? (
                         <div style={{ padding: '14px 0', color: '#15803d', fontWeight: 800, fontSize: '0.8rem' }}>
-                          ⚡ Optimizing picture...
+                          Optimizing picture...
                         </div>
                       ) : eventImage ? (
                         <div style={{ position: 'relative' }}>
@@ -1652,8 +1619,7 @@ export default function AdminDashboard() {
                         </div>
                       ) : (
                         <div>
-                          <span style={{ fontSize: '1.5rem', display: 'block', marginBottom: '2px' }}>🖼️</span>
-                          <span style={{ fontSize: '0.78rem', fontWeight: 800, color: '#15803d' }}>
+                          <span style={{ fontSize: '0.85rem', fontWeight: 800, color: '#15803d', display: 'block' }}>
                             + Upload Event Picture
                           </span>
                         </div>
@@ -1760,7 +1726,7 @@ export default function AdminDashboard() {
                       {loading
                         ? 'Saving...'
                         : editingEventId
-                        ? '💾 Save Changes ➔'
+                        ? 'Save Changes ➔'
                         : 'Publish Event ➔'}
                     </button>
                     {editingEventId && (
@@ -1784,7 +1750,7 @@ export default function AdminDashboard() {
                 </form>
               </div>
 
-              {/* PUBLISHED EVENTS CARD (NAKADISENYO PARA BUO AT SWAK SA CP) */}
+              {/* PUBLISHED EVENTS */}
               <div className={styles.adminFormCard} style={{ width: '100%', boxSizing: 'border-box', padding: '16px 14px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '8px' }}>
                   <h3 className={styles.analyticsTitle} style={{ fontSize: '0.95rem', margin: 0 }}>
@@ -1792,7 +1758,7 @@ export default function AdminDashboard() {
                   </h3>
                   <input
                     type="text"
-                    placeholder="🔍 Search event..."
+                    placeholder="Search event..."
                     value={searchEventQuery}
                     onChange={(e) => setSearchEventQuery(e.target.value)}
                     className={styles.loginInput}
@@ -1842,11 +1808,13 @@ export default function AdminDashboard() {
                                   display: 'flex',
                                   alignItems: 'center',
                                   justifyContent: 'center',
-                                  fontSize: '1.25rem',
+                                  fontSize: '0.8rem',
+                                  fontWeight: 800,
+                                  color: '#64748b',
                                   flexShrink: 0,
                                 }}
                               >
-                                📅
+                                EVENT
                               </div>
                             )}
 
@@ -1855,7 +1823,7 @@ export default function AdminDashboard() {
                                 {ev.title}
                               </h4>
                               <div style={{ fontSize: '0.72rem', color: '#15803d', fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                📍 {ev.location || 'FaCET Facade'}
+                                Location: {ev.location || 'FaCET Facade'}
                               </div>
                               <div style={{ fontSize: '0.7rem', color: '#64748b', fontWeight: 600, marginTop: '2px' }}>
                                 {ev.date} • {ev.time_in}-{ev.time_out}
@@ -1924,28 +1892,11 @@ export default function AdminDashboard() {
           {activeTab === 'scan-qr' && (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))', gap: '20px' }}>
               <div className={styles.adminFormCard} style={{ textAlign: 'center', padding: '28px 16px' }}>
-                <div
-                  style={{
-                    width: '56px',
-                    height: '56px',
-                    borderRadius: '18px',
-                    backgroundColor: '#dcfce7',
-                    color: '#15803d',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: '1.8rem',
-                    margin: '0 auto 12px auto',
-                    border: '1px solid #bbf7d0',
-                  }}
-                >
-                  📷
-                </div>
                 <h3 className={styles.analyticsTitle} style={{ justifyContent: 'center', fontSize: '1.1rem', marginBottom: '6px' }}>
                   Live Camera QR Scanner
                 </h3>
                 <p style={{ fontSize: '0.82rem', color: '#64748b', marginBottom: '18px', lineHeight: 1.45 }}>
-                  I-scan ang student QR code. Awtomatikong magpapatunog ng beep at maglalabas ng verification profile.
+                  I-scan ang student QR code. Awtomatikong tutunog ang beep at maglalabas ng verification profile.
                 </p>
 
                 <div style={{ marginBottom: '14px', textAlign: 'left' }}>
@@ -1972,7 +1923,7 @@ export default function AdminDashboard() {
                   className={styles.submitBtn}
                   style={{ minHeight: '46px', fontSize: '0.92rem', fontWeight: 900 }}
                 >
-                  📷 Launch Camera Scanner ➔
+                  Launch Camera Scanner ➔
                 </button>
               </div>
 
@@ -2000,7 +1951,7 @@ export default function AdminDashboard() {
                   </div>
 
                   <button type="submit" className={styles.adminPrimaryBtn} style={{ minHeight: '44px', fontSize: '0.9rem' }}>
-                    ✓ Mark as Present
+                    Mark as Present
                   </button>
                 </form>
 
@@ -2021,12 +1972,12 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          {/* TAB 6: BAGONG FEATURE - SEARCH STUDENT ATTENDANCE HISTORY */}
+          {/* TAB 6: SEARCH STUDENT ATTENDANCE HISTORY (MOBILE-RESPONSIVE CARDS) */}
           {activeTab === 'search-student' && (
             <div style={{ maxWidth: '900px', margin: '0 auto', width: '100%' }}>
               <div className={styles.adminFormCard} style={{ padding: '20px', marginBottom: '20px' }}>
                 <h3 className={styles.analyticsTitle} style={{ fontSize: '1.1rem', marginBottom: '6px' }}>
-                  🔍 Search Student Attendance Records
+                  Search Student Attendance Records
                 </h3>
                 <p style={{ fontSize: '0.85rem', color: '#64748b', margin: '0 0 16px 0', lineHeight: 1.45 }}>
                   Ilagay ang School ID ng estudyante upang makita ang kabuuang bilang ng Present, Absent, at talaan ng Time In at Time Out sa lahat ng events.
@@ -2048,7 +1999,7 @@ export default function AdminDashboard() {
                     className={styles.adminPrimaryBtn}
                     style={{ minHeight: '44px', padding: '10px 20px', fontSize: '0.92rem', flexShrink: 0 }}
                   >
-                    {searchingHistory ? 'Hinahanap...' : '🔍 Search Student'}
+                    {searchingHistory ? 'Hinahanap...' : 'Search Student'}
                   </button>
                 </form>
 
@@ -2062,10 +2013,8 @@ export default function AdminDashboard() {
                 )}
               </div>
 
-              {/* SEARCH RESULTS VIEW */}
               {searchedStudent && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
-                  {/* STUDENT PROFILE SUMMARY CARD */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '18px', width: '100%' }}>
                   <div
                     style={{
                       backgroundColor: '#ffffff',
@@ -2089,7 +2038,9 @@ export default function AdminDashboard() {
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        fontSize: '1.8rem',
+                        fontSize: '0.85rem',
+                        fontWeight: 900,
+                        color: '#15803d',
                         overflow: 'hidden',
                         flexShrink: 0,
                       }}
@@ -2097,7 +2048,7 @@ export default function AdminDashboard() {
                       {searchedStudent.avatar_url ? (
                         <img src={searchedStudent.avatar_url} alt={searchedStudent.full_name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                       ) : (
-                        '👤'
+                        'USER'
                       )}
                     </div>
 
@@ -2117,7 +2068,6 @@ export default function AdminDashboard() {
                     </div>
                   </div>
 
-                  {/* ATTENDANCE COUNTERS */}
                   <div className={styles.attendanceStatsGrid}>
                     <div className={styles.attStatCard} style={{ padding: '16px' }}>
                       <span className={styles.attStatLabel} style={{ fontSize: '0.75rem' }}>Total Events</span>
@@ -2146,68 +2096,94 @@ export default function AdminDashboard() {
                     </div>
                   </div>
 
-                  {/* ALL EVENTS ATTENDANCE TABLE */}
-                  <div className={styles.adminFormCard} style={{ padding: '18px 14px' }}>
-                    <h3 className={styles.analyticsTitle} style={{ fontSize: '0.95rem', marginBottom: '14px' }}>
-                      Detailed Event Attendance Logs ({studentAttendanceRecords.length})
-                    </h3>
-
-                    <div className={styles.adminTableWrapper}>
-                      <table className={styles.adminTable}>
-                        <thead>
-                          <tr>
-                            <th>Event Title &amp; Location</th>
-                            <th>Date</th>
-                            <th>Time In</th>
-                            <th>Time Out</th>
-                            <th style={{ textAlign: 'center' }}>Attendance Status</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {studentAttendanceRecords.length === 0 ? (
-                            <tr>
-                              <td colSpan={5} style={{ textAlign: 'center', padding: '24px', color: '#94a3b8' }}>
-                                Walang naitalang events.
-                              </td>
-                            </tr>
-                          ) : (
-                            studentAttendanceRecords.map((record) => {
-                              const isPresent = record.status === 'PRESENT';
-                              return (
-                                <tr key={record.eventId}>
-                                  <td>
-                                    <div style={{ fontWeight: 800 }}>{record.eventTitle}</div>
-                                    <div style={{ fontSize: '0.72rem', color: '#15803d', fontWeight: 700 }}>
-                                      📍 {record.eventLocation || 'FaCET Facade'}
-                                    </div>
-                                  </td>
-                                  <td style={{ fontWeight: 600 }}>{record.eventDate}</td>
-                                  <td style={{ fontWeight: 800, color: isPresent ? '#15803d' : '#94a3b8' }}>
-                                    {record.actualTimeIn}
-                                  </td>
-                                  <td style={{ fontWeight: 800, color: isPresent ? '#15803d' : '#94a3b8' }}>
-                                    {record.actualTimeOut}
-                                  </td>
-                                  <td style={{ textAlign: 'center' }}>
-                                    <span
-                                      className={styles.idBadge}
-                                      style={{
-                                        backgroundColor: isPresent ? '#dcfce7' : '#fef2f2',
-                                        color: isPresent ? '#15803d' : '#b91c1c',
-                                        borderColor: isPresent ? '#bbf7d0' : '#fecaca',
-                                        fontWeight: 900,
-                                      }}
-                                    >
-                                      {isPresent ? '✓ PRESENT' : '✕ ABSENT'}
-                                    </span>
-                                  </td>
-                                </tr>
-                              );
-                            })
-                          )}
-                        </tbody>
-                      </table>
+                  {/* RESPONSIVE CARDS PARA BUONG MAKITA SA CP SCREEN */}
+                  <div className={styles.adminFormCard} style={{ padding: '16px 14px', width: '100%', boxSizing: 'border-box' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '8px' }}>
+                      <h3 className={styles.analyticsTitle} style={{ fontSize: '0.95rem', margin: 0 }}>
+                        Detailed Event Attendance Logs ({studentAttendanceRecords.length})
+                      </h3>
                     </div>
+
+                    {studentAttendanceRecords.length === 0 ? (
+                      <div style={{ textAlign: 'center', padding: '20px', color: '#94a3b8', fontSize: '0.85rem' }}>
+                        Walang naitalang events.
+                      </div>
+                    ) : (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', width: '100%' }}>
+                        {studentAttendanceRecords.map((record) => {
+                          const isPresent = record.status === 'PRESENT';
+                          return (
+                            <div
+                              key={record.eventId}
+                              style={{
+                                backgroundColor: '#ffffff',
+                                border: `1px solid ${isPresent ? '#bbf7d0' : '#fee2e2'}`,
+                                borderRadius: '14px',
+                                padding: '12px 14px',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: '8px',
+                                width: '100%',
+                                boxSizing: 'border-box',
+                                boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
+                              }}
+                            >
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '10px' }}>
+                                <div style={{ minWidth: 0, flex: 1 }}>
+                                  <h4 style={{ margin: '0 0 2px 0', fontSize: '0.92rem', fontWeight: 900, color: '#0f172a', wordBreak: 'break-word' }}>
+                                    {record.eventTitle}
+                                  </h4>
+                                  <div style={{ fontSize: '0.75rem', color: '#15803d', fontWeight: 800 }}>
+                                    Location: {record.eventLocation || 'FaCET Facade'}
+                                  </div>
+                                </div>
+                                <span
+                                  style={{
+                                    display: 'inline-block',
+                                    backgroundColor: isPresent ? '#dcfce7' : '#fef2f2',
+                                    color: isPresent ? '#15803d' : '#b91c1c',
+                                    border: `1px solid ${isPresent ? '#86efac' : '#fecaca'}`,
+                                    borderRadius: '9999px',
+                                    padding: '3px 10px',
+                                    fontSize: '0.72rem',
+                                    fontWeight: 900,
+                                    flexShrink: 0,
+                                    textTransform: 'uppercase',
+                                  }}
+                                >
+                                  {isPresent ? 'PRESENT' : 'ABSENT'}
+                                </span>
+                              </div>
+
+                              <div
+                                style={{
+                                  display: 'grid',
+                                  gridTemplateColumns: 'repeat(auto-fit, minmax(85px, 1fr))',
+                                  gap: '8px',
+                                  backgroundColor: '#f8fafc',
+                                  borderRadius: '10px',
+                                  padding: '8px 10px',
+                                  fontSize: '0.75rem',
+                                }}
+                              >
+                                <div>
+                                  <span style={{ color: '#64748b', display: 'block', fontWeight: 700, fontSize: '0.68rem' }}>DATE</span>
+                                  <span style={{ fontWeight: 800, color: '#0f172a' }}>{record.eventDate}</span>
+                                </div>
+                                <div>
+                                  <span style={{ color: '#64748b', display: 'block', fontWeight: 700, fontSize: '0.68rem' }}>TIME IN</span>
+                                  <span style={{ fontWeight: 800, color: isPresent ? '#15803d' : '#94a3b8' }}>{record.actualTimeIn}</span>
+                                </div>
+                                <div>
+                                  <span style={{ color: '#64748b', display: 'block', fontWeight: 700, fontSize: '0.68rem' }}>TIME OUT</span>
+                                  <span style={{ fontWeight: 800, color: isPresent ? '#15803d' : '#94a3b8' }}>{record.actualTimeOut}</span>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -2216,7 +2192,7 @@ export default function AdminDashboard() {
         </main>
       </div>
 
-      {/* 1. CAMERA SCANNER MODAL POPUP (MALINIS AT TINANGGAL ANG DOBLE NA BOX) */}
+      {/* CAMERA SCANNER MODAL */}
       {isCameraModalOpen && (
         <div
           style={{
@@ -2244,13 +2220,11 @@ export default function AdminDashboard() {
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginBottom: '14px' }}>
-              <span style={{ fontSize: '1.2rem' }}>📷</span>
               <h3 style={{ fontSize: '1.1rem', fontWeight: 900, color: '#15803d', margin: 0 }}>
                 Scan Student QR Code
               </h3>
             </div>
 
-            {/* VIEWFINDER (TINANGGAL ANG INNER DUPLICATE MARKERS NA NAKADOBLE) */}
             <div
               style={{
                 position: 'relative',
@@ -2319,7 +2293,7 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      {/* 2. SCANNED VERIFICATION MODAL POPUP */}
+      {/* SCANNED VERIFICATION MODAL */}
       {showVerifyModal && scannedStudentData && (
         <div
           style={{
@@ -2361,7 +2335,7 @@ export default function AdminDashboard() {
                 marginBottom: '12px',
               }}
             >
-              ✓ QR Code Verified
+              QR Code Verified
             </span>
 
             <div
@@ -2382,7 +2356,7 @@ export default function AdminDashboard() {
               {scannedStudentData.avatar_url ? (
                 <img src={scannedStudentData.avatar_url} alt={scannedStudentData.full_name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
               ) : (
-                <span style={{ fontSize: '2.2rem' }}>👤</span>
+                <span style={{ fontSize: '0.85rem', fontWeight: 900, color: '#15803d' }}>USER</span>
               )}
             </div>
 
@@ -2453,7 +2427,7 @@ export default function AdminDashboard() {
                   boxShadow: '0 4px 12px rgba(21, 128, 61, 0.25)',
                 }}
               >
-                {confirmingAttendance ? 'Recording...' : '✓ OK • Confirm Attendance'}
+                {confirmingAttendance ? 'Recording...' : 'Confirm Attendance'}
               </button>
 
               <button
