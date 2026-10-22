@@ -293,7 +293,7 @@ export default function ForgotPassword() {
                 </div>
                 <input
                   type="email"
-                  placeholder="name@dorsu.edu.ph"
+                  placeholder="juandelacruz@gmail.com"
                   className={styles.loginInput}
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
