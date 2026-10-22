@@ -11,7 +11,7 @@ export default function AdminDashboard() {
   const eventImageInputRef = useRef(null);
   const formRef = useRef(null);
 
-  // Scan Processing Lock para maiwasan ang paulit-ulit na pag-scan
+  // Scan Processing Lock para maiwasan ang loop
   const isProcessingScanRef = useRef(false);
   const lastScannedCodeRef = useRef('');
 
@@ -63,7 +63,7 @@ export default function AdminDashboard() {
   const [manualStudentId, setManualStudentId] = useState('');
   const [scanLogMsg, setScanLogMsg] = useState({ type: '', text: '' });
 
-  // Live Continuous Camera Scanner Feedback
+  // Live Continuous Camera Scanner Feedback with Profile Details
   const [isCameraModalOpen, setIsCameraModalOpen] = useState(false);
   const [liveScanFeedback, setLiveScanFeedback] = useState(null);
   const [recentScans, setRecentScans] = useState([]);
@@ -95,11 +95,9 @@ export default function AdminDashboard() {
     'Section F', 'Section G', 'Section H', 'Section I', 'Section J', 'Section K',
   ];
 
-  // ========================================================
-  // TIME FORMATTER HELPER: CONVERT 24H (17:00) TO 12H (5:00 PM)
-  // ========================================================
+  // Helper: Convert 24h (17:00) to 12h (5:00 PM)
   const formatTime12Hour = (time24) => {
-    if (!time24) return '--:--';
+    if (!time24 || time24 === '--:--') return '--:--';
     if (time24.includes('AM') || time24.includes('PM')) return time24;
     const parts = time24.split(':');
     let hours = parseInt(parts[0], 10);
@@ -456,9 +454,6 @@ export default function AdminDashboard() {
     }
   };
 
-  // ========================================================
-  // ROBUST MOBILE DELETE HANDLER (FIX PARA SA CP)
-  // ========================================================
   const triggerDeletePrompt = (type, id, title) => {
     if (userRole !== 'admin') {
       alert('Only administrators have permission to delete records.');
@@ -473,10 +468,7 @@ export default function AdminDashboard() {
 
     try {
       if (deleteModal.type === 'event') {
-        // 1. Burahin muna ang attendance records upang maiwasan ang foreign key constraint error sa mobile
         await supabase.from('attendance').delete().eq('event_id', deleteModal.id);
-        
-        // 2. Burahin ang event record
         const { error } = await supabase.from('events').delete().eq('id', deleteModal.id);
         if (error) throw new Error(error.message);
 
@@ -504,7 +496,7 @@ export default function AdminDashboard() {
   };
 
   // ========================================================
-  // CONTINUOUS LIVE CAMERA SCANNER (NO BLOCKING POPUPS)
+  // CONTINUOUS LIVE SCANNER WITH PROFILE POP-UP CARD
   // ========================================================
   const startCameraScanner = async () => {
     if (!selectedEventId) {
@@ -572,6 +564,7 @@ export default function AdminDashboard() {
     setLiveScanFeedback(null);
   };
 
+  // Direct Scan Logic (Nagpapakita ng Profile, ID, Course, Section, Year)
   const handleQrCodeDetected = async (decodedText) => {
     const cleanSchoolId = (decodedText || '').trim();
     if (!cleanSchoolId) return;
@@ -580,7 +573,7 @@ export default function AdminDashboard() {
       setLiveScanFeedback({
         type: 'error',
         title: 'SCANNER CLOSED',
-        subtitle: 'Attendance scanning is currently turned OFF by Admin.',
+        message: 'Attendance scanning is currently turned OFF by Admin.',
       });
       return;
     }
@@ -602,7 +595,7 @@ export default function AdminDashboard() {
         setLiveScanFeedback({
           type: 'error',
           title: 'ACCESS DENIED',
-          subtitle: `School ID "${cleanSchoolId}" not found in whitelist database.`,
+          message: `School ID "${cleanSchoolId}" not found in whitelist database.`,
         });
 
         setTimeout(() => {
@@ -627,7 +620,9 @@ export default function AdminDashboard() {
           setLiveScanFeedback({
             type: 'warning',
             title: 'ALREADY TIMED IN',
-            subtitle: `${student.full_name} (${student.school_id}) timed in at ${existingAttendance.time_in}`,
+            student,
+            time: existingAttendance.time_in,
+            mode: 'TIME IN',
           });
         } else if (existingAttendance) {
           await supabase
@@ -642,7 +637,9 @@ export default function AdminDashboard() {
           setLiveScanFeedback({
             type: 'success',
             title: 'TIME IN RECORDED!',
-            subtitle: `${student.full_name} (${student.school_id}) • ${currentTime}`,
+            student,
+            time: currentTime,
+            mode: 'TIME IN',
           });
 
           setRecentScans((prev) => [
@@ -650,6 +647,7 @@ export default function AdminDashboard() {
             ...prev.slice(0, 4),
           ]);
         } else {
+          // Strictly insert time_in lamang; walang time_out!
           await supabase.from('attendance').insert([
             {
               student_id: student.school_id,
@@ -657,6 +655,7 @@ export default function AdminDashboard() {
               event_id: selectedEventId,
               status: 'PRESENT',
               time_in: currentTime,
+              time_out: null,
               scanned_by: currentUser.email || userRole,
             },
           ]);
@@ -665,7 +664,9 @@ export default function AdminDashboard() {
           setLiveScanFeedback({
             type: 'success',
             title: 'TIME IN RECORDED!',
-            subtitle: `${student.full_name} (${student.school_id}) • ${currentTime}`,
+            student,
+            time: currentTime,
+            mode: 'TIME IN',
           });
 
           setRecentScans((prev) => [
@@ -681,7 +682,9 @@ export default function AdminDashboard() {
           setLiveScanFeedback({
             type: 'warning',
             title: 'ALREADY TIMED OUT',
-            subtitle: `${student.full_name} (${student.school_id}) timed out at ${existingAttendance.time_out}`,
+            student,
+            time: existingAttendance.time_out,
+            mode: 'TIME OUT',
           });
         } else if (existingAttendance) {
           await supabase
@@ -695,7 +698,9 @@ export default function AdminDashboard() {
           setLiveScanFeedback({
             type: 'success',
             title: 'TIME OUT RECORDED!',
-            subtitle: `${student.full_name} (${student.school_id}) • ${currentTime}`,
+            student,
+            time: currentTime,
+            mode: 'TIME OUT',
           });
 
           setRecentScans((prev) => [
@@ -709,7 +714,7 @@ export default function AdminDashboard() {
               student_name: student.full_name || 'CEC Student',
               event_id: selectedEventId,
               status: 'PRESENT',
-              time_in: '--:--',
+              time_in: null,
               time_out: currentTime,
               scanned_by: currentUser.email || userRole,
             },
@@ -719,7 +724,9 @@ export default function AdminDashboard() {
           setLiveScanFeedback({
             type: 'success',
             title: 'TIME OUT RECORDED!',
-            subtitle: `${student.full_name} (${student.school_id}) • ${currentTime} (No Time In)`,
+            student,
+            time: currentTime,
+            mode: 'TIME OUT',
           });
 
           setRecentScans((prev) => [
@@ -800,8 +807,8 @@ export default function AdminDashboard() {
           scheduledTimeIn: ev.time_in,
           scheduledTimeOut: ev.time_out,
           status: isPresent ? 'PRESENT' : 'ABSENT',
-          actualTimeIn: matchingLog ? formatTime12Hour(matchingLog.time_in) : '--:--',
-          actualTimeOut: matchingLog ? formatTime12Hour(matchingLog.time_out || ev.time_out) : '--:--',
+          actualTimeIn: matchingLog && matchingLog.time_in ? formatTime12Hour(matchingLog.time_in) : '--:--',
+          actualTimeOut: matchingLog && matchingLog.time_out ? formatTime12Hour(matchingLog.time_out) : '--:--',
           scannedBy: matchingLog ? matchingLog.scanned_by : 'N/A',
         };
       });
@@ -982,6 +989,7 @@ export default function AdminDashboard() {
           event_id: selectedEventId,
           status: 'PRESENT',
           time_in: currentTime,
+          time_out: null,
           scanned_by: currentUser.email || userRole,
         },
       ]);
@@ -1017,7 +1025,7 @@ export default function AdminDashboard() {
             student_name: studentMatch.full_name || 'CEC Student',
             event_id: selectedEventId,
             status: 'PRESENT',
-            time_in: '--:--',
+            time_in: null,
             time_out: currentTime,
             scanned_by: currentUser.email || userRole,
           },
@@ -1879,7 +1887,7 @@ export default function AdminDashboard() {
                 </form>
               </div>
 
-              {/* PUBLISHED EVENTS (MAY 12-HOUR AM/PM FORMAT AT WORKING MOBILE DELETE) */}
+              {/* PUBLISHED EVENTS (WITH 12-HOUR 5:00 PM FORMAT) */}
               <div className={styles.adminFormCard} style={{ width: '100%', boxSizing: 'border-box', padding: '16px 14px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '8px' }}>
                   <h3 className={styles.analyticsTitle} style={{ fontSize: '0.95rem', margin: 0 }}>
@@ -1954,7 +1962,6 @@ export default function AdminDashboard() {
                               <div style={{ fontSize: '0.72rem', color: '#15803d', fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                                 Location: {ev.location || 'FaCET Facade'}
                               </div>
-                              {/* 12-HOUR FORMAT: E.G. 8:00 AM - 5:00 PM */}
                               <div style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: 700, marginTop: '2px' }}>
                                 {ev.date} • {formatTime12Hour(ev.time_in)} - {formatTime12Hour(ev.time_out)}
                               </div>
@@ -2449,7 +2456,7 @@ export default function AdminDashboard() {
         </main>
       </div>
 
-      {/* CONTINUOUS CAMERA SCANNER MODAL */}
+      {/* CONTINUOUS CAMERA SCANNER MODAL WITH FULL STUDENT PROFILE CARD */}
       {isCameraModalOpen && (
         <div
           style={{
@@ -2509,11 +2516,12 @@ export default function AdminDashboard() {
               </button>
             </div>
 
+            {/* VIEWFINDER CONTAINER */}
             <div
               style={{
                 position: 'relative',
                 width: '100%',
-                height: '330px',
+                height: '260px',
                 margin: '0 auto',
                 backgroundColor: '#0f172a',
                 borderRadius: '18px',
@@ -2526,12 +2534,13 @@ export default function AdminDashboard() {
               <div id="interactive-qr-reader" style={{ width: '100%', height: '100%' }} />
             </div>
 
+            {/* LIVE DETAILED STUDENT PROFILE SCAN CARD */}
             {liveScanFeedback && (
               <div
                 style={{
                   marginTop: '12px',
-                  padding: '10px 14px',
-                  borderRadius: '12px',
+                  padding: '12px 14px',
+                  borderRadius: '16px',
                   backgroundColor:
                     liveScanFeedback.type === 'success'
                       ? '#f0fdf4'
@@ -2548,32 +2557,82 @@ export default function AdminDashboard() {
                   textAlign: 'left',
                 }}
               >
-                <div
-                  style={{
-                    fontSize: '0.82rem',
-                    fontWeight: 900,
-                    color:
-                      liveScanFeedback.type === 'success'
-                        ? '#15803d'
-                        : liveScanFeedback.type === 'warning'
-                        ? '#a16207'
-                        : '#b91c1c',
-                  }}
-                >
-                  {liveScanFeedback.title}
-                </div>
-                <div style={{ fontSize: '0.75rem', color: '#334155', fontWeight: 700, marginTop: '2px' }}>
-                  {liveScanFeedback.subtitle}
-                </div>
+                {liveScanFeedback.student ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    {/* PHOTO */}
+                    <div
+                      style={{
+                        width: '54px',
+                        height: '54px',
+                        borderRadius: '14px',
+                        backgroundColor: '#ffffff',
+                        border: '2px solid #15803d',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        overflow: 'hidden',
+                        flexShrink: 0,
+                      }}
+                    >
+                      {liveScanFeedback.student.avatar_url ? (
+                        <img
+                          src={liveScanFeedback.student.avatar_url}
+                          alt="Student Avatar"
+                          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                        />
+                      ) : (
+                        <span style={{ fontSize: '1.5rem' }}>👤</span>
+                      )}
+                    </div>
+
+                    {/* DETAILS: NAME, SCHOOL ID, COURSE, YEAR, SECTION */}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span
+                          style={{
+                            fontSize: '0.68rem',
+                            fontWeight: 900,
+                            color: liveScanFeedback.type === 'success' ? '#15803d' : '#a16207',
+                            textTransform: 'uppercase',
+                          }}
+                        >
+                          {liveScanFeedback.title}
+                        </span>
+                        <span style={{ fontSize: '0.72rem', fontWeight: 800, color: '#0f172a' }}>
+                          {formatTime12Hour(liveScanFeedback.time)}
+                        </span>
+                      </div>
+                      <h4 style={{ margin: '2px 0', fontSize: '0.95rem', fontWeight: 900, color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {liveScanFeedback.student.full_name}
+                      </h4>
+                      <div style={{ fontSize: '0.78rem', fontWeight: 800, color: '#15803d' }}>
+                        ID: {liveScanFeedback.student.school_id}
+                      </div>
+                      <div style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: 700, marginTop: '2px' }}>
+                        {liveScanFeedback.student.course} • {liveScanFeedback.student.year_level || '1st Year'} • {liveScanFeedback.student.section || 'Section A'}
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    <div style={{ fontSize: '0.85rem', fontWeight: 900, color: '#b91c1c' }}>
+                      {liveScanFeedback.title}
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: '#334155', fontWeight: 700, marginTop: '2px' }}>
+                      {liveScanFeedback.message}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
+            {/* RECENT SCANS LOGS */}
             {recentScans.length > 0 && (
-              <div style={{ marginTop: '12px', textAlign: 'left' }}>
+              <div style={{ marginTop: '10px', textAlign: 'left' }}>
                 <span style={{ fontSize: '0.68rem', fontWeight: 900, color: '#94a3b8', textTransform: 'uppercase' }}>
                   Recent Scans:
                 </span>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '4px', maxHeight: '75px', overflowY: 'auto' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '4px', maxHeight: '65px', overflowY: 'auto' }}>
                   {recentScans.map((scan) => (
                     <div
                       key={scan.id}
@@ -2588,7 +2647,7 @@ export default function AdminDashboard() {
                     >
                       <span style={{ fontWeight: 800, color: '#0f172a' }}>{scan.name}</span>
                       <span style={{ fontWeight: 700, color: scan.mode === 'TIME IN' ? '#15803d' : '#2563eb' }}>
-                        {scan.mode} ({scan.time})
+                        {scan.mode} ({formatTime12Hour(scan.time)})
                       </span>
                     </div>
                   ))}
@@ -2620,7 +2679,7 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      {/* MOBILE IN-APP DELETE CONFIRMATION MODAL (100% GUMAGANA SA CP) */}
+      {/* MOBILE IN-APP DELETE CONFIRMATION MODAL */}
       {deleteModal.isOpen && (
         <div
           style={{
