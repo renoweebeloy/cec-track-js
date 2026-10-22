@@ -11,10 +11,6 @@ export default function StudentDashboard() {
   const idCardRef = useRef(null);
   const scannerRef = useRef(null);
 
-  // Scan Processing Lock para maiwasan ang paulit-ulit na alert loop
-  const isProcessingScanRef = useRef(false);
-  const lastScannedCodeRef = useRef('');
-
   const [activeTab, setActiveTab] = useState('my-id'); // 'my-id' | 'attendance' | 'events' | 'profile' | 'scan-attendance'
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -47,32 +43,25 @@ export default function StudentDashboard() {
   const [confirmingAttendance, setConfirmingAttendance] = useState(false);
   const [notification, setNotification] = useState({ type: '', message: '' });
 
+  // Helper: Format Time to 12-Hour (AM/PM)
+  const formatTime12Hour = (time24) => {
+    if (!time24 || time24 === '--:--') return '--:--';
+    if (time24.includes('AM') || time24.includes('PM')) return time24;
+    const parts = time24.split(':');
+    let hours = parseInt(parts[0], 10);
+    const minutes = parts[1] ? parts[1].substring(0, 2) : '00';
+    if (isNaN(hours)) return time24;
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    hours = hours % 12;
+    hours = hours ? hours : 12;
+    return `${hours}:${minutes.padStart(2, '0')} ${ampm}`;
+  };
+
   const showNotify = (type, message) => {
     setNotification({ type, message });
     setTimeout(() => {
       setNotification({ type: '', message: '' });
     }, 4500);
-  };
-
-  const playBeepSound = () => {
-    try {
-      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      const oscillator = audioCtx.createOscillator();
-      const gainNode = audioCtx.createGain();
-
-      oscillator.type = 'sine';
-      oscillator.frequency.setValueAtTime(880, audioCtx.currentTime);
-      gainNode.gain.setValueAtTime(0.2, audioCtx.currentTime);
-      gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.16);
-
-      oscillator.connect(gainNode);
-      gainNode.connect(audioCtx.destination);
-
-      oscillator.start();
-      oscillator.stop(audioCtx.currentTime + 0.16);
-    } catch (e) {
-      console.warn('AudioContext beep error:', e);
-    }
   };
 
   // 5-Minute Inactivity Session Guard
@@ -143,9 +132,7 @@ export default function StudentDashboard() {
     fetchStudentData();
   }, []);
 
-  // ========================================================
-  // AUTOMATIC ATTENDANCE & EVENT COMBINED FETCHER
-  // ========================================================
+  // Kumuha ng data mula sa Supabase (Naka-sync ang Profile Photo sa Laptop at Mobile)
   const fetchStudentData = async () => {
     setLoading(true);
     try {
@@ -163,14 +150,14 @@ export default function StudentDashboard() {
         const { data: userProfile } = await supabase
           .from('profiles')
           .select('*')
-          .eq('email', userEmail)
+          .eq('email', userEmail.trim().toLowerCase())
           .single();
 
         if (userProfile) {
           currentStudentId = userProfile.school_id || currentStudentId;
-          const cachedPhoto = typeof window !== 'undefined' ? localStorage.getItem(`cec_photo_${userProfile.school_id}`) : '';
           const hasScanClearance = userProfile.can_scan === true || userProfile.role === 'staff' || userProfile.role === 'admin';
 
+          // Kunin ang avatar_url mula sa Supabase Database upang pareho sa Laptop at Mobile
           setProfile((prev) => ({
             ...prev,
             full_name: userProfile.full_name || prev.full_name,
@@ -179,7 +166,7 @@ export default function StudentDashboard() {
             course: userProfile.course || prev.course,
             year_level: userProfile.year_level || prev.year_level,
             section: userProfile.section || prev.section,
-            avatar_url: userProfile.avatar_url || cachedPhoto || '',
+            avatar_url: userProfile.avatar_url || '',
             can_scan: hasScanClearance,
           }));
 
@@ -189,7 +176,7 @@ export default function StudentDashboard() {
         }
       }
 
-      // 1. Kunin ang lahat ng opisyal na events
+      // Kunin ang mga events
       const { data: eventsData } = await supabase
         .from('events')
         .select('*')
@@ -202,7 +189,7 @@ export default function StudentDashboard() {
         }
       }
 
-      // 2. Kunin ang attendance logs para lamang sa naka-login na estudyante
+      // Kunin ang attendance logs para sa naturang estudyante
       const { data: studentLogs } = await supabase
         .from('attendance')
         .select('*')
@@ -215,7 +202,7 @@ export default function StudentDashboard() {
         });
       }
 
-      // 3. Pagsamahin ang events at attendance para laging may title, date, at time
+      // Pagsamahin ang events at attendance: Kung Time In pa lang, nananatiling '--:--' ang Time Out!
       if (eventsData && eventsData.length > 0) {
         const mergedRecords = eventsData.map((ev) => {
           const matchingLog = logsMap[ev.id];
@@ -227,28 +214,15 @@ export default function StudentDashboard() {
             title: ev.title || 'College Event',
             location: ev.location || 'FaCET Facade',
             date: ev.date || 'Scheduled',
-            time_in: matchingLog ? matchingLog.time_in : '--:--',
-            time_out: matchingLog ? (matchingLog.time_out || ev.time_out) : '--:--',
+            time_in: matchingLog && matchingLog.time_in ? formatTime12Hour(matchingLog.time_in) : '--:--',
+            // Blangko ang time_out kung wala pang na-scan na Time Out
+            time_out: matchingLog && matchingLog.time_out ? formatTime12Hour(matchingLog.time_out) : '--:--',
             event_status: ev.status === 'active' ? 'ACTIVE' : 'CLOSED',
             status: isPresent ? 'PRESENT' : 'ABSENT',
           };
         });
 
         setAttendanceLogs(mergedRecords);
-      } else if (studentLogs) {
-        // Fallback kung walang events table records
-        setAttendanceLogs(
-          studentLogs.map((l) => ({
-            id: l.id,
-            title: l.event_title || 'Campus Event',
-            location: l.location || 'FaCET Facade',
-            date: l.date || 'Recorded',
-            time_in: l.time_in || '--:--',
-            time_out: l.time_out || '--:--',
-            event_status: 'RECORDED',
-            status: l.status || 'PRESENT',
-          }))
-        );
       }
     } catch (err) {
       console.error('Error loading student dashboard data:', err);
@@ -257,6 +231,7 @@ export default function StudentDashboard() {
     }
   };
 
+  // I-save ang photo direkta sa Supabase Database (Hindi sa Local Storage lamang)
   const handlePhotoUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -270,23 +245,55 @@ export default function StudentDashboard() {
 
     const reader = new FileReader();
     reader.onload = async (uploadEvent) => {
-      const base64Photo = uploadEvent.target.result;
+      const img = new Image();
+      img.onload = async () => {
+        // I-compress ang 2x2 photo para magaan mai-save sa Supabase
+        const canvas = document.createElement('canvas');
+        const MAX_DIM = 400;
+        let width = img.width;
+        let height = img.height;
 
-      setProfile((prev) => ({ ...prev, avatar_url: base64Photo }));
-      if (typeof window !== 'undefined') {
-        localStorage.setItem(`cec_photo_${profile.school_id}`, base64Photo);
-      }
+        if (width > height) {
+          if (width > MAX_DIM) {
+            height *= MAX_DIM / width;
+            width = MAX_DIM;
+          }
+        } else {
+          if (height > MAX_DIM) {
+            width *= MAX_DIM / height;
+            height = MAX_DIM;
+          }
+        }
 
-      try {
-        await supabase
-          .from('profiles')
-          .update({ avatar_url: base64Photo })
-          .eq('school_id', profile.school_id);
-      } catch (err) {
-        console.warn('Database avatar save note:', err);
-      }
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+        const compressedBase64 = canvas.toDataURL('image/jpeg', 0.8);
 
-      setUploadingPhoto(false);
+        // Agarang i-update ang local state
+        setProfile((prev) => ({ ...prev, avatar_url: compressedBase64 }));
+
+        try {
+          // Direktang i-sync sa Supabase Cloud Database!
+          const { error: dbError } = await supabase
+            .from('profiles')
+            .update({ avatar_url: compressedBase64 })
+            .eq('school_id', profile.school_id);
+
+          if (dbError) {
+            console.error('Error updating profile photo in Supabase:', dbError);
+            alert('Could not sync photo to server: ' + dbError.message);
+          } else {
+            showNotify('success', 'Profile photo saved and synced across all devices!');
+          }
+        } catch (err) {
+          console.warn('Database avatar save exception:', err);
+        } finally {
+          setUploadingPhoto(false);
+        }
+      };
+      img.src = uploadEvent.target.result;
     };
 
     reader.readAsDataURL(file);
@@ -330,174 +337,6 @@ export default function StudentDashboard() {
     }
   };
 
-  // ========================================================
-  // SCANNER SETUP (PINALAKI AT WALANG LOOP BUG)
-  // ========================================================
-  const startCameraScanner = async () => {
-    if (!selectedEventId) {
-      showNotify('error', 'Please choose an active event schedule first.');
-      return;
-    }
-
-    if (!window.Html5Qrcode) {
-      showNotify('error', 'Scanner library is loading. Please try again in a few seconds.');
-      return;
-    }
-
-    setIsCameraModalOpen(true);
-    isProcessingScanRef.current = false;
-    lastScannedCodeRef.current = '';
-
-    setTimeout(async () => {
-      try {
-        const qrScanner = new window.Html5Qrcode('student-qr-reader');
-        scannerRef.current = qrScanner;
-
-        await qrScanner.start(
-          { facingMode: 'environment' },
-          { fps: 15, qrbox: { width: 280, height: 280 }, aspectRatio: 1.0 },
-          (decodedText) => {
-            handleQrCodeDetected(decodedText);
-          },
-          () => {}
-        );
-      } catch (err) {
-        console.error('Error starting camera scanner:', err);
-        showNotify('error', 'Camera access blocked. Please check your camera permissions.');
-        setIsCameraModalOpen(false);
-      }
-    }, 400);
-  };
-
-  const stopCameraScanner = async () => {
-    if (scannerRef.current) {
-      try {
-        await scannerRef.current.stop();
-        await scannerRef.current.clear();
-      } catch (err) {}
-      scannerRef.current = null;
-    }
-    isProcessingScanRef.current = false;
-    lastScannedCodeRef.current = '';
-  };
-
-  const closeCameraModal = async () => {
-    await stopCameraScanner();
-    setIsCameraModalOpen(false);
-    setShowVerifyModal(false);
-    setScannedStudentData(null);
-  };
-
-  const handleQrCodeDetected = async (decodedText) => {
-    const cleanSchoolId = (decodedText || '').trim();
-    if (!cleanSchoolId) return;
-
-    if (isProcessingScanRef.current) return;
-    if (lastScannedCodeRef.current === cleanSchoolId) return;
-
-    isProcessingScanRef.current = true;
-    lastScannedCodeRef.current = cleanSchoolId;
-
-    try {
-      const { data: student, error } = await supabase
-        .from('profiles')
-        .select('school_id, full_name, course, year_level, section, avatar_url')
-        .eq('school_id', cleanSchoolId)
-        .maybeSingle();
-
-      if (error || !student) {
-        alert(`ACCESS DENIED:\nSchool ID "${cleanSchoolId}" is not registered in the system.`);
-        setTimeout(() => {
-          isProcessingScanRef.current = false;
-          lastScannedCodeRef.current = '';
-        }, 1200);
-        return;
-      }
-
-      const { data: existingAttendance } = await supabase
-        .from('attendance')
-        .select('id, time_in')
-        .eq('student_id', student.school_id)
-        .eq('event_id', selectedEventId)
-        .maybeSingle();
-
-      if (existingAttendance) {
-        playBeepSound();
-        alert(
-          `ALREADY SCANNED!\n\n` +
-          `Name: ${student.full_name}\n` +
-          `School ID: ${student.school_id}\n` +
-          `Recorded: ${existingAttendance.time_in}\n\n` +
-          `Attendance has already been recorded for this event.`
-        );
-
-        setTimeout(() => {
-          isProcessingScanRef.current = false;
-          lastScannedCodeRef.current = '';
-        }, 1800);
-        return;
-      }
-
-      playBeepSound();
-      setScannedStudentData(student);
-      setShowVerifyModal(true);
-    } catch (err) {
-      console.error('Scan lookup error:', err);
-      setTimeout(() => {
-        isProcessingScanRef.current = false;
-        lastScannedCodeRef.current = '';
-      }, 1000);
-    }
-  };
-
-  const handleConfirmAttendance = async () => {
-    if (!scannedStudentData || !selectedEventId) return;
-
-    setConfirmingAttendance(true);
-
-    try {
-      const { error } = await supabase.from('attendance').insert([
-        {
-          student_id: scannedStudentData.school_id,
-          student_name: scannedStudentData.full_name || 'CEC Student',
-          event_id: selectedEventId,
-          status: 'PRESENT',
-          time_in: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          scanned_by: profile.email || profile.school_id,
-        },
-      ]);
-
-      if (error) {
-        showNotify('error', `Attendance error: ${error.message}`);
-      } else {
-        showNotify('success', `Attendance confirmed for ${scannedStudentData.full_name}.`);
-        fetchStudentData(); // Agarang i-refresh ang attendance records
-      }
-
-      setShowVerifyModal(false);
-      setScannedStudentData(null);
-
-      setTimeout(() => {
-        isProcessingScanRef.current = false;
-        lastScannedCodeRef.current = '';
-      }, 800);
-    } catch (err) {
-      console.error('Error logging scan:', err);
-      isProcessingScanRef.current = false;
-    } finally {
-      setConfirmingAttendance(false);
-    }
-  };
-
-  const handleCancelScannedModal = () => {
-    setShowVerifyModal(false);
-    setScannedStudentData(null);
-    setTimeout(() => {
-      isProcessingScanRef.current = false;
-      lastScannedCodeRef.current = '';
-    }, 800);
-  };
-
   const handleSignOut = async () => {
     if (supabase) await supabase.auth.signOut();
     if (typeof window !== 'undefined') {
@@ -513,7 +352,6 @@ export default function StudentDashboard() {
   const totalAbsencesCount = attendanceLogs.filter((l) => l.status === 'ABSENT').length;
   const complianceRate = totalEventsCount > 0 ? Math.round((totalPresentCount / totalEventsCount) * 100) : 0;
 
-  // Ligtas na Filter Logic na hindi magiging sanhi ng blank table
   const cleanQuery = searchQuery.trim().toLowerCase();
   const filteredLogs = attendanceLogs
     .filter((log) => {
@@ -785,23 +623,6 @@ export default function StudentDashboard() {
                 <span>Events</span>
               </button>
 
-              {profile.can_scan && (
-                <button
-                  onClick={() => { setActiveTab('scan-attendance'); setIsSidebarOpen(false); }}
-                  className={activeTab === 'scan-attendance' ? `${styles.portalNavLink} ${styles.portalNavLinkActive}` : styles.portalNavLink}
-                  style={{
-                    fontSize: '0.92rem',
-                    padding: '12px 14px',
-                    backgroundColor: activeTab === 'scan-attendance' ? '#dcfce7' : '#f0fdf4',
-                    border: '1px solid #bbf7d0',
-                    color: '#15803d',
-                    fontWeight: 900,
-                  }}
-                >
-                  <span>Scan Attendance</span>
-                </button>
-              )}
-
               <button
                 onClick={() => { setActiveTab('profile'); setIsSidebarOpen(false); }}
                 className={activeTab === 'profile' ? `${styles.portalNavLink} ${styles.portalNavLinkActive}` : styles.portalNavLink}
@@ -1068,10 +889,10 @@ export default function StudentDashboard() {
                       <span style={{ fontSize: '1.4rem' }}>📱</span>
                       <div>
                         <h4 style={{ margin: '0 0 4px 0', fontSize: '0.9rem', fontWeight: 900, color: '#166534' }}>
-                          Universal Device Downloads
+                          Universal Device Cloud Sync
                         </h4>
                         <p style={{ margin: 0, fontSize: '0.8rem', color: '#15803d', lineHeight: 1.45 }}>
-                          Save this digital badge directly to your smartphone photos or download it on your laptop for quick verification during events.
+                          Your uploaded ID picture is saved directly to your account. Open your account on your laptop or phone anytime and your picture is immediately updated.
                         </p>
                       </div>
                     </div>
@@ -1096,7 +917,7 @@ export default function StudentDashboard() {
             </div>
           )}
 
-          {/* TAB 2: ATTENDANCE RECORDS (AYOS NA AT DIREKTANG LUMALABAS ANG ROWS) */}
+          {/* TAB 2: ATTENDANCE RECORDS (BLANK TIME OUT WHEN TIME IN ONLY) */}
           {activeTab === 'attendance' && (
             <div style={{ maxWidth: '1000px', margin: '0 auto', width: '100%' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px', flexWrap: 'wrap', gap: '10px' }}>
@@ -1202,7 +1023,7 @@ export default function StudentDashboard() {
                             <td style={{ fontWeight: 800, color: isPresent ? '#15803d' : '#94a3b8' }}>
                               {log.time_in}
                             </td>
-                            <td style={{ fontWeight: 800, color: isPresent ? '#15803d' : '#94a3b8' }}>
+                            <td style={{ fontWeight: 800, color: log.time_out !== '--:--' ? '#15803d' : '#94a3b8' }}>
                               {log.time_out}
                             </td>
                             <td>
@@ -1310,8 +1131,8 @@ export default function StudentDashboard() {
                             📍 {ev.location || 'FaCET Facade'}
                           </div>
                           <div style={{ fontSize: '0.78rem', color: '#64748b', display: 'flex', gap: '10px', fontWeight: 700, marginBottom: '10px' }}>
-                            <span>In: {ev.time_in || '08:00'}</span>
-                            <span>Out: {ev.time_out || '17:00'}</span>
+                            <span>In: {formatTime12Hour(ev.time_in)}</span>
+                            <span>Out: {formatTime12Hour(ev.time_out)}</span>
                           </div>
                           <p style={{ margin: 0, fontSize: '0.8rem', color: '#64748b', lineHeight: 1.45 }}>
                             {ev.description || 'No description provided.'}
@@ -1325,48 +1146,7 @@ export default function StudentDashboard() {
             </div>
           )}
 
-          {/* TAB 4: SCAN ATTENDANCE */}
-          {activeTab === 'scan-attendance' && profile.can_scan && (
-            <div style={{ maxWidth: '540px', margin: '0 auto', width: '100%' }}>
-              <div className={styles.adminFormCard} style={{ textAlign: 'center', padding: '28px 16px' }}>
-                <h3 className={styles.analyticsTitle} style={{ justifyContent: 'center', fontSize: '1.1rem', marginBottom: '6px' }}>
-                  Student Officer Attendance Scanner
-                </h3>
-                <p style={{ fontSize: '0.82rem', color: '#64748b', marginBottom: '18px', lineHeight: 1.45 }}>
-                  You are authorized by administration to scan fellow students for official event attendance.
-                </p>
-
-                <div style={{ marginBottom: '14px', textAlign: 'left' }}>
-                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: '#334155', marginBottom: '6px' }}>
-                    Select Event Schedule:
-                  </label>
-                  <select
-                    value={selectedEventId}
-                    onChange={(e) => setSelectedEventId(e.target.value)}
-                    className={styles.loginInput}
-                    style={{ padding: '8px 12px', fontSize: '0.88rem' }}
-                  >
-                    {events.map((ev) => (
-                      <option key={ev.id} value={ev.id}>
-                        {ev.title} ({ev.date})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={startCameraScanner}
-                  className={styles.submitBtn}
-                  style={{ minHeight: '46px', fontSize: '0.92rem', fontWeight: 900 }}
-                >
-                  Open Camera Scanner ➔
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* TAB 5: PROFILE */}
+          {/* TAB 4: PROFILE */}
           {activeTab === 'profile' && (
             <div style={{ maxWidth: '580px', margin: '0 auto', width: '100%' }}>
               <div style={{ textAlign: 'center', marginBottom: '20px' }}>
@@ -1436,239 +1216,6 @@ export default function StudentDashboard() {
           )}
         </main>
       </div>
-
-      {/* CAMERA SCANNER MODAL */}
-      {isCameraModalOpen && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            backgroundColor: 'rgba(15, 23, 42, 0.8)',
-            backdropFilter: 'blur(5px)',
-            zIndex: 110,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '12px',
-          }}
-        >
-          <div
-            style={{
-              backgroundColor: '#ffffff',
-              width: '100%',
-              maxWidth: '460px',
-              borderRadius: '24px',
-              padding: '20px 16px',
-              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
-              textAlign: 'center',
-              boxSizing: 'border-box',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginBottom: '14px' }}>
-              <h3 style={{ fontSize: '1.15rem', fontWeight: 900, color: '#15803d', margin: 0 }}>
-                Scan Student QR Code
-              </h3>
-            </div>
-
-            <div
-              style={{
-                position: 'relative',
-                width: '100%',
-                maxWidth: '380px',
-                height: '350px',
-                margin: '0 auto',
-                backgroundColor: '#0f172a',
-                borderRadius: '18px',
-                overflow: 'hidden',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <div id="student-qr-reader" style={{ width: '100%', height: '100%' }} />
-            </div>
-
-            <div style={{ marginTop: '14px' }}>
-              <button
-                type="button"
-                onClick={closeCameraModal}
-                style={{
-                  width: '100%',
-                  padding: '12px',
-                  backgroundColor: '#ef4444',
-                  color: '#ffffff',
-                  border: 'none',
-                  borderRadius: '14px',
-                  fontSize: '0.92rem',
-                  fontWeight: 900,
-                  cursor: 'pointer',
-                }}
-              >
-                Close Camera
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* SCANNED VERIFICATION MODAL */}
-      {showVerifyModal && scannedStudentData && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            backgroundColor: 'rgba(15, 23, 42, 0.85)',
-            backdropFilter: 'blur(6px)',
-            zIndex: 120,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '12px',
-          }}
-        >
-          <div
-            style={{
-              backgroundColor: '#ffffff',
-              width: '100%',
-              maxWidth: '380px',
-              borderRadius: '24px',
-              padding: '20px 16px',
-              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.3)',
-              textAlign: 'center',
-              boxSizing: 'border-box',
-            }}
-          >
-            <span
-              style={{
-                display: 'inline-block',
-                backgroundColor: '#dcfce7',
-                color: '#15803d',
-                fontSize: '0.68rem',
-                fontWeight: 900,
-                padding: '4px 12px',
-                borderRadius: '9999px',
-                border: '1px solid #bbf7d0',
-                textTransform: 'uppercase',
-                letterSpacing: '0.05em',
-                marginBottom: '12px',
-              }}
-            >
-              QR Code Verified
-            </span>
-
-            <div
-              style={{
-                width: '84px',
-                height: '84px',
-                borderRadius: '20px',
-                backgroundColor: '#f1f5f9',
-                border: '3px solid #15803d',
-                margin: '0 auto 10px auto',
-                overflow: 'hidden',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                boxShadow: '0 4px 10px rgba(0,0,0,0.08)',
-              }}
-            >
-              {scannedStudentData.avatar_url ? (
-                <img src={scannedStudentData.avatar_url} alt={scannedStudentData.full_name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-              ) : (
-                <span style={{ fontSize: '0.85rem', fontWeight: 900, color: '#15803d' }}>USER</span>
-              )}
-            </div>
-
-            <h2 style={{ fontSize: '1.25rem', fontWeight: 900, color: '#0f172a', margin: '0 0 4px 0' }}>
-              {scannedStudentData.full_name}
-            </h2>
-
-            <div
-              style={{
-                fontSize: '1rem',
-                fontWeight: 900,
-                color: '#15803d',
-                backgroundColor: '#f0fdf4',
-                border: '1px solid #bbf7d0',
-                borderRadius: '10px',
-                padding: '5px 12px',
-                display: 'inline-block',
-                margin: '6px auto 14px auto',
-              }}
-            >
-              ID: {scannedStudentData.school_id}
-            </div>
-
-            <div
-              style={{
-                backgroundColor: '#f8fafc',
-                border: '1px solid #e2e8f0',
-                borderRadius: '16px',
-                padding: '12px 14px',
-                marginBottom: '16px',
-                textAlign: 'left',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '8px',
-                fontSize: '0.82rem',
-              }}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ color: '#64748b', fontWeight: 700 }}>Course:</span>
-                <span className={styles.idBadge} style={{ fontSize: '0.72rem' }}>
-                  {scannedStudentData.course}
-                </span>
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ color: '#64748b', fontWeight: 700 }}>Year &amp; Section:</span>
-                <span style={{ fontWeight: 800, color: '#0f172a' }}>
-                  {scannedStudentData.year_level || '1st Year'} • {scannedStudentData.section || 'Section A'}
-                </span>
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <button
-                type="button"
-                onClick={handleConfirmAttendance}
-                disabled={confirmingAttendance}
-                style={{
-                  width: '100%',
-                  padding: '12px',
-                  backgroundColor: '#15803d',
-                  color: '#ffffff',
-                  border: 'none',
-                  borderRadius: '14px',
-                  fontSize: '0.9rem',
-                  fontWeight: 900,
-                  cursor: 'pointer',
-                  boxShadow: '0 4px 12px rgba(21, 128, 61, 0.25)',
-                }}
-              >
-                {confirmingAttendance ? 'Recording...' : 'Confirm Attendance'}
-              </button>
-
-              <button
-                type="button"
-                onClick={handleCancelScannedModal}
-                style={{
-                  width: '100%',
-                  padding: '10px',
-                  backgroundColor: '#f1f5f9',
-                  color: '#475569',
-                  border: 'none',
-                  borderRadius: '12px',
-                  fontSize: '0.82rem',
-                  fontWeight: 800,
-                  cursor: 'pointer',
-                }}
-              >
-                Cancel &amp; Continue Scanning
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
