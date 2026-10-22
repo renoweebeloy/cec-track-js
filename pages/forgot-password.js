@@ -8,14 +8,17 @@ import styles from '../styles/Home.module.css';
 export default function ForgotPassword() {
   const router = useRouter();
 
-  // ⚠️ ILISI KINI SA IMONG TINAWAG NGA GOOGLE APPS SCRIPT WEB APP URL
+  // Official Google Apps Script Web App URL
   const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzuVn8MyNNu472-_t3HWfcZNVZVNDOEs9VNrKihAc2fshTrGrmxzRnysvZf4t7-TFU/exec';
 
-  // Step 1: Input School ID & Email | Step 2: Input Code & New Password
+  // Step 1: Input ID & Email | Step 2: Verify Code | Step 3: New Password
   const [step, setStep] = useState(1);
   const [schoolId, setSchoolId] = useState('');
   const [email, setEmail] = useState('');
   const [otpCode, setOtpCode] = useState('');
+  const [resetRecordId, setResetRecordId] = useState(null);
+
+  // Password States for Step 3
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -23,11 +26,13 @@ export default function ForgotPassword() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
 
-  // 1. SEND OTP CODE GAMIT ANG GOOGLE APPS SCRIPT (DUAL-VERIFICATION: SCHOOL ID + GMAIL)
+  // ========================================================
+  // STEP 1: SEND 6-DIGIT CODE TO GMAIL
+  // ========================================================
   const handleSendOtp = async (e) => {
     e.preventDefault();
     setMessage({ type: '', text: '' });
-    
+
     const cleanSchoolId = schoolId.trim();
     const cleanEmail = email.trim().toLowerCase();
 
@@ -41,7 +46,7 @@ export default function ForgotPassword() {
     try {
       if (!supabase) throw new Error('Database connection failed.');
 
-      // Susiha kon nagtakdo ba ang School ID ug Email sa database
+      // Check if School ID and Email match an existing profile
       const { data: profile, error: profileErr } = await supabase
         .from('profiles')
         .select('full_name, email, school_id')
@@ -50,14 +55,14 @@ export default function ForgotPassword() {
         .maybeSingle();
 
       if (profileErr || !profile) {
-        throw new Error('Account match not found. Please verify that your School ID and Email address are correct.');
+        throw new Error('Account not found. Please verify that your School ID and email address are correct.');
       }
 
-      // Generate ug Random 6-digit code (e.g. 593812)
+      // Generate random 6-digit verification code
       const generatedCode = Math.floor(100000 + Math.random() * 900000).toString();
-      const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString(); // 10 minutos validity
+      const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString(); // 10 minutes validity
 
-      // I-save ang OTP sa Supabase
+      // Save OTP record to Supabase
       const { error: resetErr } = await supabase.from('password_resets').insert([
         {
           email: cleanEmail,
@@ -69,8 +74,8 @@ export default function ForgotPassword() {
 
       if (resetErr) throw new Error(resetErr.message);
 
-      // Tawagon ang Google Apps Script Web App pinaagi sa POST
-      if (APPS_SCRIPT_URL && APPS_SCRIPT_URL !== 'YOUR_APPS_SCRIPT_URL_HERE') {
+      // Trigger Google Apps Script Web App
+      if (APPS_SCRIPT_URL) {
         await fetch(APPS_SCRIPT_URL, {
           method: 'POST',
           mode: 'no-cors',
@@ -85,8 +90,9 @@ export default function ForgotPassword() {
 
       setMessage({
         type: 'success',
-        text: `Verification code sent to ${cleanEmail}! Please check your Gmail inbox (or Spam folder).`,
+        text: `Verification code sent to ${cleanEmail}! Please check your email inbox or spam folder.`,
       });
+      setOtpCode('');
       setStep(2);
     } catch (err) {
       setMessage({ type: 'error', text: err.message || 'Failed to send verification code.' });
@@ -95,8 +101,63 @@ export default function ForgotPassword() {
     }
   };
 
-  // 2. VERIFY OTP CODE & UPDATE PASSWORD SA DATABASE
-  const handleVerifyAndUpdate = async (e) => {
+  // ========================================================
+  // STEP 2: VERIFY 6-DIGIT CODE ONLY
+  // ========================================================
+  const handleVerifyOtpOnly = async (e) => {
+    e.preventDefault();
+    setMessage({ type: '', text: '' });
+
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanOtp = otpCode.trim();
+
+    if (cleanOtp.length !== 6) {
+      setMessage({ type: 'error', text: 'Please enter the complete 6-digit verification code.' });
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      // Find latest valid OTP for this email
+      const { data: record, error: checkErr } = await supabase
+        .from('password_resets')
+        .select('*')
+        .eq('email', cleanEmail)
+        .eq('otp_code', cleanOtp)
+        .eq('used', false)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (checkErr || !record) {
+        throw new Error('Invalid verification code. Please check your email and try again.');
+      }
+
+      // Check if code has expired
+      if (new Date() > new Date(record.expires_at)) {
+        throw new Error('This verification code has expired. Please request a new one.');
+      }
+
+      setResetRecordId(record.id);
+      setNewPassword('');
+      setConfirmPassword('');
+      setMessage({
+        type: 'success',
+        text: 'Code verified successfully! You may now create your new password.',
+      });
+      setStep(3);
+    } catch (err) {
+      setMessage({ type: 'error', text: err.message || 'Verification failed.' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ========================================================
+  // STEP 3: SAVE NEW PASSWORD TO DATABASE
+  // ========================================================
+  const handleSaveNewPassword = async (e) => {
     e.preventDefault();
     setMessage({ type: '', text: '' });
 
@@ -113,36 +174,17 @@ export default function ForgotPassword() {
     setLoading(true);
     const cleanSchoolId = schoolId.trim();
     const cleanEmail = email.trim().toLowerCase();
-    const cleanOtp = otpCode.trim();
 
     try {
-      // Susiha ang pinakabag-ong valid OTP para niining email
-      const { data: record, error: checkErr } = await supabase
-        .from('password_resets')
-        .select('*')
-        .eq('email', cleanEmail)
-        .eq('otp_code', cleanOtp)
-        .eq('used', false)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      if (checkErr || !record) {
-        throw new Error('Invalid verification code. Please check your Gmail.');
+      // 1. Mark OTP record as used
+      if (resetRecordId) {
+        await supabase
+          .from('password_resets')
+          .update({ used: true })
+          .eq('id', resetRecordId);
       }
 
-      // Susiha kon na-expire na ba ang 10 minutos
-      if (new Date() > new Date(record.expires_at)) {
-        throw new Error('This verification code has expired. Please request a new one.');
-      }
-
-      // 1. Markahan ang OTP isip used
-      await supabase
-        .from('password_resets')
-        .update({ used: true })
-        .eq('id', record.id);
-
-      // 2. I-update ang password sa profiles table (Awtomatikong i-hash sa Bcrypt trigger)
+      // 2. Update password in profiles table (hashed automatically by database trigger)
       const { error: updateErr } = await supabase
         .from('profiles')
         .update({
@@ -156,12 +198,12 @@ export default function ForgotPassword() {
 
       setMessage({
         type: 'success',
-        text: '🎉 Password updated successfully! Redirecting you to login...',
+        text: 'Password updated successfully! Redirecting you to login...',
       });
 
       setTimeout(() => {
         router.push('/login');
-      }, 2500);
+      }, 2000);
     } catch (err) {
       setMessage({ type: 'error', text: err.message || 'Error updating password.' });
     } finally {
@@ -205,21 +247,23 @@ export default function ForgotPassword() {
           </div>
         </div>
 
+        {/* Dynamic Header */}
         <div className={styles.loginHeader}>
-          <h1 className={styles.loginTitle} style={{ fontSize: '1.6rem' }}>
-            {step === 1 ? 'Reset Password' : 'Enter Verification Code'}
+          <h1 className={styles.loginTitle} style={{ fontSize: '1.5rem' }}>
+            {step === 1 && 'Reset Password'}
+            {step === 2 && 'Enter Verification Code'}
+            {step === 3 && 'Create New Password'}
           </h1>
           <p className={styles.loginSubtitle}>
-            {step === 1
-              ? 'Enter your School ID and registered Gmail to receive your 6-digit recovery code.'
-              : `Enter the code sent to ${email} and set your new password.`}
+            {step === 1 && 'Enter your School ID and registered email address to receive a verification code.'}
+            {step === 2 && `Enter the 6-digit verification code sent to ${email}.`}
+            {step === 3 && 'Your identity has been verified. Set your new password below.'}
           </p>
         </div>
 
-        {/* STEP 1: INPUT SCHOOL ID & EMAIL */}
+        {/* STEP 1: SCHOOL ID AND EMAIL INPUT */}
         {step === 1 && (
-          <form onSubmit={handleSendOtp} className={styles.loginForm}>
-            {/* School ID Input */}
+          <form onSubmit={handleSendOtp} className={styles.loginForm} autoComplete="off">
             <div className={styles.inputGroup}>
               <label className={styles.inputLabel}>School ID</label>
               <div className={styles.inputWrapper}>
@@ -239,9 +283,8 @@ export default function ForgotPassword() {
               </div>
             </div>
 
-            {/* Registered Email Input */}
             <div className={styles.inputGroup}>
-              <label className={styles.inputLabel}>Registered Gmail Address</label>
+              <label className={styles.inputLabel}>Registered Email Address</label>
               <div className={styles.inputWrapper}>
                 <div className={styles.inputIconLeft}>
                   <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -250,7 +293,7 @@ export default function ForgotPassword() {
                 </div>
                 <input
                   type="email"
-                  placeholder="juandelacruz@dorsu.edu.ph"
+                  placeholder="name@dorsu.edu.ph"
                   className={styles.loginInput}
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -260,34 +303,64 @@ export default function ForgotPassword() {
             </div>
 
             <button type="submit" disabled={loading} className={styles.submitBtn}>
-              {loading ? 'Verifying & Sending Code...' : 'Send Verification Code ➔'}
+              {loading ? 'Sending Code...' : 'Send Verification Code ➔'}
             </button>
           </form>
         )}
 
-        {/* STEP 2: INPUT OTP & NEW PASSWORD */}
+        {/* STEP 2: VERIFICATION CODE ONLY */}
         {step === 2 && (
-          <form onSubmit={handleVerifyAndUpdate} className={styles.loginForm}>
+          <form onSubmit={handleVerifyOtpOnly} className={styles.loginForm} autoComplete="off">
             <div className={styles.inputGroup}>
               <label className={styles.inputLabel}>6-Digit Verification Code</label>
               <input
                 type="text"
-                placeholder="e.g. 482910"
+                placeholder="Enter verification code"
                 maxLength={6}
                 value={otpCode}
                 onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
                 className={styles.loginInput}
                 style={{
                   textAlign: 'center',
-                  fontSize: '1.4rem',
-                  fontWeight: 900,
-                  letterSpacing: '6px',
-                  padding: '12px',
+                  fontSize: '1.25rem',
+                  fontWeight: 800,
+                  letterSpacing: '4px',
+                  padding: '14px',
                 }}
                 required
+                autoFocus
               />
             </div>
 
+            <button type="submit" disabled={loading} className={styles.submitBtn}>
+              {loading ? 'Verifying Code...' : 'Verify Code ➔'}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setStep(1);
+                setMessage({ type: '', text: '' });
+              }}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: '#64748b',
+                fontSize: '0.82rem',
+                fontWeight: 700,
+                cursor: 'pointer',
+                marginTop: '6px',
+                textDecoration: 'underline',
+              }}
+            >
+              Didn&apos;t receive the code? Change ID/email or resend
+            </button>
+          </form>
+        )}
+
+        {/* STEP 3: NEW PASSWORD & CONFIRM PASSWORD */}
+        {step === 3 && (
+          <form onSubmit={handleSaveNewPassword} className={styles.loginForm} autoComplete="off">
             <div className={styles.inputGroup}>
               <label className={styles.inputLabel}>New Password</label>
               <div className={styles.inputWrapper}>
@@ -298,7 +371,9 @@ export default function ForgotPassword() {
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
                   style={{ paddingRight: '3rem' }}
+                  autoComplete="new-password"
                   required
+                  autoFocus
                 />
                 <button
                   type="button"
@@ -318,33 +393,18 @@ export default function ForgotPassword() {
                 className={styles.loginInput}
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
+                autoComplete="new-password"
                 required
               />
             </div>
 
             <button type="submit" disabled={loading} className={styles.submitBtn}>
-              {loading ? 'Verifying & Saving...' : 'Save New Password ➔'}
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setStep(1)}
-              style={{
-                background: 'none',
-                border: 'none',
-                color: '#64748b',
-                fontSize: '0.8rem',
-                fontWeight: 700,
-                cursor: 'pointer',
-                marginTop: '6px',
-                textDecoration: 'underline',
-              }}
-            >
-              Didn&apos;t get the code? Change ID/email or resend
+              {loading ? 'Saving Password...' : 'Save New Password ➔'}
             </button>
           </form>
         )}
 
+        {/* Status Notification Message */}
         {message.text && (
           <div
             className={styles.alertMessage}
