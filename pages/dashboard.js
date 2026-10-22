@@ -11,6 +11,10 @@ export default function StudentDashboard() {
   const idCardRef = useRef(null);
   const scannerRef = useRef(null);
 
+  // Scan Processing Lock para maiwasan ang paulit-ulit na alert loop
+  const isProcessingScanRef = useRef(false);
+  const lastScannedCodeRef = useRef('');
+
   const [activeTab, setActiveTab] = useState('my-id'); // 'my-id' | 'attendance' | 'events' | 'profile' | 'scan-attendance'
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -38,7 +42,6 @@ export default function StudentDashboard() {
   // Scanner Clearance States
   const [selectedEventId, setSelectedEventId] = useState('');
   const [isCameraModalOpen, setIsCameraModalOpen] = useState(false);
-  const [isScannerRunning, setIsScannerRunning] = useState(false);
   const [scannedStudentData, setScannedStudentData] = useState(null);
   const [showVerifyModal, setShowVerifyModal] = useState(false);
   const [confirmingAttendance, setConfirmingAttendance] = useState(false);
@@ -51,9 +54,28 @@ export default function StudentDashboard() {
     }, 4500);
   };
 
-  // ========================================================
-  // 5-MINUTE INACTIVITY / BROWSER CLOSURE TIMEOUT
-  // ========================================================
+  const playBeepSound = () => {
+    try {
+      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const oscillator = audioCtx.createOscillator();
+      const gainNode = audioCtx.createGain();
+
+      oscillator.type = 'sine';
+      oscillator.frequency.setValueAtTime(880, audioCtx.currentTime);
+      gainNode.gain.setValueAtTime(0.2, audioCtx.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.16);
+
+      oscillator.connect(gainNode);
+      gainNode.connect(audioCtx.destination);
+
+      oscillator.start();
+      oscillator.stop(audioCtx.currentTime + 0.16);
+    } catch (e) {
+      console.warn('AudioContext beep error:', e);
+    }
+  };
+
+  // 5-Minute Inactivity Session Guard
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
@@ -121,6 +143,9 @@ export default function StudentDashboard() {
     fetchStudentData();
   }, []);
 
+  // ========================================================
+  // AUTOMATIC ATTENDANCE & EVENT COMBINED FETCHER
+  // ========================================================
   const fetchStudentData = async () => {
     setLoading(true);
     try {
@@ -132,6 +157,8 @@ export default function StudentDashboard() {
       const { data: { user } } = await supabase.auth.getUser();
       if (user?.email) userEmail = user.email;
 
+      let currentStudentId = profile.school_id;
+
       if (userEmail) {
         const { data: userProfile } = await supabase
           .from('profiles')
@@ -140,6 +167,7 @@ export default function StudentDashboard() {
           .single();
 
         if (userProfile) {
+          currentStudentId = userProfile.school_id || currentStudentId;
           const cachedPhoto = typeof window !== 'undefined' ? localStorage.getItem(`cec_photo_${userProfile.school_id}`) : '';
           const hasScanClearance = userProfile.can_scan === true || userProfile.role === 'staff' || userProfile.role === 'admin';
 
@@ -161,7 +189,7 @@ export default function StudentDashboard() {
         }
       }
 
-      // Fetch official events
+      // 1. Kunin ang lahat ng opisyal na events
       const { data: eventsData } = await supabase
         .from('events')
         .select('*')
@@ -174,14 +202,53 @@ export default function StudentDashboard() {
         }
       }
 
-      // Fetch attendance records
-      const { data: logsData } = await supabase
+      // 2. Kunin ang attendance logs para lamang sa naka-login na estudyante
+      const { data: studentLogs } = await supabase
         .from('attendance')
         .select('*')
-        .order('created_at', { ascending: false });
+        .eq('student_id', currentStudentId);
 
-      if (logsData && logsData.length > 0) {
-        setAttendanceLogs(logsData);
+      const logsMap = {};
+      if (studentLogs) {
+        studentLogs.forEach((item) => {
+          logsMap[item.event_id] = item;
+        });
+      }
+
+      // 3. Pagsamahin ang events at attendance para laging may title, date, at time
+      if (eventsData && eventsData.length > 0) {
+        const mergedRecords = eventsData.map((ev) => {
+          const matchingLog = logsMap[ev.id];
+          const isPresent = Boolean(matchingLog && matchingLog.status === 'PRESENT');
+
+          return {
+            id: ev.id,
+            event_id: ev.id,
+            title: ev.title || 'College Event',
+            location: ev.location || 'FaCET Facade',
+            date: ev.date || 'Scheduled',
+            time_in: matchingLog ? matchingLog.time_in : '--:--',
+            time_out: matchingLog ? (matchingLog.time_out || ev.time_out) : '--:--',
+            event_status: ev.status === 'active' ? 'ACTIVE' : 'CLOSED',
+            status: isPresent ? 'PRESENT' : 'ABSENT',
+          };
+        });
+
+        setAttendanceLogs(mergedRecords);
+      } else if (studentLogs) {
+        // Fallback kung walang events table records
+        setAttendanceLogs(
+          studentLogs.map((l) => ({
+            id: l.id,
+            title: l.event_title || 'Campus Event',
+            location: l.location || 'FaCET Facade',
+            date: l.date || 'Recorded',
+            time_in: l.time_in || '--:--',
+            time_out: l.time_out || '--:--',
+            event_status: 'RECORDED',
+            status: l.status || 'PRESENT',
+          }))
+        );
       }
     } catch (err) {
       console.error('Error loading student dashboard data:', err);
@@ -263,6 +330,9 @@ export default function StudentDashboard() {
     }
   };
 
+  // ========================================================
+  // SCANNER SETUP (PINALAKI AT WALANG LOOP BUG)
+  // ========================================================
   const startCameraScanner = async () => {
     if (!selectedEventId) {
       showNotify('error', 'Please choose an active event schedule first.');
@@ -275,6 +345,8 @@ export default function StudentDashboard() {
     }
 
     setIsCameraModalOpen(true);
+    isProcessingScanRef.current = false;
+    lastScannedCodeRef.current = '';
 
     setTimeout(async () => {
       try {
@@ -283,13 +355,12 @@ export default function StudentDashboard() {
 
         await qrScanner.start(
           { facingMode: 'environment' },
-          { fps: 10, qrbox: { width: 220, height: 220 } },
+          { fps: 15, qrbox: { width: 280, height: 280 }, aspectRatio: 1.0 },
           (decodedText) => {
             handleQrCodeDetected(decodedText);
           },
           () => {}
         );
-        setIsScannerRunning(true);
       } catch (err) {
         console.error('Error starting camera scanner:', err);
         showNotify('error', 'Camera access blocked. Please check your camera permissions.');
@@ -306,7 +377,8 @@ export default function StudentDashboard() {
       } catch (err) {}
       scannerRef.current = null;
     }
-    setIsScannerRunning(false);
+    isProcessingScanRef.current = false;
+    lastScannedCodeRef.current = '';
   };
 
   const closeCameraModal = async () => {
@@ -317,30 +389,28 @@ export default function StudentDashboard() {
   };
 
   const handleQrCodeDetected = async (decodedText) => {
-    if (!decodedText || showVerifyModal) return;
+    const cleanSchoolId = (decodedText || '').trim();
+    if (!cleanSchoolId) return;
 
-    if (scannerRef.current) {
-      try {
-        await scannerRef.current.pause();
-      } catch (e) {}
-    }
+    if (isProcessingScanRef.current) return;
+    if (lastScannedCodeRef.current === cleanSchoolId) return;
 
-    const cleanSchoolId = decodedText.trim();
+    isProcessingScanRef.current = true;
+    lastScannedCodeRef.current = cleanSchoolId;
 
     try {
       const { data: student, error } = await supabase
         .from('profiles')
         .select('school_id, full_name, course, year_level, section, avatar_url')
         .eq('school_id', cleanSchoolId)
-        .single();
+        .maybeSingle();
 
       if (error || !student) {
-        alert(`❌ ACCESS DENIED:\nSchool ID "${cleanSchoolId}" is not registered in the system.`);
-        if (scannerRef.current) {
-          try {
-            await scannerRef.current.resume();
-          } catch (e) {}
-        }
+        alert(`ACCESS DENIED:\nSchool ID "${cleanSchoolId}" is not registered in the system.`);
+        setTimeout(() => {
+          isProcessingScanRef.current = false;
+          lastScannedCodeRef.current = '';
+        }, 1200);
         return;
       }
 
@@ -352,26 +422,31 @@ export default function StudentDashboard() {
         .maybeSingle();
 
       if (existingAttendance) {
+        playBeepSound();
         alert(
-          `🚫 SCAN DENIED / ALREADY SCANNED!\n\n` +
+          `ALREADY SCANNED!\n\n` +
           `Name: ${student.full_name}\n` +
           `School ID: ${student.school_id}\n` +
           `Recorded: ${existingAttendance.time_in}\n\n` +
           `Attendance has already been recorded for this event.`
         );
 
-        if (scannerRef.current) {
-          try {
-            await scannerRef.current.resume();
-          } catch (e) {}
-        }
+        setTimeout(() => {
+          isProcessingScanRef.current = false;
+          lastScannedCodeRef.current = '';
+        }, 1800);
         return;
       }
 
+      playBeepSound();
       setScannedStudentData(student);
       setShowVerifyModal(true);
     } catch (err) {
       console.error('Scan lookup error:', err);
+      setTimeout(() => {
+        isProcessingScanRef.current = false;
+        lastScannedCodeRef.current = '';
+      }, 1000);
     }
   };
 
@@ -395,22 +470,32 @@ export default function StudentDashboard() {
       if (error) {
         showNotify('error', `Attendance error: ${error.message}`);
       } else {
-        showNotify('success', `✅ Done scanning! Recorded attendance for ${scannedStudentData.full_name}.`);
+        showNotify('success', `Attendance confirmed for ${scannedStudentData.full_name}.`);
+        fetchStudentData(); // Agarang i-refresh ang attendance records
       }
 
       setShowVerifyModal(false);
       setScannedStudentData(null);
 
-      if (scannerRef.current) {
-        try {
-          await scannerRef.current.resume();
-        } catch (e) {}
-      }
+      setTimeout(() => {
+        isProcessingScanRef.current = false;
+        lastScannedCodeRef.current = '';
+      }, 800);
     } catch (err) {
       console.error('Error logging scan:', err);
+      isProcessingScanRef.current = false;
     } finally {
       setConfirmingAttendance(false);
     }
+  };
+
+  const handleCancelScannedModal = () => {
+    setShowVerifyModal(false);
+    setScannedStudentData(null);
+    setTimeout(() => {
+      isProcessingScanRef.current = false;
+      lastScannedCodeRef.current = '';
+    }, 800);
   };
 
   const handleSignOut = async () => {
@@ -422,19 +507,27 @@ export default function StudentDashboard() {
     router.replace('/');
   };
 
+  // Stats Counters
   const totalEventsCount = attendanceLogs.length;
   const totalPresentCount = attendanceLogs.filter((l) => l.status === 'PRESENT').length;
   const totalAbsencesCount = attendanceLogs.filter((l) => l.status === 'ABSENT').length;
   const complianceRate = totalEventsCount > 0 ? Math.round((totalPresentCount / totalEventsCount) * 100) : 0;
 
-  const filteredLogs = attendanceLogs.filter((log) => {
-    if (attendanceFilter === 'present') return log.status === 'PRESENT';
-    if (attendanceFilter === 'absent') return log.status === 'ABSENT';
-    return true;
-  }).filter((log) =>
-    log.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    log.location?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Ligtas na Filter Logic na hindi magiging sanhi ng blank table
+  const cleanQuery = searchQuery.trim().toLowerCase();
+  const filteredLogs = attendanceLogs
+    .filter((log) => {
+      if (attendanceFilter === 'present') return log.status === 'PRESENT';
+      if (attendanceFilter === 'absent') return log.status === 'ABSENT';
+      return true;
+    })
+    .filter((log) => {
+      if (!cleanQuery) return true;
+      return (
+        (log.title || '').toLowerCase().includes(cleanQuery) ||
+        (log.location || '').toLowerCase().includes(cleanQuery)
+      );
+    });
 
   const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(
     profile.school_id
@@ -449,7 +542,7 @@ export default function StudentDashboard() {
         <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js" async />
       </Head>
 
-      {/* TOP HEADER: RESPONSIVE SINGLE ROW NA HINDI LUMALAGPAS SA SCREEN NG CP */}
+      {/* TOP HEADER */}
       <header
         style={{
           position: 'sticky',
@@ -475,7 +568,6 @@ export default function StudentDashboard() {
             width: '100%',
           }}
         >
-          {/* LEFT: HAMBURGER & BRAND TEXT (HINDI MAWAWALA SA SCREEN) */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, flexShrink: 1 }}>
             <button
               onClick={() => setIsSidebarOpen(!isSidebarOpen)}
@@ -544,7 +636,6 @@ export default function StudentDashboard() {
             </div>
           </div>
 
-          {/* RIGHT: STUDENT PROFILE BADGE (SWAK SA SCREEN AT MAY ELLIPSIS) */}
           <div
             style={{
               display: 'flex',
@@ -675,7 +766,6 @@ export default function StudentDashboard() {
                 className={activeTab === 'my-id' ? `${styles.portalNavLink} ${styles.portalNavLinkActive}` : styles.portalNavLink}
                 style={{ fontSize: '0.92rem', padding: '12px 14px' }}
               >
-                <span></span>
                 <span>My ID</span>
               </button>
 
@@ -684,7 +774,6 @@ export default function StudentDashboard() {
                 className={activeTab === 'attendance' ? `${styles.portalNavLink} ${styles.portalNavLinkActive}` : styles.portalNavLink}
                 style={{ fontSize: '0.92rem', padding: '12px 14px' }}
               >
-                <span></span>
                 <span>Attendance</span>
               </button>
 
@@ -693,7 +782,6 @@ export default function StudentDashboard() {
                 className={activeTab === 'events' ? `${styles.portalNavLink} ${styles.portalNavLinkActive}` : styles.portalNavLink}
                 style={{ fontSize: '0.92rem', padding: '12px 14px' }}
               >
-                <span></span>
                 <span>Events</span>
               </button>
 
@@ -710,7 +798,6 @@ export default function StudentDashboard() {
                     fontWeight: 900,
                   }}
                 >
-                  <span></span>
                   <span>Scan Attendance</span>
                 </button>
               )}
@@ -720,26 +807,8 @@ export default function StudentDashboard() {
                 className={activeTab === 'profile' ? `${styles.portalNavLink} ${styles.portalNavLinkActive}` : styles.portalNavLink}
                 style={{ fontSize: '0.92rem', padding: '12px 14px' }}
               >
-                <span></span>
                 <span>Profile</span>
               </button>
-
-              <div style={{ padding: '12px 14px 4px 14px', fontSize: '0.68rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                Organization
-              </div>
-
-              <div className={styles.portalNavLink} style={{ opacity: 0.5, cursor: 'not-allowed', fontSize: '0.92rem', padding: '12px 14px' }}>
-                <span>🎗️</span>
-                <span>Officers</span>
-              </div>
-              <div className={styles.portalNavLink} style={{ opacity: 0.5, cursor: 'not-allowed', fontSize: '0.92rem', padding: '12px 14px' }}>
-                <span></span>
-                <span>Finance</span>
-              </div>
-              <div className={styles.portalNavLink} style={{ opacity: 0.5, cursor: 'not-allowed', fontSize: '0.92rem', padding: '12px 14px' }}>
-                <span></span>
-                <span>Sanctions</span>
-              </div>
             </nav>
           </div>
 
@@ -790,7 +859,7 @@ export default function StudentDashboard() {
                     className={styles.adminPrimaryBtn}
                     style={{ minHeight: '44px', fontSize: '0.88rem', padding: '10px 16px' }}
                   >
-                    {downloadingId ? '⏳ Generating...' : '📥 Download Official ID'}
+                    {downloadingId ? 'Generating...' : 'Download Official ID'}
                   </button>
                 )}
               </div>
@@ -804,7 +873,6 @@ export default function StudentDashboard() {
               />
 
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))', gap: '20px', alignItems: 'start', width: '100%' }}>
-                {/* ID CARD */}
                 <div className={styles.digitalIdCard} style={{ margin: '0 auto', maxWidth: '340px', width: '100%' }}>
                   <div
                     ref={idCardRef}
@@ -972,7 +1040,7 @@ export default function StudentDashboard() {
                             cursor: 'pointer',
                           }}
                         >
-                          📷 Upload Photo Now
+                          Upload Photo Now
                         </button>
                       </div>
                     )}
@@ -1028,7 +1096,7 @@ export default function StudentDashboard() {
             </div>
           )}
 
-          {/* TAB 2: ATTENDANCE RECORDS */}
+          {/* TAB 2: ATTENDANCE RECORDS (AYOS NA AT DIREKTANG LUMALABAS ANG ROWS) */}
           {activeTab === 'attendance' && (
             <div style={{ maxWidth: '1000px', margin: '0 auto', width: '100%' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px', flexWrap: 'wrap', gap: '10px' }}>
@@ -1039,7 +1107,7 @@ export default function StudentDashboard() {
                 </div>
 
                 <button onClick={fetchStudentData} className={styles.eventsBtn} style={{ minHeight: '40px', fontSize: '0.85rem' }}>
-                  🔄 Refresh Records
+                  Refresh Records
                 </button>
               </div>
 
@@ -1092,7 +1160,7 @@ export default function StudentDashboard() {
 
                 <input
                   type="text"
-                  placeholder="🔍 Search event..."
+                  placeholder="Search event..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className={styles.loginInput}
@@ -1113,40 +1181,52 @@ export default function StudentDashboard() {
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredLogs.map((log) => {
-                      const isPresent = log.status === 'PRESENT';
-                      return (
-                        <tr key={log.id}>
-                          <td>
-                            <div style={{ fontWeight: 800 }}>{log.title}</div>
-                            <div style={{ fontSize: '0.72rem', color: '#15803d', fontWeight: 700 }}>
-                              📍 {log.location || 'FaCET Facade'}
-                            </div>
-                          </td>
-                          <td style={{ fontWeight: 600 }}>{log.date}</td>
-                          <td style={{ fontWeight: 800 }}>{log.time_in || '--:--'}</td>
-                          <td style={{ fontWeight: 800 }}>{log.time_out || '--:--'}</td>
-                          <td>
-                            <span className={styles.idBadge} style={{ fontSize: '0.68rem' }}>
-                              {log.event_status || 'CLOSED'}
-                            </span>
-                          </td>
-                          <td style={{ textAlign: 'center' }}>
-                            <span
-                              className={styles.idBadge}
-                              style={{
-                                backgroundColor: isPresent ? '#dcfce7' : '#fef2f2',
-                                color: isPresent ? '#15803d' : '#b91c1c',
-                                borderColor: isPresent ? '#bbf7d0' : '#fecaca',
-                                fontWeight: 900,
-                              }}
-                            >
-                              {isPresent ? '✓ PRESENT' : '✕ ABSENT'}
-                            </span>
-                          </td>
-                        </tr>
-                      );
-                    })}
+                    {filteredLogs.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} style={{ textAlign: 'center', padding: '24px', color: '#94a3b8' }}>
+                          No attendance records found.
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredLogs.map((log) => {
+                        const isPresent = log.status === 'PRESENT';
+                        return (
+                          <tr key={log.id}>
+                            <td>
+                              <div style={{ fontWeight: 800 }}>{log.title}</div>
+                              <div style={{ fontSize: '0.72rem', color: '#15803d', fontWeight: 700 }}>
+                                📍 {log.location}
+                              </div>
+                            </td>
+                            <td style={{ fontWeight: 600 }}>{log.date}</td>
+                            <td style={{ fontWeight: 800, color: isPresent ? '#15803d' : '#94a3b8' }}>
+                              {log.time_in}
+                            </td>
+                            <td style={{ fontWeight: 800, color: isPresent ? '#15803d' : '#94a3b8' }}>
+                              {log.time_out}
+                            </td>
+                            <td>
+                              <span className={styles.idBadge} style={{ fontSize: '0.68rem' }}>
+                                {log.event_status}
+                              </span>
+                            </td>
+                            <td style={{ textAlign: 'center' }}>
+                              <span
+                                className={styles.idBadge}
+                                style={{
+                                  backgroundColor: isPresent ? '#dcfce7' : '#fef2f2',
+                                  color: isPresent ? '#15803d' : '#b91c1c',
+                                  borderColor: isPresent ? '#bbf7d0' : '#fecaca',
+                                  fontWeight: 900,
+                                }}
+                              >
+                                {isPresent ? '✓ PRESENT' : '✕ ABSENT'}
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -1173,7 +1253,6 @@ export default function StudentDashboard() {
 
               {events.length === 0 ? (
                 <div className={styles.adminFormCard} style={{ textAlign: 'center', padding: '36px 16px' }}>
-                  <div style={{ fontSize: '2.5rem', marginBottom: '8px' }}>📅</div>
                   <h3 style={{ margin: '0 0 4px 0', fontSize: '1.1rem', fontWeight: 900 }}>
                     No Events Available
                   </h3>
@@ -1202,8 +1281,8 @@ export default function StudentDashboard() {
                             <img src={ev.image_url} alt={ev.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                           </div>
                         ) : (
-                          <div style={{ width: '100%', height: '90px', backgroundColor: '#f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.8rem', borderBottom: '1px solid #f1f5f9' }}>
-                            📅
+                          <div style={{ width: '100%', height: '90px', backgroundColor: '#f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.85rem', fontWeight: 800, color: '#64748b', borderBottom: '1px solid #f1f5f9' }}>
+                            EVENT
                           </div>
                         )}
 
@@ -1250,23 +1329,6 @@ export default function StudentDashboard() {
           {activeTab === 'scan-attendance' && profile.can_scan && (
             <div style={{ maxWidth: '540px', margin: '0 auto', width: '100%' }}>
               <div className={styles.adminFormCard} style={{ textAlign: 'center', padding: '28px 16px' }}>
-                <div
-                  style={{
-                    width: '56px',
-                    height: '56px',
-                    borderRadius: '18px',
-                    backgroundColor: '#dcfce7',
-                    color: '#15803d',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: '1.8rem',
-                    margin: '0 auto 12px auto',
-                    border: '1px solid #bbf7d0',
-                  }}
-                >
-                  📷
-                </div>
                 <h3 className={styles.analyticsTitle} style={{ justifyContent: 'center', fontSize: '1.1rem', marginBottom: '6px' }}>
                   Student Officer Attendance Scanner
                 </h3>
@@ -1298,7 +1360,7 @@ export default function StudentDashboard() {
                   className={styles.submitBtn}
                   style={{ minHeight: '46px', fontSize: '0.92rem', fontWeight: 900 }}
                 >
-                  📷 Open Camera Scanner ➔
+                  Open Camera Scanner ➔
                 </button>
               </div>
             </div>
@@ -1318,7 +1380,8 @@ export default function StudentDashboard() {
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    fontSize: '2rem',
+                    fontSize: '1.1rem',
+                    fontWeight: 900,
                     margin: '0 auto 10px auto',
                     border: '1px solid #bbf7d0',
                     overflow: 'hidden',
@@ -1327,7 +1390,7 @@ export default function StudentDashboard() {
                   {profile.avatar_url ? (
                     <img src={profile.avatar_url} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                   ) : (
-                    '👤'
+                    'USER'
                   )}
                 </div>
                 <h1 className={styles.adminTitle} style={{ fontSize: '1.5rem' }}>{profile.full_name}</h1>
@@ -1380,7 +1443,7 @@ export default function StudentDashboard() {
           style={{
             position: 'fixed',
             inset: 0,
-            backgroundColor: 'rgba(15, 23, 42, 0.75)',
+            backgroundColor: 'rgba(15, 23, 42, 0.8)',
             backdropFilter: 'blur(5px)',
             zIndex: 110,
             display: 'flex',
@@ -1393,7 +1456,7 @@ export default function StudentDashboard() {
             style={{
               backgroundColor: '#ffffff',
               width: '100%',
-              maxWidth: '420px',
+              maxWidth: '460px',
               borderRadius: '24px',
               padding: '20px 16px',
               boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
@@ -1402,8 +1465,7 @@ export default function StudentDashboard() {
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginBottom: '14px' }}>
-              <span style={{ fontSize: '1.2rem' }}>📷</span>
-              <h3 style={{ fontSize: '1.1rem', fontWeight: 900, color: '#15803d', margin: 0 }}>
+              <h3 style={{ fontSize: '1.15rem', fontWeight: 900, color: '#15803d', margin: 0 }}>
                 Scan Student QR Code
               </h3>
             </div>
@@ -1412,8 +1474,8 @@ export default function StudentDashboard() {
               style={{
                 position: 'relative',
                 width: '100%',
-                maxWidth: '340px',
-                height: '280px',
+                maxWidth: '380px',
+                height: '350px',
                 margin: '0 auto',
                 backgroundColor: '#0f172a',
                 borderRadius: '18px',
@@ -1424,33 +1486,27 @@ export default function StudentDashboard() {
               }}
             >
               <div id="student-qr-reader" style={{ width: '100%', height: '100%' }} />
-
-              <div style={{ position: 'absolute', width: '180px', height: '180px', pointerEvents: 'none', boxSizing: 'border-box' }}>
-                <div style={{ position: 'absolute', top: 0, left: 0, width: '28px', height: '28px', borderTop: '4px solid #ffffff', borderLeft: '4px solid #ffffff', borderTopLeftRadius: '6px' }} />
-                <div style={{ position: 'absolute', top: 0, right: 0, width: '28px', height: '28px', borderTop: '4px solid #ffffff', borderRight: '4px solid #ffffff', borderTopRightRadius: '6px' }} />
-                <div style={{ position: 'absolute', bottom: 0, left: 0, width: '28px', height: '28px', borderBottom: '4px solid #ffffff', borderLeft: '4px solid #ffffff', borderBottomLeftRadius: '6px' }} />
-                <div style={{ position: 'absolute', bottom: 0, right: 0, width: '28px', height: '28px', borderBottom: '4px solid #ffffff', borderRight: '4px solid #ffffff', borderBottomRightRadius: '6px' }} />
-              </div>
             </div>
 
-            <button
-              type="button"
-              onClick={closeCameraModal}
-              style={{
-                width: '100%',
-                marginTop: '12px',
-                padding: '12px',
-                backgroundColor: '#ef4444',
-                color: '#ffffff',
-                border: 'none',
-                borderRadius: '14px',
-                fontSize: '0.9rem',
-                fontWeight: 900,
-                cursor: 'pointer',
-              }}
-            >
-              Close Camera
-            </button>
+            <div style={{ marginTop: '14px' }}>
+              <button
+                type="button"
+                onClick={closeCameraModal}
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  backgroundColor: '#ef4444',
+                  color: '#ffffff',
+                  border: 'none',
+                  borderRadius: '14px',
+                  fontSize: '0.92rem',
+                  fontWeight: 900,
+                  cursor: 'pointer',
+                }}
+              >
+                Close Camera
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -1497,7 +1553,7 @@ export default function StudentDashboard() {
                 marginBottom: '12px',
               }}
             >
-              ✓ QR Code Verified
+              QR Code Verified
             </span>
 
             <div
@@ -1518,7 +1574,7 @@ export default function StudentDashboard() {
               {scannedStudentData.avatar_url ? (
                 <img src={scannedStudentData.avatar_url} alt={scannedStudentData.full_name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
               ) : (
-                <span style={{ fontSize: '2.2rem' }}>👤</span>
+                <span style={{ fontSize: '0.85rem', fontWeight: 900, color: '#15803d' }}>USER</span>
               )}
             </div>
 
@@ -1589,20 +1645,12 @@ export default function StudentDashboard() {
                   boxShadow: '0 4px 12px rgba(21, 128, 61, 0.25)',
                 }}
               >
-                {confirmingAttendance ? 'Recording...' : '✓ OK • Confirm Attendance'}
+                {confirmingAttendance ? 'Recording...' : 'Confirm Attendance'}
               </button>
 
               <button
                 type="button"
-                onClick={async () => {
-                  setShowVerifyModal(false);
-                  setScannedStudentData(null);
-                  if (scannerRef.current) {
-                    try {
-                      await scannerRef.current.resume();
-                    } catch (e) {}
-                  }
-                }}
+                onClick={handleCancelScannedModal}
                 style={{
                   width: '100%',
                   padding: '10px',
