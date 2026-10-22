@@ -387,7 +387,7 @@ export default function About() {
                 fontWeight: 800,
               }}
             >
-              🎓 Class of 2026 Developer
+              Developer
             </span>
 
             <span
