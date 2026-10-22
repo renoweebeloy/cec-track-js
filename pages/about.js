@@ -6,9 +6,8 @@ import styles from '../styles/Home.module.css';
 export default function About() {
   const router = useRouter();
 
-  // I-PASTE DIRE ANG LINK SA IMONG LITRATO GIKAN SA GITHUB
-  // Pananglitan: 'https://github.com/imong-username.png' o raw link sa imong repo
-  const githubPhotoUrl = 'https://github.com/renoweebeloy.png';
+  // Opisyal nga litrato gikan sa public folder
+  const developerPhotoUrl = '/beloy.jpg';
 
   return (
     <div className={styles.container} style={{ paddingBottom: 0, backgroundColor: '#f8fafc' }}>
@@ -301,9 +300,7 @@ export default function About() {
           </div>
         </section>
 
-        {/* ======================================================== */}
-        {/* SECTION 3: DEVELOPER PROFILE (GREEN COLOR & UPDATED TEXT) */}
-        {/* ======================================================== */}
+        {/* SECTION 3: DEVELOPER PROFILE */}
         <section
           style={{
             background: 'linear-gradient(145deg, #064e3b 0%, #022c22 100%)',
@@ -318,11 +315,11 @@ export default function About() {
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '22px', flexWrap: 'wrap' }}>
-            {/* Developer Picture gikan sa GitHub */}
+            {/* Developer Picture */}
             <div
               style={{
-                width: '105px',
-                height: '105px',
+                width: '110px',
+                height: '110px',
                 borderRadius: '24px',
                 backgroundColor: '#065f46',
                 border: '3px solid #34d399',
@@ -336,21 +333,21 @@ export default function About() {
               }}
             >
               <img
-                src={githubPhotoUrl}
+                src={developerPhotoUrl}
                 alt="Renowee Beloy"
-                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'cover',
+                  objectPosition: 'center 15%',
+                }}
                 onError={(e) => {
-                  e.currentTarget.style.display = 'none';
-                  if (e.currentTarget.nextSibling) {
-                    e.currentTarget.nextSibling.style.display = 'block';
-                  }
+                  e.currentTarget.src = 'https://github.com/renoweebeloy.png';
                 }}
               />
-              <span style={{ display: 'none', fontSize: '2.5rem' }}>👨‍💻</span>
             </div>
 
             <div>
-              {/* GITANGTANG ANG '& ENGINEERED' */}
               <span
                 style={{
                   fontSize: '0.72rem',
@@ -367,7 +364,6 @@ export default function About() {
               <h2 style={{ fontSize: '1.85rem', fontWeight: 900, margin: '0 0 6px 0', letterSpacing: '-0.02em', color: '#ffffff' }}>
                 Renowee Beloy
               </h2>
-              {/* GITANGTANG ANG 'Software Architect' */}
               <p style={{ fontSize: '0.88rem', color: '#a7f3d0', margin: 0, fontWeight: 700 }}>
                 Lead Creator • BS Information Technology (BSIT)
               </p>
@@ -404,7 +400,6 @@ export default function About() {
               💻 Full-Stack Web &amp; Database Systems
             </span>
 
-            {/* GI-UPDATE: DAVAO ORIENTAL STATE UNIVERSITY MAIN CAMPUS */}
             <span
               style={{
                 backgroundColor: 'rgba(251, 191, 36, 0.15)',
