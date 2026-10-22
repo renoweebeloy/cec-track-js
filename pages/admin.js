@@ -63,10 +63,9 @@ export default function AdminDashboard() {
   const [manualStudentId, setManualStudentId] = useState('');
   const [scanLogMsg, setScanLogMsg] = useState({ type: '', text: '' });
 
-  // Live Continuous Camera Scanner Feedback with Profile Details
+  // Live Camera Scanner Feedback with Profile Details
   const [isCameraModalOpen, setIsCameraModalOpen] = useState(false);
   const [liveScanFeedback, setLiveScanFeedback] = useState(null);
-  const [recentScans, setRecentScans] = useState([]);
 
   // 5. Search Student Attendance History States
   const [searchHistoryId, setSearchHistoryId] = useState('');
@@ -496,7 +495,7 @@ export default function AdminDashboard() {
   };
 
   // ========================================================
-  // CONTINUOUS LIVE SCANNER WITH PROFILE POP-UP CARD
+  // CAMERA SCANNER FUNCTION (WITH "OK • SCAN NEXT" BUTTON)
   // ========================================================
   const startCameraScanner = async () => {
     if (!selectedEventId) {
@@ -564,7 +563,16 @@ export default function AdminDashboard() {
     setLiveScanFeedback(null);
   };
 
-  // Direct Scan Logic (Nagpapakita ng Profile, ID, Course, Section, Year)
+  // Handler kapag pinindot ang "OK • Scan Next"
+  const handleAcknowledgeScan = () => {
+    setLiveScanFeedback(null);
+    // Maikling cooldown para handa nang basahin ang susunod na QR code nang walang conflict
+    setTimeout(() => {
+      isProcessingScanRef.current = false;
+      lastScannedCodeRef.current = '';
+    }, 300);
+  };
+
   const handleQrCodeDetected = async (decodedText) => {
     const cleanSchoolId = (decodedText || '').trim();
     if (!cleanSchoolId) return;
@@ -578,6 +586,7 @@ export default function AdminDashboard() {
       return;
     }
 
+    // Hawakan ang camera hangga't hindi napipindot ang "OK • Scan Next"
     if (isProcessingScanRef.current) return;
     if (lastScannedCodeRef.current === cleanSchoolId) return;
 
@@ -597,11 +606,6 @@ export default function AdminDashboard() {
           title: 'ACCESS DENIED',
           message: `School ID "${cleanSchoolId}" not found in whitelist database.`,
         });
-
-        setTimeout(() => {
-          isProcessingScanRef.current = false;
-          lastScannedCodeRef.current = '';
-        }, 2000);
         return;
       }
 
@@ -641,13 +645,7 @@ export default function AdminDashboard() {
             time: currentTime,
             mode: 'TIME IN',
           });
-
-          setRecentScans((prev) => [
-            { id: Date.now(), name: student.full_name, school_id: student.school_id, mode: 'TIME IN', time: currentTime },
-            ...prev.slice(0, 4),
-          ]);
         } else {
-          // Strictly insert time_in lamang; walang time_out!
           await supabase.from('attendance').insert([
             {
               student_id: student.school_id,
@@ -668,11 +666,6 @@ export default function AdminDashboard() {
             time: currentTime,
             mode: 'TIME IN',
           });
-
-          setRecentScans((prev) => [
-            { id: Date.now(), name: student.full_name, school_id: student.school_id, mode: 'TIME IN', time: currentTime },
-            ...prev.slice(0, 4),
-          ]);
         }
       }
 
@@ -702,11 +695,6 @@ export default function AdminDashboard() {
             time: currentTime,
             mode: 'TIME OUT',
           });
-
-          setRecentScans((prev) => [
-            { id: Date.now(), name: student.full_name, school_id: student.school_id, mode: 'TIME OUT', time: currentTime },
-            ...prev.slice(0, 4),
-          ]);
         } else {
           await supabase.from('attendance').insert([
             {
@@ -728,24 +716,10 @@ export default function AdminDashboard() {
             time: currentTime,
             mode: 'TIME OUT',
           });
-
-          setRecentScans((prev) => [
-            { id: Date.now(), name: student.full_name, school_id: student.school_id, mode: 'TIME OUT', time: currentTime },
-            ...prev.slice(0, 4),
-          ]);
         }
       }
-
-      setTimeout(() => {
-        isProcessingScanRef.current = false;
-        lastScannedCodeRef.current = '';
-      }, 2200);
     } catch (err) {
       console.error('Scan lookup error:', err);
-      setTimeout(() => {
-        isProcessingScanRef.current = false;
-        lastScannedCodeRef.current = '';
-      }, 1500);
     }
   };
 
@@ -1591,7 +1565,7 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          {/* TAB 3: MANAGE STAFF */}
+          {/* TAB 3: MANAGE STAFF & AUTHORIZED SCANNERS (MOBILE-RESPONSIVE CARD LIST) */}
           {activeTab === 'add-staff' && isAdmin && (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))', gap: '20px' }}>
               <div className={styles.adminFormCard}>
@@ -1643,48 +1617,66 @@ export default function AdminDashboard() {
                 </form>
               </div>
 
+              {/* AUTHORIZED SCANNERS LIST - KITANG-KITA SA CELLPHONE ANG REVOKE BUTTON */}
               <div className={styles.adminFormCard}>
-                <h3 className={styles.analyticsTitle} style={{ fontSize: '0.9rem', marginBottom: '14px' }}>
+                <h3 className={styles.analyticsTitle} style={{ fontSize: '0.95rem', marginBottom: '14px' }}>
                   Authorized Scanners ({staffList.length})
                 </h3>
-                <div className={styles.adminTableWrapper}>
-                  <table className={styles.adminTable}>
-                    <thead>
-                      <tr>
-                        <th>Name</th>
-                        <th>Email</th>
-                        <th>Action</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {staffList.map((st) => (
-                        <tr key={st.id}>
-                          <td style={{ fontWeight: 800 }}>{st.full_name}</td>
-                          <td>{st.email}</td>
-                          <td>
-                            <button
-                              type="button"
-                              onClick={() => triggerDeletePrompt('staff', st.id, st.full_name)}
-                              style={{
-                                border: '1px solid #fecaca',
-                                backgroundColor: '#fef2f2',
-                                color: '#b91c1c',
-                                fontWeight: 800,
-                                cursor: 'pointer',
-                                padding: '5px 10px',
-                                borderRadius: '8px',
-                                fontSize: '0.75rem',
-                                touchAction: 'manipulation',
-                              }}
-                            >
-                              Revoke
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+
+                {staffList.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '24px', color: '#94a3b8', fontSize: '0.85rem' }}>
+                    No authorized scanners registered yet.
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', width: '100%' }}>
+                    {staffList.map((st) => (
+                      <div
+                        key={st.id}
+                        style={{
+                          backgroundColor: '#ffffff',
+                          border: '1px solid #e2e8f0',
+                          borderRadius: '14px',
+                          padding: '12px 14px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          gap: '10px',
+                          width: '100%',
+                          boxSizing: 'border-box',
+                          boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
+                        }}
+                      >
+                        <div style={{ minWidth: 0, flex: 1 }}>
+                          <h4 style={{ margin: '0 0 2px 0', fontSize: '0.92rem', fontWeight: 900, color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {st.full_name}
+                          </h4>
+                          <div style={{ fontSize: '0.75rem', color: '#64748b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {st.email}
+                          </div>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => triggerDeletePrompt('staff', st.id, st.full_name)}
+                          style={{
+                            border: '1px solid #fecaca',
+                            backgroundColor: '#fef2f2',
+                            color: '#b91c1c',
+                            fontWeight: 900,
+                            cursor: 'pointer',
+                            padding: '6px 14px',
+                            borderRadius: '10px',
+                            fontSize: '0.82rem',
+                            flexShrink: 0,
+                            touchAction: 'manipulation',
+                          }}
+                        >
+                          Revoke
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -1887,7 +1879,7 @@ export default function AdminDashboard() {
                 </form>
               </div>
 
-              {/* PUBLISHED EVENTS (WITH 12-HOUR 5:00 PM FORMAT) */}
+              {/* PUBLISHED EVENTS */}
               <div className={styles.adminFormCard} style={{ width: '100%', boxSizing: 'border-box', padding: '16px 14px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '8px' }}>
                   <h3 className={styles.analyticsTitle} style={{ fontSize: '0.95rem', margin: 0 }}>
@@ -2456,7 +2448,7 @@ export default function AdminDashboard() {
         </main>
       </div>
 
-      {/* CONTINUOUS CAMERA SCANNER MODAL WITH FULL STUDENT PROFILE CARD */}
+      {/* CONTINUOUS CAMERA SCANNER MODAL WITH "OK • SCAN NEXT" BUTTON */}
       {isCameraModalOpen && (
         <div
           style={{
@@ -2534,7 +2526,7 @@ export default function AdminDashboard() {
               <div id="interactive-qr-reader" style={{ width: '100%', height: '100%' }} />
             </div>
 
-            {/* LIVE DETAILED STUDENT PROFILE SCAN CARD */}
+            {/* LIVE DETAILED STUDENT PROFILE SCAN CARD WITH "OK • SCAN NEXT" */}
             {liveScanFeedback && (
               <div
                 style={{
@@ -2558,100 +2550,112 @@ export default function AdminDashboard() {
                 }}
               >
                 {liveScanFeedback.student ? (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    {/* PHOTO */}
-                    <div
-                      style={{
-                        width: '54px',
-                        height: '54px',
-                        borderRadius: '14px',
-                        backgroundColor: '#ffffff',
-                        border: '2px solid #15803d',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        overflow: 'hidden',
-                        flexShrink: 0,
-                      }}
-                    >
-                      {liveScanFeedback.student.avatar_url ? (
-                        <img
-                          src={liveScanFeedback.student.avatar_url}
-                          alt="Student Avatar"
-                          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                        />
-                      ) : (
-                        <span style={{ fontSize: '1.5rem' }}>👤</span>
-                      )}
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '10px' }}>
+                      {/* PHOTO */}
+                      <div
+                        style={{
+                          width: '54px',
+                          height: '54px',
+                          borderRadius: '14px',
+                          backgroundColor: '#ffffff',
+                          border: '2px solid #15803d',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          overflow: 'hidden',
+                          flexShrink: 0,
+                        }}
+                      >
+                        {liveScanFeedback.student.avatar_url ? (
+                          <img
+                            src={liveScanFeedback.student.avatar_url}
+                            alt="Student Avatar"
+                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                          />
+                        ) : (
+                          <span style={{ fontSize: '1.5rem' }}>👤</span>
+                        )}
+                      </div>
+
+                      {/* DETAILS: NAME, SCHOOL ID, COURSE, YEAR, SECTION */}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span
+                            style={{
+                              fontSize: '0.68rem',
+                              fontWeight: 900,
+                              color: liveScanFeedback.type === 'success' ? '#15803d' : '#a16207',
+                              textTransform: 'uppercase',
+                            }}
+                          >
+                            {liveScanFeedback.title}
+                          </span>
+                          <span style={{ fontSize: '0.72rem', fontWeight: 800, color: '#0f172a' }}>
+                            {formatTime12Hour(liveScanFeedback.time)}
+                          </span>
+                        </div>
+                        <h4 style={{ margin: '2px 0', fontSize: '0.95rem', fontWeight: 900, color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {liveScanFeedback.student.full_name}
+                        </h4>
+                        <div style={{ fontSize: '0.78rem', fontWeight: 800, color: '#15803d' }}>
+                          ID: {liveScanFeedback.student.school_id}
+                        </div>
+                        <div style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: 700, marginTop: '2px' }}>
+                          {liveScanFeedback.student.course} • {liveScanFeedback.student.year_level || '1st Year'} • {liveScanFeedback.student.section || 'Section A'}
+                        </div>
+                      </div>
                     </div>
 
-                    {/* DETAILS: NAME, SCHOOL ID, COURSE, YEAR, SECTION */}
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span
-                          style={{
-                            fontSize: '0.68rem',
-                            fontWeight: 900,
-                            color: liveScanFeedback.type === 'success' ? '#15803d' : '#a16207',
-                            textTransform: 'uppercase',
-                          }}
-                        >
-                          {liveScanFeedback.title}
-                        </span>
-                        <span style={{ fontSize: '0.72rem', fontWeight: 800, color: '#0f172a' }}>
-                          {formatTime12Hour(liveScanFeedback.time)}
-                        </span>
-                      </div>
-                      <h4 style={{ margin: '2px 0', fontSize: '0.95rem', fontWeight: 900, color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {liveScanFeedback.student.full_name}
-                      </h4>
-                      <div style={{ fontSize: '0.78rem', fontWeight: 800, color: '#15803d' }}>
-                        ID: {liveScanFeedback.student.school_id}
-                      </div>
-                      <div style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: 700, marginTop: '2px' }}>
-                        {liveScanFeedback.student.course} • {liveScanFeedback.student.year_level || '1st Year'} • {liveScanFeedback.student.section || 'Section A'}
-                      </div>
-                    </div>
+                    {/* OK BUTTON PARA ISARA AT I-SCAN ANG SUSUNOD NA QR */}
+                    <button
+                      type="button"
+                      onClick={handleAcknowledgeScan}
+                      style={{
+                        width: '100%',
+                        padding: '10px',
+                        backgroundColor: '#15803d',
+                        color: '#ffffff',
+                        border: 'none',
+                        borderRadius: '10px',
+                        fontWeight: 900,
+                        fontSize: '0.85rem',
+                        cursor: 'pointer',
+                        boxShadow: '0 2px 6px rgba(21, 128, 61, 0.2)',
+                        touchAction: 'manipulation',
+                      }}
+                    >
+                      ✓ OK • Scan Next QR
+                    </button>
                   </div>
                 ) : (
                   <div>
                     <div style={{ fontSize: '0.85rem', fontWeight: 900, color: '#b91c1c' }}>
                       {liveScanFeedback.title}
                     </div>
-                    <div style={{ fontSize: '0.75rem', color: '#334155', fontWeight: 700, marginTop: '2px' }}>
+                    <div style={{ fontSize: '0.75rem', color: '#334155', fontWeight: 700, margin: '4px 0 10px 0' }}>
                       {liveScanFeedback.message}
                     </div>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* RECENT SCANS LOGS */}
-            {recentScans.length > 0 && (
-              <div style={{ marginTop: '10px', textAlign: 'left' }}>
-                <span style={{ fontSize: '0.68rem', fontWeight: 900, color: '#94a3b8', textTransform: 'uppercase' }}>
-                  Recent Scans:
-                </span>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '4px', maxHeight: '65px', overflowY: 'auto' }}>
-                  {recentScans.map((scan) => (
-                    <div
-                      key={scan.id}
+                    <button
+                      type="button"
+                      onClick={handleAcknowledgeScan}
                       style={{
-                        fontSize: '0.72rem',
-                        backgroundColor: '#f8fafc',
-                        padding: '4px 8px',
-                        borderRadius: '6px',
-                        display: 'flex',
-                        justifyContent: 'space-between',
+                        width: '100%',
+                        padding: '8px',
+                        backgroundColor: '#ef4444',
+                        color: '#ffffff',
+                        border: 'none',
+                        borderRadius: '8px',
+                        fontWeight: 900,
+                        fontSize: '0.8rem',
+                        cursor: 'pointer',
+                        touchAction: 'manipulation',
                       }}
                     >
-                      <span style={{ fontWeight: 800, color: '#0f172a' }}>{scan.name}</span>
-                      <span style={{ fontWeight: 700, color: scan.mode === 'TIME IN' ? '#15803d' : '#2563eb' }}>
-                        {scan.mode} ({formatTime12Hour(scan.time)})
-                      </span>
-                    </div>
-                  ))}
-                </div>
+                      OK • Try Next QR
+                    </button>
+                  </div>
+                )}
               </div>
             )}
 
