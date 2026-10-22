@@ -11,7 +11,7 @@ export default function AdminDashboard() {
   const eventImageInputRef = useRef(null);
   const formRef = useRef(null);
 
-  // Scan Processing Lock para maiwasan ang loop
+  // Scan Processing Lock
   const isProcessingScanRef = useRef(false);
   const lastScannedCodeRef = useRef('');
 
@@ -27,7 +27,7 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(false);
   const [notification, setNotification] = useState({ type: '', message: '' });
 
-  // Mobile Delete Confirmation Modal States
+  // Mobile In-App Delete Confirmation Modal States
   const [deleteModal, setDeleteModal] = useState({ isOpen: false, type: '', id: null, title: '' });
   const [deletingRecord, setDeletingRecord] = useState(false);
 
@@ -453,6 +453,7 @@ export default function AdminDashboard() {
     }
   };
 
+  // Trigger Confirmation Modal for Single Delete & Remove All
   const triggerDeletePrompt = (type, id, title) => {
     if (userRole !== 'admin') {
       alert('Only administrators have permission to delete records.');
@@ -461,6 +462,7 @@ export default function AdminDashboard() {
     setDeleteModal({ isOpen: true, type, id, title });
   };
 
+  // Perform Confirmation Deletion
   const handleConfirmDelete = async () => {
     if (!deleteModal.id || userRole !== 'admin') return;
     setDeletingRecord(true);
@@ -478,6 +480,13 @@ export default function AdminDashboard() {
         if (error) throw new Error(error.message);
 
         showNotify('success', `Student record removed successfully.`);
+      } else if (deleteModal.type === 'all_students') {
+        // Remove All Students
+        await supabase.from('attendance').delete().neq('id', 0);
+        const { error } = await supabase.from('profiles').delete().eq('role', 'student');
+        if (error) throw new Error(error.message);
+
+        showNotify('success', 'All enrolled student records have been permanently removed.');
       } else if (deleteModal.type === 'staff') {
         const { error } = await supabase.from('profiles').delete().eq('id', deleteModal.id);
         if (error) throw new Error(error.message);
@@ -563,10 +572,8 @@ export default function AdminDashboard() {
     setLiveScanFeedback(null);
   };
 
-  // Handler kapag pinindot ang "OK • Scan Next"
   const handleAcknowledgeScan = () => {
     setLiveScanFeedback(null);
-    // Maikling cooldown para handa nang basahin ang susunod na QR code nang walang conflict
     setTimeout(() => {
       isProcessingScanRef.current = false;
       lastScannedCodeRef.current = '';
@@ -586,7 +593,6 @@ export default function AdminDashboard() {
       return;
     }
 
-    // Hawakan ang camera hangga't hindi napipindot ang "OK • Scan Next"
     if (isProcessingScanRef.current) return;
     if (lastScannedCodeRef.current === cleanSchoolId) return;
 
@@ -1310,7 +1316,7 @@ export default function AdminDashboard() {
               Command Center
             </h1>
             <p style={{ fontSize: '0.82rem', color: '#64748b', margin: 0, fontWeight: 600 }}>
-              {isAdmin ? 'Official Administration & Attendance Hub' : 'Staff QR Attendance Verification Hub'}
+              Official Administration &amp; Attendance Hub
             </p>
           </div>
 
@@ -1381,7 +1387,7 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          {/* TAB 2: ADD STUDENT */}
+          {/* TAB 2: ADD STUDENT & ENROLLED STUDENTS WITH "REMOVE ALL" BUTTON */}
           {activeTab === 'add-student' && (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))', gap: '20px' }}>
               {isAdmin && (
@@ -1483,6 +1489,7 @@ export default function AdminDashboard() {
                 </div>
               )}
 
+              {/* ENROLLED STUDENTS CARD (MAY "REMOVE ALL" BUTTON AT SEARCH) */}
               <div className={styles.adminFormCard}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '8px' }}>
                   <div>
@@ -1491,7 +1498,7 @@ export default function AdminDashboard() {
                     </h3>
                   </div>
 
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <input
                       type="text"
                       placeholder="Search..."
@@ -1500,6 +1507,27 @@ export default function AdminDashboard() {
                       className={styles.loginInput}
                       style={{ width: '130px', padding: '6px 10px', fontSize: '0.8rem' }}
                     />
+
+                    {isAdmin && students.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => triggerDeletePrompt('all_students', 'ALL', 'ALL enrolled students')}
+                        style={{
+                          border: '1px solid #fecaca',
+                          backgroundColor: '#fef2f2',
+                          color: '#b91c1c',
+                          fontWeight: 900,
+                          cursor: 'pointer',
+                          padding: '6px 12px',
+                          borderRadius: '8px',
+                          fontSize: '0.78rem',
+                          whiteSpace: 'nowrap',
+                          touchAction: 'manipulation',
+                        }}
+                      >
+                        Remove All
+                      </button>
+                    )}
                   </div>
                 </div>
 
@@ -1565,7 +1593,7 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          {/* TAB 3: MANAGE STAFF & AUTHORIZED SCANNERS (MOBILE-RESPONSIVE CARD LIST) */}
+          {/* TAB 3: MANAGE STAFF & AUTHORIZED SCANNERS */}
           {activeTab === 'add-staff' && isAdmin && (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))', gap: '20px' }}>
               <div className={styles.adminFormCard}>
@@ -1617,7 +1645,7 @@ export default function AdminDashboard() {
                 </form>
               </div>
 
-              {/* AUTHORIZED SCANNERS LIST - KITANG-KITA SA CELLPHONE ANG REVOKE BUTTON */}
+              {/* AUTHORIZED SCANNERS LIST - CELLPHONE COMPATIBLE */}
               <div className={styles.adminFormCard}>
                 <h3 className={styles.analyticsTitle} style={{ fontSize: '0.95rem', marginBottom: '14px' }}>
                   Authorized Scanners ({staffList.length})
@@ -2683,7 +2711,7 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      {/* MOBILE IN-APP DELETE CONFIRMATION MODAL */}
+      {/* MOBILE IN-APP DELETE CONFIRMATION MODAL (GINAGAMIT DIN PARA SA REMOVE ALL) */}
       {deleteModal.isOpen && (
         <div
           style={{
