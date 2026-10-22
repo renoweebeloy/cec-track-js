@@ -11,6 +11,10 @@ export default function AdminDashboard() {
   const eventImageInputRef = useRef(null);
   const formRef = useRef(null);
 
+  // Scan Processing Lock para maiwasan ang paulit-ulit na alert loop
+  const isProcessingScanRef = useRef(false);
+  const lastScannedCodeRef = useRef('');
+
   // Authentication & Security Guard States
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [authChecking, setAuthChecking] = useState(true);
@@ -55,7 +59,6 @@ export default function AdminDashboard() {
 
   // 5. Live Camera Scanner & Scanned Student Modal
   const [isCameraModalOpen, setIsCameraModalOpen] = useState(false);
-  const [isScannerRunning, setIsScannerRunning] = useState(false);
   const [scannedStudentData, setScannedStudentData] = useState(null);
   const [showVerifyModal, setShowVerifyModal] = useState(false);
   const [confirmingAttendance, setConfirmingAttendance] = useState(false);
@@ -115,7 +118,7 @@ export default function AdminDashboard() {
     }
   };
 
-  // 5-Minute Inactivity Session Guard
+  // Inactivity Guard (5 Minutes)
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
@@ -179,7 +182,7 @@ export default function AdminDashboard() {
     }
   }, []);
 
-  // Access Clearance Guard
+  // Verification Access Clearance
   useEffect(() => {
     const verifyPortalAccess = async () => {
       try {
@@ -432,6 +435,9 @@ export default function AdminDashboard() {
     }
   };
 
+  // ========================================================
+  // CAMERA SCANNER FUNCTION (PINALAKI AT WALANG LOOP BUG)
+  // ========================================================
   const startCameraScanner = async () => {
     if (!selectedEventId) {
       showNotify('error', 'Please select an Active Event Schedule before scanning.');
@@ -444,21 +450,27 @@ export default function AdminDashboard() {
     }
 
     setIsCameraModalOpen(true);
+    isProcessingScanRef.current = false;
+    lastScannedCodeRef.current = '';
 
     setTimeout(async () => {
       try {
         const qrScanner = new window.Html5Qrcode('interactive-qr-reader');
         scannerRef.current = qrScanner;
 
+        // Pinalaki ang box scanner (280x280)
         await qrScanner.start(
           { facingMode: 'environment' },
-          { fps: 10, qrbox: { width: 220, height: 220 } },
+          {
+            fps: 15,
+            qrbox: { width: 280, height: 280 },
+            aspectRatio: 1.0,
+          },
           (decodedText) => {
             handleQrCodeDetected(decodedText);
           },
           () => {}
         );
-        setIsScannerRunning(true);
       } catch (err) {
         console.error('Error starting camera scanner:', err);
         showNotify('error', 'Unable to access camera. Please ensure camera permissions are granted.');
@@ -477,7 +489,8 @@ export default function AdminDashboard() {
       }
       scannerRef.current = null;
     }
-    setIsScannerRunning(false);
+    isProcessingScanRef.current = false;
+    lastScannedCodeRef.current = '';
   };
 
   const closeCameraModal = async () => {
@@ -487,36 +500,36 @@ export default function AdminDashboard() {
     setScannedStudentData(null);
   };
 
+  // HANDLER NA MAY SCAN LOCK AT MAAYOS NA "ALREADY SCANNED" LOGIC
   const handleQrCodeDetected = async (decodedText) => {
-    if (!decodedText || showVerifyModal) return;
+    const cleanSchoolId = (decodedText || '').trim();
+    if (!cleanSchoolId) return;
 
-    if (scannerRef.current) {
-      try {
-        await scannerRef.current.pause();
-      } catch (e) {}
-    }
+    // Pigilan ang pag-scan habang may binubuksan pang dialog o parehong ID na nakatapat
+    if (isProcessingScanRef.current) return;
+    if (lastScannedCodeRef.current === cleanSchoolId) return;
 
-    playBeepSound();
-
-    const cleanSchoolId = decodedText.trim();
+    isProcessingScanRef.current = true;
+    lastScannedCodeRef.current = cleanSchoolId;
 
     try {
       const { data: student, error } = await supabase
         .from('profiles')
         .select('school_id, full_name, course, year_level, section, avatar_url')
         .eq('school_id', cleanSchoolId)
-        .single();
+        .maybeSingle();
 
       if (error || !student) {
         alert(`ACCESS DENIED:\nSchool ID "${cleanSchoolId}" is not registered in the database.`);
-        if (scannerRef.current) {
-          try {
-            await scannerRef.current.resume();
-          } catch (e) {}
-        }
+        // Maghintay sandali bago payagan muli ang scanner para maiwasan ang loop
+        setTimeout(() => {
+          isProcessingScanRef.current = false;
+          lastScannedCodeRef.current = '';
+        }, 1200);
         return;
       }
 
+      // Suriin kung na-scan na kanina
       const { data: existingAttendance } = await supabase
         .from('attendance')
         .select('id, time_in')
@@ -525,26 +538,33 @@ export default function AdminDashboard() {
         .maybeSingle();
 
       if (existingAttendance) {
+        playBeepSound();
         alert(
-          `ALREADY SCANNED:\n\n` +
+          `ALREADY SCANNED!\n\n` +
           `Name: ${student.full_name}\n` +
           `School ID: ${student.school_id}\n` +
           `Recorded Time In: ${existingAttendance.time_in}\n\n` +
           `Attendance has already been recorded for this event.`
         );
 
-        if (scannerRef.current) {
-          try {
-            await scannerRef.current.resume();
-          } catch (e) {}
-        }
+        // 2-segundong cooldown para maalis ang card at makapag-scan ng panibagong student
+        setTimeout(() => {
+          isProcessingScanRef.current = false;
+          lastScannedCodeRef.current = '';
+        }, 1800);
         return;
       }
 
+      // Kung bago at hindi pa naitala: patunugin ang beep at ipakita ang profile modal
+      playBeepSound();
       setScannedStudentData(student);
       setShowVerifyModal(true);
     } catch (err) {
       console.error('Scan lookup error:', err);
+      setTimeout(() => {
+        isProcessingScanRef.current = false;
+        lastScannedCodeRef.current = '';
+      }, 1000);
     }
   };
 
@@ -584,16 +604,26 @@ export default function AdminDashboard() {
       setShowVerifyModal(false);
       setScannedStudentData(null);
 
-      if (scannerRef.current) {
-        try {
-          await scannerRef.current.resume();
-        } catch (e) {}
-      }
+      // Tuloy-tuloy na mag-scan para sa susunod na estudyante
+      setTimeout(() => {
+        isProcessingScanRef.current = false;
+        lastScannedCodeRef.current = '';
+      }, 800);
     } catch (err) {
       console.error('Error recording attendance:', err);
+      isProcessingScanRef.current = false;
     } finally {
       setConfirmingAttendance(false);
     }
+  };
+
+  const handleCancelScannedModal = () => {
+    setShowVerifyModal(false);
+    setScannedStudentData(null);
+    setTimeout(() => {
+      isProcessingScanRef.current = false;
+      lastScannedCodeRef.current = '';
+    }, 800);
   };
 
   const handleSearchStudentHistory = async (e) => {
@@ -1974,7 +2004,7 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          {/* TAB 6: SEARCH STUDENT ATTENDANCE HISTORY (MOBILE-RESPONSIVE CARDS) */}
+          {/* TAB 6: SEARCH STUDENT ATTENDANCE HISTORY */}
           {activeTab === 'search-student' && (
             <div style={{ maxWidth: '900px', margin: '0 auto', width: '100%' }}>
               <div className={styles.adminFormCard} style={{ padding: '20px', marginBottom: '20px' }}>
@@ -2098,7 +2128,7 @@ export default function AdminDashboard() {
                     </div>
                   </div>
 
-                  {/* MOBILE-RESPONSIVE ATTENDANCE CARDS */}
+                  {/* RESPONSIVE CARDS VIEW */}
                   <div className={styles.adminFormCard} style={{ padding: '16px 14px', width: '100%', boxSizing: 'border-box' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '8px' }}>
                       <h3 className={styles.analyticsTitle} style={{ fontSize: '0.95rem', margin: 0 }}>
@@ -2194,13 +2224,13 @@ export default function AdminDashboard() {
         </main>
       </div>
 
-      {/* CAMERA SCANNER MODAL */}
+      {/* CAMERA SCANNER MODAL (PINALAKI ANG VIEWFINDER WINDOW) */}
       {isCameraModalOpen && (
         <div
           style={{
             position: 'fixed',
             inset: 0,
-            backgroundColor: 'rgba(15, 23, 42, 0.75)',
+            backgroundColor: 'rgba(15, 23, 42, 0.8)',
             backdropFilter: 'blur(5px)',
             zIndex: 110,
             display: 'flex',
@@ -2213,7 +2243,7 @@ export default function AdminDashboard() {
             style={{
               backgroundColor: '#ffffff',
               width: '100%',
-              maxWidth: '420px',
+              maxWidth: '460px',
               borderRadius: '24px',
               padding: '20px 16px',
               boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
@@ -2222,17 +2252,18 @@ export default function AdminDashboard() {
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginBottom: '14px' }}>
-              <h3 style={{ fontSize: '1.1rem', fontWeight: 900, color: '#15803d', margin: 0 }}>
+              <h3 style={{ fontSize: '1.15rem', fontWeight: 900, color: '#15803d', margin: 0 }}>
                 Scan Student QR Code
               </h3>
             </div>
 
+            {/* VIEWFINDER CONTAINER (PINATAAS SA 350px PARA MALAWAK) */}
             <div
               style={{
                 position: 'relative',
                 width: '100%',
-                maxWidth: '340px',
-                height: '280px',
+                maxWidth: '380px',
+                height: '350px',
                 margin: '0 auto',
                 backgroundColor: '#0f172a',
                 borderRadius: '18px',
@@ -2245,52 +2276,25 @@ export default function AdminDashboard() {
               <div id="interactive-qr-reader" style={{ width: '100%', height: '100%' }} />
             </div>
 
-            <div style={{ marginTop: '10px', marginBottom: '12px' }}>
+            <div style={{ marginTop: '14px' }}>
               <button
                 type="button"
-                onClick={async () => {
-                  if (scannerRef.current) {
-                    if (isScannerRunning) {
-                      await scannerRef.current.pause();
-                      setIsScannerRunning(false);
-                    } else {
-                      await scannerRef.current.resume();
-                      setIsScannerRunning(true);
-                    }
-                  }
-                }}
+                onClick={closeCameraModal}
                 style={{
-                  backgroundColor: '#f1f5f9',
-                  border: '1px solid #cbd5e1',
-                  borderRadius: '8px',
-                  padding: '6px 12px',
-                  fontSize: '0.78rem',
-                  fontWeight: 800,
-                  color: '#475569',
+                  width: '100%',
+                  padding: '12px',
+                  backgroundColor: '#ef4444',
+                  color: '#ffffff',
+                  border: 'none',
+                  borderRadius: '14px',
+                  fontSize: '0.92rem',
+                  fontWeight: 900,
                   cursor: 'pointer',
                 }}
               >
-                {isScannerRunning ? 'Stop Scanning' : 'Resume Scanning'}
+                Close Camera
               </button>
             </div>
-
-            <button
-              type="button"
-              onClick={closeCameraModal}
-              style={{
-                width: '100%',
-                padding: '12px',
-                backgroundColor: '#ef4444',
-                color: '#ffffff',
-                border: 'none',
-                borderRadius: '14px',
-                fontSize: '0.9rem',
-                fontWeight: 900,
-                cursor: 'pointer',
-              }}
-            >
-              Close Camera
-            </button>
           </div>
         </div>
       )}
@@ -2434,15 +2438,7 @@ export default function AdminDashboard() {
 
               <button
                 type="button"
-                onClick={async () => {
-                  setShowVerifyModal(false);
-                  setScannedStudentData(null);
-                  if (scannerRef.current) {
-                    try {
-                      await scannerRef.current.resume();
-                    } catch (e) {}
-                  }
-                }}
+                onClick={handleCancelScannedModal}
                 style={{
                   width: '100%',
                   padding: '10px',
