@@ -9,7 +9,7 @@ export default function ForgotPassword() {
   const router = useRouter();
 
   // ⚠️ ILISI KINI SA IMONG TINAWAG NGA GOOGLE APPS SCRIPT WEB APP URL
-  const APPS_SCRIPT_URL = 'YOUR_APPS_SCRIPT_URL_HERE';
+  const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzuVn8MyNNu472-_t3HWfcZNVZVNDOEs9VNrKihAc2fshTrGrmxzRnysvZf4t7-TFU/exec';
 
   // Step 1: Input School ID & Email | Step 2: Input Code & New Password
   const [step, setStep] = useState(1);
