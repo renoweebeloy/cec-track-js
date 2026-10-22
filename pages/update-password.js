@@ -80,7 +80,7 @@ export default function UpdatePassword() {
       }
 
       setIsSuccess(true);
-      setMessage('✅ Password updated successfully! Redirecting...');
+      setMessage('Password updated successfully! Redirecting...');
 
       // 3. Diretso padulong sa Dashboard o Admin
       setTimeout(() => {
