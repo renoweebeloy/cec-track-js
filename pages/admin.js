@@ -11,7 +11,7 @@ export default function AdminDashboard() {
   const eventImageInputRef = useRef(null);
   const formRef = useRef(null);
 
-  // Scan Processing Lock para maiwasan ang paulit-ulit na alert loop
+  // Scan Processing Lock para maiwasan ang paulit-ulit na pag-scan
   const isProcessingScanRef = useRef(false);
   const lastScannedCodeRef = useRef('');
 
@@ -26,6 +26,10 @@ export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState('profile');
   const [loading, setLoading] = useState(false);
   const [notification, setNotification] = useState({ type: '', message: '' });
+
+  // Mobile Delete Confirmation Modal States
+  const [deleteModal, setDeleteModal] = useState({ isOpen: false, type: '', id: null, title: '' });
+  const [deletingRecord, setDeletingRecord] = useState(false);
 
   // 1. Student States
   const [studentId, setStudentId] = useState('');
@@ -52,18 +56,19 @@ export default function AdminDashboard() {
   const [eventImage, setEventImage] = useState('');
   const [compressingImage, setCompressingImage] = useState(false);
 
-  // 4. Manual Attendance Logger States
-  const [manualStudentId, setManualStudentId] = useState('');
+  // 4. Scanner Controls & Toggle Modes
+  const [scanMode, setScanMode] = useState('time_in'); // 'time_in' | 'time_out'
+  const [isScannerGateOpen, setIsScannerGateOpen] = useState(true);
   const [selectedEventId, setSelectedEventId] = useState('');
+  const [manualStudentId, setManualStudentId] = useState('');
   const [scanLogMsg, setScanLogMsg] = useState({ type: '', text: '' });
 
-  // 5. Live Camera Scanner & Scanned Student Modal
+  // Live Continuous Camera Scanner Feedback
   const [isCameraModalOpen, setIsCameraModalOpen] = useState(false);
-  const [scannedStudentData, setScannedStudentData] = useState(null);
-  const [showVerifyModal, setShowVerifyModal] = useState(false);
-  const [confirmingAttendance, setConfirmingAttendance] = useState(false);
+  const [liveScanFeedback, setLiveScanFeedback] = useState(null);
+  const [recentScans, setRecentScans] = useState([]);
 
-  // 6. Search Student Attendance History States
+  // 5. Search Student Attendance History States
   const [searchHistoryId, setSearchHistoryId] = useState('');
   const [searchingHistory, setSearchingHistory] = useState(false);
   const [searchedStudent, setSearchedStudent] = useState(null);
@@ -90,6 +95,22 @@ export default function AdminDashboard() {
     'Section F', 'Section G', 'Section H', 'Section I', 'Section J', 'Section K',
   ];
 
+  // ========================================================
+  // TIME FORMATTER HELPER: CONVERT 24H (17:00) TO 12H (5:00 PM)
+  // ========================================================
+  const formatTime12Hour = (time24) => {
+    if (!time24) return '--:--';
+    if (time24.includes('AM') || time24.includes('PM')) return time24;
+    const parts = time24.split(':');
+    let hours = parseInt(parts[0], 10);
+    const minutes = parts[1] ? parts[1].substring(0, 2) : '00';
+    if (isNaN(hours)) return time24;
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    hours = hours % 12;
+    hours = hours ? hours : 12;
+    return `${hours}:${minutes.padStart(2, '0')} ${ampm}`;
+  };
+
   const showNotify = (type, message) => {
     setNotification({ type, message });
     setTimeout(() => {
@@ -105,7 +126,7 @@ export default function AdminDashboard() {
 
       oscillator.type = 'sine';
       oscillator.frequency.setValueAtTime(880, audioCtx.currentTime);
-      gainNode.gain.setValueAtTime(0.2, audioCtx.currentTime);
+      gainNode.gain.setValueAtTime(0.25, audioCtx.currentTime);
       gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.16);
 
       oscillator.connect(gainNode);
@@ -114,11 +135,11 @@ export default function AdminDashboard() {
       oscillator.start();
       oscillator.stop(audioCtx.currentTime + 0.16);
     } catch (e) {
-      console.warn('AudioContext beep error:', e);
+      console.warn('AudioContext beep warning:', e);
     }
   };
 
-  // Inactivity Guard (5 Minutes)
+  // 5-Minute Inactivity Session Guard
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
@@ -436,11 +457,63 @@ export default function AdminDashboard() {
   };
 
   // ========================================================
-  // CAMERA SCANNER FUNCTION (PINALAKI AT WALANG LOOP BUG)
+  // ROBUST MOBILE DELETE HANDLER (FIX PARA SA CP)
+  // ========================================================
+  const triggerDeletePrompt = (type, id, title) => {
+    if (userRole !== 'admin') {
+      alert('Only administrators have permission to delete records.');
+      return;
+    }
+    setDeleteModal({ isOpen: true, type, id, title });
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteModal.id || userRole !== 'admin') return;
+    setDeletingRecord(true);
+
+    try {
+      if (deleteModal.type === 'event') {
+        // 1. Burahin muna ang attendance records upang maiwasan ang foreign key constraint error sa mobile
+        await supabase.from('attendance').delete().eq('event_id', deleteModal.id);
+        
+        // 2. Burahin ang event record
+        const { error } = await supabase.from('events').delete().eq('id', deleteModal.id);
+        if (error) throw new Error(error.message);
+
+        showNotify('success', `Event "${deleteModal.title}" deleted successfully.`);
+      } else if (deleteModal.type === 'student') {
+        await supabase.from('attendance').delete().eq('student_id', deleteModal.title);
+        const { error } = await supabase.from('profiles').delete().eq('id', deleteModal.id);
+        if (error) throw new Error(error.message);
+
+        showNotify('success', `Student record removed successfully.`);
+      } else if (deleteModal.type === 'staff') {
+        const { error } = await supabase.from('profiles').delete().eq('id', deleteModal.id);
+        if (error) throw new Error(error.message);
+
+        showNotify('success', `Staff authorization revoked.`);
+      }
+
+      setDeleteModal({ isOpen: false, type: '', id: null, title: '' });
+      fetchAllData();
+    } catch (err) {
+      showNotify('error', `Delete error: ${err.message}`);
+    } finally {
+      setDeletingRecord(false);
+    }
+  };
+
+  // ========================================================
+  // CONTINUOUS LIVE CAMERA SCANNER (NO BLOCKING POPUPS)
   // ========================================================
   const startCameraScanner = async () => {
     if (!selectedEventId) {
       showNotify('error', 'Please select an Active Event Schedule before scanning.');
+      return;
+    }
+
+    if (!isScannerGateOpen) {
+      showNotify('error', 'Scanner is currently CLOSED. Please turn ON the Scanner Gate switch.');
       return;
     }
 
@@ -450,6 +523,7 @@ export default function AdminDashboard() {
     }
 
     setIsCameraModalOpen(true);
+    setLiveScanFeedback(null);
     isProcessingScanRef.current = false;
     lastScannedCodeRef.current = '';
 
@@ -458,7 +532,6 @@ export default function AdminDashboard() {
         const qrScanner = new window.Html5Qrcode('interactive-qr-reader');
         scannerRef.current = qrScanner;
 
-        // Pinalaki ang box scanner (280x280)
         await qrScanner.start(
           { facingMode: 'environment' },
           {
@@ -496,16 +569,22 @@ export default function AdminDashboard() {
   const closeCameraModal = async () => {
     await stopCameraScanner();
     setIsCameraModalOpen(false);
-    setShowVerifyModal(false);
-    setScannedStudentData(null);
+    setLiveScanFeedback(null);
   };
 
-  // HANDLER NA MAY SCAN LOCK AT MAAYOS NA "ALREADY SCANNED" LOGIC
   const handleQrCodeDetected = async (decodedText) => {
     const cleanSchoolId = (decodedText || '').trim();
     if (!cleanSchoolId) return;
 
-    // Pigilan ang pag-scan habang may binubuksan pang dialog o parehong ID na nakatapat
+    if (!isScannerGateOpen) {
+      setLiveScanFeedback({
+        type: 'error',
+        title: 'SCANNER CLOSED',
+        subtitle: 'Attendance scanning is currently turned OFF by Admin.',
+      });
+      return;
+    }
+
     if (isProcessingScanRef.current) return;
     if (lastScannedCodeRef.current === cleanSchoolId) return;
 
@@ -520,110 +599,147 @@ export default function AdminDashboard() {
         .maybeSingle();
 
       if (error || !student) {
-        alert(`ACCESS DENIED:\nSchool ID "${cleanSchoolId}" is not registered in the database.`);
-        // Maghintay sandali bago payagan muli ang scanner para maiwasan ang loop
+        setLiveScanFeedback({
+          type: 'error',
+          title: 'ACCESS DENIED',
+          subtitle: `School ID "${cleanSchoolId}" not found in whitelist database.`,
+        });
+
         setTimeout(() => {
           isProcessingScanRef.current = false;
           lastScannedCodeRef.current = '';
-        }, 1200);
+        }, 2000);
         return;
       }
 
-      // Suriin kung na-scan na kanina
+      const currentTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
       const { data: existingAttendance } = await supabase
         .from('attendance')
-        .select('id, time_in')
+        .select('*')
         .eq('student_id', student.school_id)
         .eq('event_id', selectedEventId)
         .maybeSingle();
 
-      if (existingAttendance) {
-        playBeepSound();
-        alert(
-          `ALREADY SCANNED!\n\n` +
-          `Name: ${student.full_name}\n` +
-          `School ID: ${student.school_id}\n` +
-          `Recorded Time In: ${existingAttendance.time_in}\n\n` +
-          `Attendance has already been recorded for this event.`
-        );
+      if (scanMode === 'time_in') {
+        if (existingAttendance && existingAttendance.time_in) {
+          playBeepSound();
+          setLiveScanFeedback({
+            type: 'warning',
+            title: 'ALREADY TIMED IN',
+            subtitle: `${student.full_name} (${student.school_id}) timed in at ${existingAttendance.time_in}`,
+          });
+        } else if (existingAttendance) {
+          await supabase
+            .from('attendance')
+            .update({
+              time_in: currentTime,
+              status: 'PRESENT',
+            })
+            .eq('id', existingAttendance.id);
 
-        // 2-segundong cooldown para maalis ang card at makapag-scan ng panibagong student
-        setTimeout(() => {
-          isProcessingScanRef.current = false;
-          lastScannedCodeRef.current = '';
-        }, 1800);
-        return;
+          playBeepSound();
+          setLiveScanFeedback({
+            type: 'success',
+            title: 'TIME IN RECORDED!',
+            subtitle: `${student.full_name} (${student.school_id}) • ${currentTime}`,
+          });
+
+          setRecentScans((prev) => [
+            { id: Date.now(), name: student.full_name, school_id: student.school_id, mode: 'TIME IN', time: currentTime },
+            ...prev.slice(0, 4),
+          ]);
+        } else {
+          await supabase.from('attendance').insert([
+            {
+              student_id: student.school_id,
+              student_name: student.full_name || 'CEC Student',
+              event_id: selectedEventId,
+              status: 'PRESENT',
+              time_in: currentTime,
+              scanned_by: currentUser.email || userRole,
+            },
+          ]);
+
+          playBeepSound();
+          setLiveScanFeedback({
+            type: 'success',
+            title: 'TIME IN RECORDED!',
+            subtitle: `${student.full_name} (${student.school_id}) • ${currentTime}`,
+          });
+
+          setRecentScans((prev) => [
+            { id: Date.now(), name: student.full_name, school_id: student.school_id, mode: 'TIME IN', time: currentTime },
+            ...prev.slice(0, 4),
+          ]);
+        }
       }
 
-      // Kung bago at hindi pa naitala: patunugin ang beep at ipakita ang profile modal
-      playBeepSound();
-      setScannedStudentData(student);
-      setShowVerifyModal(true);
+      if (scanMode === 'time_out') {
+        if (existingAttendance && existingAttendance.time_out && existingAttendance.time_out !== '--:--') {
+          playBeepSound();
+          setLiveScanFeedback({
+            type: 'warning',
+            title: 'ALREADY TIMED OUT',
+            subtitle: `${student.full_name} (${student.school_id}) timed out at ${existingAttendance.time_out}`,
+          });
+        } else if (existingAttendance) {
+          await supabase
+            .from('attendance')
+            .update({
+              time_out: currentTime,
+            })
+            .eq('id', existingAttendance.id);
+
+          playBeepSound();
+          setLiveScanFeedback({
+            type: 'success',
+            title: 'TIME OUT RECORDED!',
+            subtitle: `${student.full_name} (${student.school_id}) • ${currentTime}`,
+          });
+
+          setRecentScans((prev) => [
+            { id: Date.now(), name: student.full_name, school_id: student.school_id, mode: 'TIME OUT', time: currentTime },
+            ...prev.slice(0, 4),
+          ]);
+        } else {
+          await supabase.from('attendance').insert([
+            {
+              student_id: student.school_id,
+              student_name: student.full_name || 'CEC Student',
+              event_id: selectedEventId,
+              status: 'PRESENT',
+              time_in: '--:--',
+              time_out: currentTime,
+              scanned_by: currentUser.email || userRole,
+            },
+          ]);
+
+          playBeepSound();
+          setLiveScanFeedback({
+            type: 'success',
+            title: 'TIME OUT RECORDED!',
+            subtitle: `${student.full_name} (${student.school_id}) • ${currentTime} (No Time In)`,
+          });
+
+          setRecentScans((prev) => [
+            { id: Date.now(), name: student.full_name, school_id: student.school_id, mode: 'TIME OUT', time: currentTime },
+            ...prev.slice(0, 4),
+          ]);
+        }
+      }
+
+      setTimeout(() => {
+        isProcessingScanRef.current = false;
+        lastScannedCodeRef.current = '';
+      }, 2200);
     } catch (err) {
       console.error('Scan lookup error:', err);
       setTimeout(() => {
         isProcessingScanRef.current = false;
         lastScannedCodeRef.current = '';
-      }, 1000);
+      }, 1500);
     }
-  };
-
-  const handleConfirmAttendance = async () => {
-    if (!scannedStudentData || !selectedEventId) return;
-
-    setConfirmingAttendance(true);
-
-    try {
-      const { error } = await supabase.from('attendance').insert([
-        {
-          student_id: scannedStudentData.school_id,
-          student_name: scannedStudentData.full_name || 'CEC Student',
-          event_id: selectedEventId,
-          status: 'PRESENT',
-          time_in: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          scanned_by: currentUser.email || userRole,
-        },
-      ]);
-
-      if (error) {
-        if (error.code === '23505') {
-          showNotify(
-            'error',
-            `Already scanned: ${scannedStudentData.full_name} (${scannedStudentData.school_id}) has already been recorded.`
-          );
-        } else {
-          showNotify('error', `Attendance error: ${error.message}`);
-        }
-      } else {
-        showNotify(
-          'success',
-          `Attendance confirmed: ${scannedStudentData.full_name} (${scannedStudentData.school_id})`
-        );
-      }
-
-      setShowVerifyModal(false);
-      setScannedStudentData(null);
-
-      // Tuloy-tuloy na mag-scan para sa susunod na estudyante
-      setTimeout(() => {
-        isProcessingScanRef.current = false;
-        lastScannedCodeRef.current = '';
-      }, 800);
-    } catch (err) {
-      console.error('Error recording attendance:', err);
-      isProcessingScanRef.current = false;
-    } finally {
-      setConfirmingAttendance(false);
-    }
-  };
-
-  const handleCancelScannedModal = () => {
-    setShowVerifyModal(false);
-    setScannedStudentData(null);
-    setTimeout(() => {
-      isProcessingScanRef.current = false;
-      lastScannedCodeRef.current = '';
-    }, 800);
   };
 
   const handleSearchStudentHistory = async (e) => {
@@ -684,8 +800,8 @@ export default function AdminDashboard() {
           scheduledTimeIn: ev.time_in,
           scheduledTimeOut: ev.time_out,
           status: isPresent ? 'PRESENT' : 'ABSENT',
-          actualTimeIn: matchingLog ? matchingLog.time_in : '--:--',
-          actualTimeOut: matchingLog ? matchingLog.time_out || ev.time_out : '--:--',
+          actualTimeIn: matchingLog ? formatTime12Hour(matchingLog.time_in) : '--:--',
+          actualTimeOut: matchingLog ? formatTime12Hour(matchingLog.time_out || ev.time_out) : '--:--',
           scannedBy: matchingLog ? matchingLog.scanned_by : 'N/A',
         };
       });
@@ -744,44 +860,6 @@ export default function AdminDashboard() {
       fetchAllData();
     } catch (err) {
       showNotify('error', err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleRemoveAllStudents = async () => {
-    if (userRole !== 'admin') {
-      alert('Only administrators are authorized to delete student records.');
-      return;
-    }
-
-    if (students.length === 0) {
-      alert('No student records found to delete.');
-      return;
-    }
-
-    const isConfirmed = window.confirm(
-      'Are you sure you want to delete ALL student records?\n\n' +
-      'Warning: All enrolled students will be permanently removed from the database. This action cannot be undone.'
-    );
-
-    if (!isConfirmed) return;
-
-    setLoading(true);
-    try {
-      const { error } = await supabase
-        .from('profiles')
-        .delete()
-        .eq('role', 'student');
-
-      if (error) {
-        throw new Error(error.message);
-      }
-
-      showNotify('success', 'All student records have been successfully deleted.');
-      fetchAllData();
-    } catch (err) {
-      showNotify('error', `Error deleting records: ${err.message}`);
     } finally {
       setLoading(false);
     }
@@ -860,6 +938,11 @@ export default function AdminDashboard() {
     e.preventDefault();
     if (!manualStudentId) return;
 
+    if (!isScannerGateOpen) {
+      setScanLogMsg({ type: 'error', text: 'Scanner Gate is currently CLOSED by Admin.' });
+      return;
+    }
+
     setScanLogMsg({ type: 'info', text: 'Validating School ID with database...' });
 
     const studentMatch = students.find(
@@ -874,69 +957,79 @@ export default function AdminDashboard() {
       return;
     }
 
+    const currentTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
     const { data: existing } = await supabase
       .from('attendance')
-      .select('id, time_in')
+      .select('*')
       .eq('student_id', studentMatch.school_id)
       .eq('event_id', selectedEventId)
       .maybeSingle();
 
-    if (existing) {
-      setScanLogMsg({
-        type: 'warning',
-        text: `ALREADY SCANNED: Recorded at ${existing.time_in} for ${studentMatch.full_name} (${studentMatch.school_id}).`,
-      });
-      return;
-    }
+    if (scanMode === 'time_in') {
+      if (existing && existing.time_in) {
+        setScanLogMsg({
+          type: 'warning',
+          text: `ALREADY TIMED IN: Recorded at ${existing.time_in} for ${studentMatch.full_name} (${studentMatch.school_id}).`,
+        });
+        return;
+      }
 
-    const { error } = await supabase.from('attendance').insert([
-      {
-        student_id: studentMatch.school_id,
-        student_name: studentMatch.full_name || 'CEC Student',
-        event_id: selectedEventId,
-        status: 'PRESENT',
-        time_in: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        scanned_by: currentUser.email || userRole,
-      },
-    ]);
+      const { error } = await supabase.from('attendance').insert([
+        {
+          student_id: studentMatch.school_id,
+          student_name: studentMatch.full_name || 'CEC Student',
+          event_id: selectedEventId,
+          status: 'PRESENT',
+          time_in: currentTime,
+          scanned_by: currentUser.email || userRole,
+        },
+      ]);
 
-    if (error) {
-      setScanLogMsg({ type: 'error', text: `Error: ${error.message}` });
+      if (error) {
+        setScanLogMsg({ type: 'error', text: `Error: ${error.message}` });
+      } else {
+        playBeepSound();
+        setScanLogMsg({
+          type: 'success',
+          text: `Time In confirmed: ${studentMatch.full_name} (${studentMatch.school_id}) at ${currentTime}.`,
+        });
+        setManualStudentId('');
+      }
     } else {
+      if (existing && existing.time_out && existing.time_out !== '--:--') {
+        setScanLogMsg({
+          type: 'warning',
+          text: `ALREADY TIMED OUT: Recorded at ${existing.time_out} for ${studentMatch.full_name} (${studentMatch.school_id}).`,
+        });
+        return;
+      }
+
+      if (existing) {
+        await supabase
+          .from('attendance')
+          .update({ time_out: currentTime })
+          .eq('id', existing.id);
+      } else {
+        await supabase.from('attendance').insert([
+          {
+            student_id: studentMatch.school_id,
+            student_name: studentMatch.full_name || 'CEC Student',
+            event_id: selectedEventId,
+            status: 'PRESENT',
+            time_in: '--:--',
+            time_out: currentTime,
+            scanned_by: currentUser.email || userRole,
+          },
+        ]);
+      }
+
       playBeepSound();
       setScanLogMsg({
         type: 'success',
-        text: `Attendance confirmed: ${studentMatch.full_name} (${studentMatch.school_id}).`,
+        text: `Time Out confirmed: ${studentMatch.full_name} (${studentMatch.school_id}) at ${currentTime}.`,
       });
       setManualStudentId('');
-    }
-  };
-
-  const handleDeleteUser = async (id, identifier) => {
-    if (userRole !== 'admin') {
-      alert('Only administrators can remove user records.');
-      return;
-    }
-    if (!confirm(`Are you sure you want to remove ${identifier}?`)) return;
-    const { error } = await supabase.from('profiles').delete().eq('id', id);
-    if (error) showNotify('error', error.message);
-    else {
-      showNotify('success', 'Record removed successfully.');
-      fetchAllData();
-    }
-  };
-
-  const handleDeleteEvent = async (id, title) => {
-    if (userRole !== 'admin') {
-      alert('Only administrators can delete events.');
-      return;
-    }
-    if (!confirm(`Are you sure you want to delete event "${title}"?`)) return;
-    const { error } = await supabase.from('events').delete().eq('id', id);
-    if (error) showNotify('error', error.message);
-    else {
-      showNotify('success', 'Event deleted successfully.');
-      fetchAllData();
     }
   };
 
@@ -971,6 +1064,8 @@ export default function AdminDashboard() {
   const historyAbsentCount = studentAttendanceRecords.filter((r) => r.status === 'ABSENT').length;
   const historyTotalEvents = studentAttendanceRecords.length;
   const historyComplianceRate = historyTotalEvents > 0 ? Math.round((historyPresentCount / historyTotalEvents) * 100) : 0;
+
+  const activeEventObj = events.find((e) => e.id === selectedEventId);
 
   return (
     <div className={styles.container} style={{ paddingBottom: 0, overflowX: 'hidden', maxWidth: '100vw' }}>
@@ -1423,26 +1518,6 @@ export default function AdminDashboard() {
                       className={styles.loginInput}
                       style={{ width: '130px', padding: '6px 10px', fontSize: '0.8rem' }}
                     />
-
-                    {isAdmin && students.length > 0 && (
-                      <button
-                        type="button"
-                        onClick={handleRemoveAllStudents}
-                        disabled={loading}
-                        style={{
-                          backgroundColor: '#fee2e2',
-                          color: '#b91c1c',
-                          border: '1px solid #fecaca',
-                          borderRadius: '8px',
-                          padding: '6px 10px',
-                          fontSize: '0.75rem',
-                          fontWeight: 900,
-                          cursor: 'pointer',
-                        }}
-                      >
-                        Remove All
-                      </button>
-                    )}
                   </div>
                 </div>
 
@@ -1480,8 +1555,19 @@ export default function AdminDashboard() {
                             {isAdmin && (
                               <td style={{ textAlign: 'right' }}>
                                 <button
-                                  onClick={() => handleDeleteUser(st.id, st.school_id)}
-                                  style={{ background: 'none', border: 'none', color: '#b91c1c', fontWeight: 800, cursor: 'pointer', padding: '4px' }}
+                                  type="button"
+                                  onClick={() => triggerDeletePrompt('student', st.id, st.school_id)}
+                                  style={{
+                                    border: '1px solid #fecaca',
+                                    backgroundColor: '#fef2f2',
+                                    color: '#b91c1c',
+                                    fontWeight: 800,
+                                    cursor: 'pointer',
+                                    padding: '5px 10px',
+                                    borderRadius: '8px',
+                                    fontSize: '0.75rem',
+                                    touchAction: 'manipulation',
+                                  }}
                                 >
                                   Remove
                                 </button>
@@ -1569,8 +1655,19 @@ export default function AdminDashboard() {
                           <td>{st.email}</td>
                           <td>
                             <button
-                              onClick={() => handleDeleteUser(st.id, st.full_name)}
-                              style={{ background: 'none', border: 'none', color: '#b91c1c', fontWeight: 800, cursor: 'pointer', padding: '4px' }}
+                              type="button"
+                              onClick={() => triggerDeletePrompt('staff', st.id, st.full_name)}
+                              style={{
+                                border: '1px solid #fecaca',
+                                backgroundColor: '#fef2f2',
+                                color: '#b91c1c',
+                                fontWeight: 800,
+                                cursor: 'pointer',
+                                padding: '5px 10px',
+                                borderRadius: '8px',
+                                fontSize: '0.75rem',
+                                touchAction: 'manipulation',
+                              }}
                             >
                               Revoke
                             </button>
@@ -1782,7 +1879,7 @@ export default function AdminDashboard() {
                 </form>
               </div>
 
-              {/* PUBLISHED EVENTS */}
+              {/* PUBLISHED EVENTS (MAY 12-HOUR AM/PM FORMAT AT WORKING MOBILE DELETE) */}
               <div className={styles.adminFormCard} style={{ width: '100%', boxSizing: 'border-box', padding: '16px 14px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '8px' }}>
                   <h3 className={styles.analyticsTitle} style={{ fontSize: '0.95rem', margin: 0 }}>
@@ -1857,8 +1954,9 @@ export default function AdminDashboard() {
                               <div style={{ fontSize: '0.72rem', color: '#15803d', fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                                 Location: {ev.location || 'FaCET Facade'}
                               </div>
-                              <div style={{ fontSize: '0.7rem', color: '#64748b', fontWeight: 600, marginTop: '2px' }}>
-                                {ev.date} • {ev.time_in}-{ev.time_out}
+                              {/* 12-HOUR FORMAT: E.G. 8:00 AM - 5:00 PM */}
+                              <div style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: 700, marginTop: '2px' }}>
+                                {ev.date} • {formatTime12Hour(ev.time_in)} - {formatTime12Hour(ev.time_out)}
                               </div>
                             </div>
                           </div>
@@ -1877,8 +1975,9 @@ export default function AdminDashboard() {
                             </span>
 
                             {isAdmin && (
-                              <div style={{ display: 'inline-flex', gap: '4px' }}>
+                              <div style={{ display: 'inline-flex', gap: '6px' }}>
                                 <button
+                                  type="button"
                                   onClick={() => handleStartEditEvent(ev)}
                                   style={{
                                     border: '1px solid #bbf7d0',
@@ -1886,24 +1985,27 @@ export default function AdminDashboard() {
                                     color: '#15803d',
                                     fontWeight: 800,
                                     cursor: 'pointer',
-                                    padding: '3px 8px',
-                                    borderRadius: '6px',
-                                    fontSize: '0.7rem',
+                                    padding: '5px 10px',
+                                    borderRadius: '8px',
+                                    fontSize: '0.72rem',
+                                    touchAction: 'manipulation',
                                   }}
                                 >
                                   Edit
                                 </button>
                                 <button
-                                  onClick={() => handleDeleteEvent(ev.id, ev.title)}
+                                  type="button"
+                                  onClick={() => triggerDeletePrompt('event', ev.id, ev.title)}
                                   style={{
                                     border: '1px solid #fecaca',
                                     backgroundColor: '#fef2f2',
                                     color: '#b91c1c',
-                                    fontWeight: 800,
+                                    fontWeight: 900,
                                     cursor: 'pointer',
-                                    padding: '3px 8px',
-                                    borderRadius: '6px',
-                                    fontSize: '0.7rem',
+                                    padding: '5px 10px',
+                                    borderRadius: '8px',
+                                    fontSize: '0.72rem',
+                                    touchAction: 'manipulation',
                                   }}
                                 >
                                   Del
@@ -1923,49 +2025,163 @@ export default function AdminDashboard() {
           {/* TAB 5: SCAN QR & QUICK LOG */}
           {activeTab === 'scan-qr' && (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))', gap: '20px' }}>
-              <div className={styles.adminFormCard} style={{ textAlign: 'center', padding: '28px 16px' }}>
-                <h3 className={styles.analyticsTitle} style={{ justifyContent: 'center', fontSize: '1.1rem', marginBottom: '6px' }}>
-                  Live Camera QR Scanner
+              <div className={styles.adminFormCard} style={{ padding: '24px 18px', textAlign: 'center' }}>
+                <h3 className={styles.analyticsTitle} style={{ justifyContent: 'center', fontSize: '1.15rem', marginBottom: '6px' }}>
+                  Live Attendance QR Scanner
                 </h3>
                 <p style={{ fontSize: '0.82rem', color: '#64748b', marginBottom: '18px', lineHeight: 1.45 }}>
-                  Scan the student QR code. A confirmation beep will sound and the verification profile will appear automatically.
+                  Configure the scanning mode and schedule below, then launch the continuous camera scanner.
                 </p>
 
-                <div style={{ marginBottom: '14px', textAlign: 'left' }}>
+                {/* SCANNER ON / OFF GATE TOGGLE */}
+                <div
+                  style={{
+                    backgroundColor: isScannerGateOpen ? '#f0fdf4' : '#fef2f2',
+                    border: `1px solid ${isScannerGateOpen ? '#bbf7d0' : '#fecaca'}`,
+                    borderRadius: '16px',
+                    padding: '12px 16px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    marginBottom: '16px',
+                  }}
+                >
+                  <div style={{ textAlign: 'left' }}>
+                    <div style={{ fontSize: '0.88rem', fontWeight: 900, color: isScannerGateOpen ? '#15803d' : '#b91c1c' }}>
+                      Scanner Gate: {isScannerGateOpen ? 'OPEN (ACCEPTING SCANS)' : 'CLOSED (PAUSED)'}
+                    </div>
+                    <span style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: 700 }}>
+                      {isScannerGateOpen ? 'Students can scan right now' : 'Attendance logging is stopped'}
+                    </span>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setIsScannerGateOpen(!isScannerGateOpen)}
+                    style={{
+                      backgroundColor: isScannerGateOpen ? '#15803d' : '#ef4444',
+                      color: '#ffffff',
+                      border: 'none',
+                      borderRadius: '10px',
+                      padding: '8px 14px',
+                      fontSize: '0.78rem',
+                      fontWeight: 900,
+                      cursor: 'pointer',
+                      boxShadow: '0 2px 6px rgba(0,0,0,0.1)',
+                      touchAction: 'manipulation',
+                    }}
+                  >
+                    {isScannerGateOpen ? 'Turn OFF' : 'Turn ON'}
+                  </button>
+                </div>
+
+                {/* TIME IN vs TIME OUT TOGGLE BUTTONS */}
+                <div style={{ marginBottom: '16px' }}>
+                  <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 900, color: '#0f172a', marginBottom: '8px', textAlign: 'left' }}>
+                    SELECT SCANNER MODE:
+                  </label>
+                  <div
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: '1fr 1fr',
+                      gap: '8px',
+                      backgroundColor: '#f1f5f9',
+                      padding: '6px',
+                      borderRadius: '14px',
+                    }}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => setScanMode('time_in')}
+                      style={{
+                        padding: '10px',
+                        borderRadius: '10px',
+                        border: 'none',
+                        fontWeight: 900,
+                        fontSize: '0.88rem',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s',
+                        backgroundColor: scanMode === 'time_in' ? '#15803d' : 'transparent',
+                        color: scanMode === 'time_in' ? '#ffffff' : '#64748b',
+                        boxShadow: scanMode === 'time_in' ? '0 2px 8px rgba(21, 128, 61, 0.25)' : 'none',
+                        touchAction: 'manipulation',
+                      }}
+                    >
+                      TIME IN SCANNER
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setScanMode('time_out')}
+                      style={{
+                        padding: '10px',
+                        borderRadius: '10px',
+                        border: 'none',
+                        fontWeight: 900,
+                        fontSize: '0.88rem',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s',
+                        backgroundColor: scanMode === 'time_out' ? '#2563eb' : 'transparent',
+                        color: scanMode === 'time_out' ? '#ffffff' : '#64748b',
+                        boxShadow: scanMode === 'time_out' ? '0 2px 8px rgba(37, 99, 235, 0.25)' : 'none',
+                        touchAction: 'manipulation',
+                      }}
+                    >
+                      TIME OUT SCANNER
+                    </button>
+                  </div>
+                </div>
+
+                {/* TARGET EVENT SCHEDULE */}
+                <div style={{ marginBottom: '18px', textAlign: 'left' }}>
                   <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: '#334155', marginBottom: '6px' }}>
-                    Active Event Schedule Target:
+                    Target Event Schedule:
                   </label>
                   <select
                     value={selectedEventId}
                     onChange={(e) => setSelectedEventId(e.target.value)}
                     className={styles.loginInput}
-                    style={{ padding: '8px 12px', fontSize: '0.88rem' }}
+                    style={{ padding: '10px 12px', fontSize: '0.88rem' }}
                   >
                     {events.map((ev) => (
                       <option key={ev.id} value={ev.id}>
-                        {ev.title} ({ev.date}) - {ev.status?.toUpperCase()}
+                        {ev.title} ({ev.date}) - In: {formatTime12Hour(ev.time_in)} / Out: {formatTime12Hour(ev.time_out)}
                       </option>
                     ))}
                   </select>
+
+                  {activeEventObj && (
+                    <div style={{ marginTop: '8px', fontSize: '0.75rem', color: '#64748b', backgroundColor: '#f8fafc', padding: '8px 12px', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
+                      <span style={{ fontWeight: 800, color: '#0f172a' }}>Scheduled Hours: </span>
+                      Time In Starts: <strong style={{ color: '#15803d' }}>{formatTime12Hour(activeEventObj.time_in)}</strong> • Time Out: <strong style={{ color: '#2563eb' }}>{formatTime12Hour(activeEventObj.time_out)}</strong>
+                    </div>
+                  )}
                 </div>
 
                 <button
                   type="button"
                   onClick={startCameraScanner}
+                  disabled={!isScannerGateOpen}
                   className={styles.submitBtn}
-                  style={{ minHeight: '46px', fontSize: '0.92rem', fontWeight: 900 }}
+                  style={{
+                    minHeight: '48px',
+                    fontSize: '0.95rem',
+                    fontWeight: 900,
+                    backgroundColor: !isScannerGateOpen ? '#94a3b8' : scanMode === 'time_in' ? '#15803d' : '#2563eb',
+                    touchAction: 'manipulation',
+                  }}
                 >
-                  Launch Camera Scanner ➔
+                  Launch {scanMode === 'time_in' ? 'Time In' : 'Time Out'} Scanner ➔
                 </button>
               </div>
 
               {/* MANUAL CHECK-IN */}
               <div className={styles.adminFormCard}>
-                <h3 className={styles.analyticsTitle} style={{ fontSize: '0.95rem', marginBottom: '10px' }}>
+                <h3 className={styles.analyticsTitle} style={{ fontSize: '0.95rem', marginBottom: '8px' }}>
                   Manual School ID Check-in
                 </h3>
                 <p style={{ fontSize: '0.8rem', color: '#64748b', marginBottom: '14px' }}>
-                  For students without smartphones or in low-light camera environments.
+                  Mode: <strong style={{ color: scanMode === 'time_in' ? '#15803d' : '#2563eb' }}>{scanMode.toUpperCase()}</strong>. For students without smartphones or camera issues.
                 </p>
 
                 <form onSubmit={handleManualScanSubmit} className={styles.loginForm}>
@@ -1982,8 +2198,17 @@ export default function AdminDashboard() {
                     />
                   </div>
 
-                  <button type="submit" className={styles.adminPrimaryBtn} style={{ minHeight: '44px', fontSize: '0.9rem' }}>
-                    Mark as Present
+                  <button
+                    type="submit"
+                    className={styles.adminPrimaryBtn}
+                    style={{
+                      minHeight: '44px',
+                      fontSize: '0.9rem',
+                      backgroundColor: scanMode === 'time_in' ? '#15803d' : '#2563eb',
+                      touchAction: 'manipulation',
+                    }}
+                  >
+                    Mark {scanMode === 'time_in' ? 'Time In' : 'Time Out'}
                   </button>
                 </form>
 
@@ -2029,7 +2254,7 @@ export default function AdminDashboard() {
                     type="submit"
                     disabled={searchingHistory}
                     className={styles.adminPrimaryBtn}
-                    style={{ minHeight: '44px', padding: '10px 20px', fontSize: '0.92rem', flexShrink: 0 }}
+                    style={{ minHeight: '44px', padding: '10px 20px', fontSize: '0.92rem', flexShrink: 0, touchAction: 'manipulation' }}
                   >
                     {searchingHistory ? 'Searching...' : 'Search Student'}
                   </button>
@@ -2128,7 +2353,7 @@ export default function AdminDashboard() {
                     </div>
                   </div>
 
-                  {/* RESPONSIVE CARDS VIEW */}
+                  {/* RESPONSIVE ATTENDANCE CARDS VIEW */}
                   <div className={styles.adminFormCard} style={{ padding: '16px 14px', width: '100%', boxSizing: 'border-box' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '8px' }}>
                       <h3 className={styles.analyticsTitle} style={{ fontSize: '0.95rem', margin: 0 }}>
@@ -2224,14 +2449,14 @@ export default function AdminDashboard() {
         </main>
       </div>
 
-      {/* CAMERA SCANNER MODAL (PINALAKI ANG VIEWFINDER WINDOW) */}
+      {/* CONTINUOUS CAMERA SCANNER MODAL */}
       {isCameraModalOpen && (
         <div
           style={{
             position: 'fixed',
             inset: 0,
-            backgroundColor: 'rgba(15, 23, 42, 0.8)',
-            backdropFilter: 'blur(5px)',
+            backgroundColor: 'rgba(15, 23, 42, 0.85)',
+            backdropFilter: 'blur(6px)',
             zIndex: 110,
             display: 'flex',
             alignItems: 'center',
@@ -2243,27 +2468,52 @@ export default function AdminDashboard() {
             style={{
               backgroundColor: '#ffffff',
               width: '100%',
-              maxWidth: '460px',
+              maxWidth: '440px',
               borderRadius: '24px',
-              padding: '20px 16px',
+              padding: '18px 16px',
               boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
               textAlign: 'center',
               boxSizing: 'border-box',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginBottom: '14px' }}>
-              <h3 style={{ fontSize: '1.15rem', fontWeight: 900, color: '#15803d', margin: 0 }}>
-                Scan Student QR Code
-              </h3>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+              <span
+                style={{
+                  backgroundColor: scanMode === 'time_in' ? '#dcfce7' : '#dbeafe',
+                  color: scanMode === 'time_in' ? '#15803d' : '#1d4ed8',
+                  padding: '4px 12px',
+                  borderRadius: '9999px',
+                  fontSize: '0.75rem',
+                  fontWeight: 900,
+                  textTransform: 'uppercase',
+                }}
+              >
+                ● {scanMode === 'time_in' ? 'Time In Mode' : 'Time Out Mode'}
+              </span>
+
+              <button
+                type="button"
+                onClick={closeCameraModal}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  fontSize: '1.2rem',
+                  fontWeight: 900,
+                  color: '#64748b',
+                  cursor: 'pointer',
+                  padding: '4px',
+                  touchAction: 'manipulation',
+                }}
+              >
+                ✕
+              </button>
             </div>
 
-            {/* VIEWFINDER CONTAINER (PINATAAS SA 350px PARA MALAWAK) */}
             <div
               style={{
                 position: 'relative',
                 width: '100%',
-                maxWidth: '380px',
-                height: '350px',
+                height: '330px',
                 margin: '0 auto',
                 backgroundColor: '#0f172a',
                 borderRadius: '18px',
@@ -2276,7 +2526,77 @@ export default function AdminDashboard() {
               <div id="interactive-qr-reader" style={{ width: '100%', height: '100%' }} />
             </div>
 
-            <div style={{ marginTop: '14px' }}>
+            {liveScanFeedback && (
+              <div
+                style={{
+                  marginTop: '12px',
+                  padding: '10px 14px',
+                  borderRadius: '12px',
+                  backgroundColor:
+                    liveScanFeedback.type === 'success'
+                      ? '#f0fdf4'
+                      : liveScanFeedback.type === 'warning'
+                      ? '#fefce8'
+                      : '#fef2f2',
+                  border: `1px solid ${
+                    liveScanFeedback.type === 'success'
+                      ? '#86efac'
+                      : liveScanFeedback.type === 'warning'
+                      ? '#fde047'
+                      : '#fca5a5'
+                  }`,
+                  textAlign: 'left',
+                }}
+              >
+                <div
+                  style={{
+                    fontSize: '0.82rem',
+                    fontWeight: 900,
+                    color:
+                      liveScanFeedback.type === 'success'
+                        ? '#15803d'
+                        : liveScanFeedback.type === 'warning'
+                        ? '#a16207'
+                        : '#b91c1c',
+                  }}
+                >
+                  {liveScanFeedback.title}
+                </div>
+                <div style={{ fontSize: '0.75rem', color: '#334155', fontWeight: 700, marginTop: '2px' }}>
+                  {liveScanFeedback.subtitle}
+                </div>
+              </div>
+            )}
+
+            {recentScans.length > 0 && (
+              <div style={{ marginTop: '12px', textAlign: 'left' }}>
+                <span style={{ fontSize: '0.68rem', fontWeight: 900, color: '#94a3b8', textTransform: 'uppercase' }}>
+                  Recent Scans:
+                </span>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '4px', maxHeight: '75px', overflowY: 'auto' }}>
+                  {recentScans.map((scan) => (
+                    <div
+                      key={scan.id}
+                      style={{
+                        fontSize: '0.72rem',
+                        backgroundColor: '#f8fafc',
+                        padding: '4px 8px',
+                        borderRadius: '6px',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                      }}
+                    >
+                      <span style={{ fontWeight: 800, color: '#0f172a' }}>{scan.name}</span>
+                      <span style={{ fontWeight: 700, color: scan.mode === 'TIME IN' ? '#15803d' : '#2563eb' }}>
+                        {scan.mode} ({scan.time})
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div style={{ marginTop: '12px' }}>
               <button
                 type="button"
                 onClick={closeCameraModal}
@@ -2287,9 +2607,10 @@ export default function AdminDashboard() {
                   color: '#ffffff',
                   border: 'none',
                   borderRadius: '14px',
-                  fontSize: '0.92rem',
+                  fontSize: '0.9rem',
                   fontWeight: 900,
                   cursor: 'pointer',
+                  touchAction: 'manipulation',
                 }}
               >
                 Close Camera
@@ -2299,19 +2620,19 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      {/* SCANNED VERIFICATION MODAL */}
-      {showVerifyModal && scannedStudentData && (
+      {/* MOBILE IN-APP DELETE CONFIRMATION MODAL (100% GUMAGANA SA CP) */}
+      {deleteModal.isOpen && (
         <div
           style={{
             position: 'fixed',
             inset: 0,
-            backgroundColor: 'rgba(15, 23, 42, 0.85)',
-            backdropFilter: 'blur(6px)',
-            zIndex: 120,
+            backgroundColor: 'rgba(15, 23, 42, 0.75)',
+            backdropFilter: 'blur(5px)',
+            zIndex: 150,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            padding: '12px',
+            padding: '16px',
           }}
         >
           <div
@@ -2320,125 +2641,62 @@ export default function AdminDashboard() {
               width: '100%',
               maxWidth: '380px',
               borderRadius: '24px',
-              padding: '20px 16px',
+              padding: '22px 18px',
               boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.3)',
               textAlign: 'center',
               boxSizing: 'border-box',
             }}
           >
-            <span
-              style={{
-                display: 'inline-block',
-                backgroundColor: '#dcfce7',
-                color: '#15803d',
-                fontSize: '0.68rem',
-                fontWeight: 900,
-                padding: '4px 12px',
-                borderRadius: '9999px',
-                border: '1px solid #bbf7d0',
-                textTransform: 'uppercase',
-                letterSpacing: '0.05em',
-                marginBottom: '12px',
-              }}
-            >
-              QR Code Verified
-            </span>
-
             <div
               style={{
-                width: '84px',
-                height: '84px',
-                borderRadius: '20px',
-                backgroundColor: '#f1f5f9',
-                border: '3px solid #15803d',
-                margin: '0 auto 10px auto',
-                overflow: 'hidden',
+                width: '52px',
+                height: '52px',
+                borderRadius: '16px',
+                backgroundColor: '#fee2e2',
+                color: '#b91c1c',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                boxShadow: '0 4px 10px rgba(0,0,0,0.08)',
+                fontSize: '1.5rem',
+                margin: '0 auto 12px auto',
               }}
             >
-              {scannedStudentData.avatar_url ? (
-                <img src={scannedStudentData.avatar_url} alt={scannedStudentData.full_name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-              ) : (
-                <span style={{ fontSize: '0.85rem', fontWeight: 900, color: '#15803d' }}>USER</span>
-              )}
+              🗑️
             </div>
 
-            <h2 style={{ fontSize: '1.25rem', fontWeight: 900, color: '#0f172a', margin: '0 0 4px 0' }}>
-              {scannedStudentData.full_name}
-            </h2>
-
-            <div
-              style={{
-                fontSize: '1rem',
-                fontWeight: 900,
-                color: '#15803d',
-                backgroundColor: '#f0fdf4',
-                border: '1px solid #bbf7d0',
-                borderRadius: '10px',
-                padding: '5px 12px',
-                display: 'inline-block',
-                margin: '6px auto 14px auto',
-              }}
-            >
-              ID: {scannedStudentData.school_id}
-            </div>
-
-            <div
-              style={{
-                backgroundColor: '#f8fafc',
-                border: '1px solid #e2e8f0',
-                borderRadius: '16px',
-                padding: '12px 14px',
-                marginBottom: '16px',
-                textAlign: 'left',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '8px',
-                fontSize: '0.82rem',
-              }}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ color: '#64748b', fontWeight: 700 }}>Course:</span>
-                <span className={styles.idBadge} style={{ fontSize: '0.72rem' }}>
-                  {scannedStudentData.course}
-                </span>
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ color: '#64748b', fontWeight: 700 }}>Year &amp; Section:</span>
-                <span style={{ fontWeight: 800, color: '#0f172a' }}>
-                  {scannedStudentData.year_level || '1st Year'} • {scannedStudentData.section || 'Section A'}
-                </span>
-              </div>
-            </div>
+            <h3 style={{ fontSize: '1.2rem', fontWeight: 900, color: '#0f172a', margin: '0 0 6px 0' }}>
+              Confirm Delete
+            </h3>
+            <p style={{ fontSize: '0.85rem', color: '#64748b', margin: '0 0 18px 0', lineHeight: 1.45 }}>
+              Are you sure you want to permanently delete{' '}
+              <strong style={{ color: '#b91c1c' }}>&quot;{deleteModal.title}&quot;</strong>? This action cannot be undone.
+            </p>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               <button
                 type="button"
-                onClick={handleConfirmAttendance}
-                disabled={confirmingAttendance}
+                onClick={handleConfirmDelete}
+                disabled={deletingRecord}
                 style={{
                   width: '100%',
                   padding: '12px',
-                  backgroundColor: '#15803d',
+                  backgroundColor: '#b91c1c',
                   color: '#ffffff',
                   border: 'none',
                   borderRadius: '14px',
                   fontSize: '0.9rem',
                   fontWeight: 900,
                   cursor: 'pointer',
-                  boxShadow: '0 4px 12px rgba(21, 128, 61, 0.25)',
+                  touchAction: 'manipulation',
                 }}
               >
-                {confirmingAttendance ? 'Recording...' : 'Confirm Attendance'}
+                {deletingRecord ? 'Deleting...' : 'Yes, Delete Record'}
               </button>
 
               <button
                 type="button"
-                onClick={handleCancelScannedModal}
+                onClick={() => setDeleteModal({ isOpen: false, type: '', id: null, title: '' })}
+                disabled={deletingRecord}
                 style={{
                   width: '100%',
                   padding: '10px',
@@ -2446,12 +2704,13 @@ export default function AdminDashboard() {
                   color: '#475569',
                   border: 'none',
                   borderRadius: '12px',
-                  fontSize: '0.82rem',
+                  fontSize: '0.85rem',
                   fontWeight: 800,
                   cursor: 'pointer',
+                  touchAction: 'manipulation',
                 }}
               >
-                Cancel &amp; Continue Scanning
+                Cancel
               </button>
             </div>
           </div>
