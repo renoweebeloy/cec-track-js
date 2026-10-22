@@ -53,7 +53,7 @@ export default function AdminDashboard() {
   const [selectedEventId, setSelectedEventId] = useState('');
   const [scanLogMsg, setScanLogMsg] = useState({ type: '', text: '' });
 
-  // 5. Live Camera Scanner & Modal
+  // 5. Live Camera Scanner & Scanned Student Modal
   const [isCameraModalOpen, setIsCameraModalOpen] = useState(false);
   const [isScannerRunning, setIsScannerRunning] = useState(false);
   const [scannedStudentData, setScannedStudentData] = useState(null);
@@ -115,6 +115,7 @@ export default function AdminDashboard() {
     }
   };
 
+  // 5-Minute Inactivity Session Guard
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
@@ -136,7 +137,7 @@ export default function AdminDashboard() {
             } catch (e) {}
           }
 
-          alert('Nag-expire ang iyong session dahil sa 5 minutong walang aktibidad. Mangyaring mag-log in muli.');
+          alert('Your session has expired due to 5 minutes of inactivity. Please log in again.');
           router.replace('/login');
           return;
         }
@@ -178,6 +179,7 @@ export default function AdminDashboard() {
     }
   }, []);
 
+  // Access Clearance Guard
   useEffect(() => {
     const verifyPortalAccess = async () => {
       try {
@@ -312,7 +314,7 @@ export default function AdminDashboard() {
     if (!file) return;
 
     if (!file.type.startsWith('image/')) {
-      showNotify('error', 'Pumili ng wastong image file (PNG, JPG, JPEG).');
+      showNotify('error', 'Please select a valid image file (PNG, JPG, JPEG).');
       return;
     }
 
@@ -348,7 +350,7 @@ export default function AdminDashboard() {
         const compressedBase64 = canvas.toDataURL('image/jpeg', 0.7);
         setEventImage(compressedBase64);
         setCompressingImage(false);
-        showNotify('success', 'Matagumpay na na-optimize ang larawan!');
+        showNotify('success', 'Image optimized successfully!');
       };
       img.src = event.target.result;
     };
@@ -386,7 +388,7 @@ export default function AdminDashboard() {
   const handleSaveEvent = async (e) => {
     e.preventDefault();
     if (compressingImage) {
-      showNotify('error', 'Pakihintay matapos ang image optimization.');
+      showNotify('error', 'Please wait for image optimization to finish.');
       return;
     }
 
@@ -411,20 +413,20 @@ export default function AdminDashboard() {
           .eq('id', editingEventId);
 
         if (error) throw new Error(error.message);
-        showNotify('success', `Na-update ang event na "${eventTitle}"!`);
+        showNotify('success', `Event "${eventTitle}" updated successfully!`);
       } else {
         const { error } = await supabase
           .from('events')
           .insert([eventPayload]);
 
         if (error) throw new Error(error.message);
-        showNotify('success', `Na-publish ang event na "${eventTitle}"!`);
+        showNotify('success', `Event "${eventTitle}" published successfully!`);
       }
 
       handleCancelEditEvent();
       fetchAllData();
     } catch (err) {
-      showNotify('error', `Error sa pag-save ng event: ${err.message}`);
+      showNotify('error', `Error saving event: ${err.message}`);
     } finally {
       setLoading(false);
     }
@@ -432,12 +434,12 @@ export default function AdminDashboard() {
 
   const startCameraScanner = async () => {
     if (!selectedEventId) {
-      showNotify('error', 'Pumili muna ng Active Event Schedule bago mag-scan.');
+      showNotify('error', 'Please select an Active Event Schedule before scanning.');
       return;
     }
 
     if (!window.Html5Qrcode) {
-      showNotify('error', 'Kasalukuyang naglo-load ang scanner library. Subukan muli sandali.');
+      showNotify('error', 'Scanner library is loading. Please try again in a moment.');
       return;
     }
 
@@ -459,7 +461,7 @@ export default function AdminDashboard() {
         setIsScannerRunning(true);
       } catch (err) {
         console.error('Error starting camera scanner:', err);
-        showNotify('error', 'Hindi ma-access ang camera. Tiyaking pinayagan ang camera permission.');
+        showNotify('error', 'Unable to access camera. Please ensure camera permissions are granted.');
         setIsCameraModalOpen(false);
       }
     }, 400);
@@ -506,7 +508,7 @@ export default function AdminDashboard() {
         .single();
 
       if (error || !student) {
-        alert(`ACCESS DENIED:\nAng School ID na "${cleanSchoolId}" ay hindi rehistrado sa database.`);
+        alert(`ACCESS DENIED:\nSchool ID "${cleanSchoolId}" is not registered in the database.`);
         if (scannerRef.current) {
           try {
             await scannerRef.current.resume();
@@ -525,10 +527,10 @@ export default function AdminDashboard() {
       if (existingAttendance) {
         alert(
           `ALREADY SCANNED:\n\n` +
-          `Pangalan: ${student.full_name}\n` +
+          `Name: ${student.full_name}\n` +
           `School ID: ${student.school_id}\n` +
-          `Naitalang Time In: ${existingAttendance.time_in}\n\n` +
-          `Na-record na ang attendance para sa event na ito.`
+          `Recorded Time In: ${existingAttendance.time_in}\n\n` +
+          `Attendance has already been recorded for this event.`
         );
 
         if (scannerRef.current) {
@@ -567,7 +569,7 @@ export default function AdminDashboard() {
         if (error.code === '23505') {
           showNotify(
             'error',
-            `Already scanned: ${scannedStudentData.full_name} (${scannedStudentData.school_id}) ay naitala na.`
+            `Already scanned: ${scannedStudentData.full_name} (${scannedStudentData.school_id}) has already been recorded.`
           );
         } else {
           showNotify('error', `Attendance error: ${error.message}`);
@@ -599,7 +601,7 @@ export default function AdminDashboard() {
     const cleanId = searchHistoryId.trim();
 
     if (!cleanId) {
-      setHistorySearchMessage('Mangyaring ilagay ang School ID ng estudyante.');
+      setHistorySearchMessage('Please enter the student\'s School ID.');
       return;
     }
 
@@ -616,7 +618,7 @@ export default function AdminDashboard() {
         .maybeSingle();
 
       if (studentErr || !student) {
-        setHistorySearchMessage(`Walang nahanap na estudyante na may School ID: "${cleanId}"`);
+        setHistorySearchMessage(`No student found with School ID: "${cleanId}"`);
         setSearchingHistory(false);
         return;
       }
@@ -661,7 +663,7 @@ export default function AdminDashboard() {
       setStudentAttendanceRecords(combinedRecords);
     } catch (err) {
       console.error('Error searching student history:', err);
-      setHistorySearchMessage('Nagka-error habang kinukuha ang attendance record.');
+      setHistorySearchMessage('An error occurred while retrieving attendance records.');
     } finally {
       setSearchingHistory(false);
     }
@@ -672,7 +674,7 @@ export default function AdminDashboard() {
 
     const idRegex = /^\d{4}-\d{4,5}$/;
     if (!idRegex.test(studentId.trim())) {
-      showNotify('error', 'Maling format ng School ID. Gamitin ang format: 2024-0616.');
+      showNotify('error', 'Invalid School ID format. Please use format: 2024-0616.');
       return;
     }
 
@@ -704,7 +706,7 @@ export default function AdminDashboard() {
 
       showNotify(
         'success',
-        `Matagumpay na naidagdag si ${studentName.trim()} (${studentSection}). Default password: ${defaultPassword}`
+        `Successfully added ${studentName.trim()} (${studentSection})! Default password: ${defaultPassword}`
       );
       setStudentId('');
       setStudentName('');
@@ -719,18 +721,18 @@ export default function AdminDashboard() {
 
   const handleRemoveAllStudents = async () => {
     if (userRole !== 'admin') {
-      alert('Tanging administrator lamang ang may pahintulot magtanggal ng mga records.');
+      alert('Only administrators are authorized to delete student records.');
       return;
     }
 
     if (students.length === 0) {
-      alert('Walang nakitang student records upang tanggalin.');
+      alert('No student records found to delete.');
       return;
     }
 
     const isConfirmed = window.confirm(
-      'Sigurado ka bang nais mong tanggalin ang LAHAT ng student records?\n\n' +
-      'Babala: Mabubura ang lahat ng estudyante sa database at hindi na ito mababawi.'
+      'Are you sure you want to delete ALL student records?\n\n' +
+      'Warning: All enrolled students will be permanently removed from the database. This action cannot be undone.'
     );
 
     if (!isConfirmed) return;
@@ -746,10 +748,10 @@ export default function AdminDashboard() {
         throw new Error(error.message);
       }
 
-      showNotify('success', 'Lahat ng student records ay matagumpay na natanggal.');
+      showNotify('success', 'All student records have been successfully deleted.');
       fetchAllData();
     } catch (err) {
-      showNotify('error', `Error sa pagtanggal: ${err.message}`);
+      showNotify('error', `Error deleting records: ${err.message}`);
     } finally {
       setLoading(false);
     }
@@ -758,7 +760,7 @@ export default function AdminDashboard() {
   const handleAddStaff = async (e) => {
     e.preventDefault();
     if (userRole !== 'admin') {
-      showNotify('error', 'Administrator lamang ang maaaring magrehistro ng staff.');
+      showNotify('error', 'Only administrators can register or authorize staff.');
       return;
     }
 
@@ -787,7 +789,7 @@ export default function AdminDashboard() {
 
         showNotify(
           'success',
-          `Na-upgrade ang account. May scanner clearance na si ${existingUser.full_name}.`
+          `Account upgraded. Scanner clearance granted to ${existingUser.full_name}.`
         );
       } else {
         const generatedStaffId = `STAFF-${Math.floor(1000 + Math.random() * 9000)}`;
@@ -810,7 +812,7 @@ export default function AdminDashboard() {
 
         showNotify(
           'success',
-          `Matagumpay na nairehistro si ${staffName}. Default password: ${generatedStaffId}`
+          `Staff member ${staffName} successfully registered! Default password: ${generatedStaffId}`
         );
       }
 
@@ -828,7 +830,7 @@ export default function AdminDashboard() {
     e.preventDefault();
     if (!manualStudentId) return;
 
-    setScanLogMsg({ type: 'info', text: 'Bina-validate ang School ID sa database...' });
+    setScanLogMsg({ type: 'info', text: 'Validating School ID with database...' });
 
     const studentMatch = students.find(
       (s) => s.school_id?.toLowerCase() === manualStudentId.trim().toLowerCase()
@@ -837,7 +839,7 @@ export default function AdminDashboard() {
     if (!studentMatch) {
       setScanLogMsg({
         type: 'error',
-        text: 'Access Denied: Ang School ID ay hindi rehistrado sa whitelist database.',
+        text: 'Access Denied: School ID is not registered in the whitelist database.',
       });
       return;
     }
@@ -852,7 +854,7 @@ export default function AdminDashboard() {
     if (existing) {
       setScanLogMsg({
         type: 'warning',
-        text: `ALREADY SCANNED: Naitala na noong ${existing.time_in} si ${studentMatch.full_name} (${studentMatch.school_id}).`,
+        text: `ALREADY SCANNED: Recorded at ${existing.time_in} for ${studentMatch.full_name} (${studentMatch.school_id}).`,
       });
       return;
     }
@@ -882,28 +884,28 @@ export default function AdminDashboard() {
 
   const handleDeleteUser = async (id, identifier) => {
     if (userRole !== 'admin') {
-      alert('Administrator lamang ang maaaring magbura ng account.');
+      alert('Only administrators can remove user records.');
       return;
     }
-    if (!confirm(`Sigurado ka bang nais mong tanggalin si ${identifier}?`)) return;
+    if (!confirm(`Are you sure you want to remove ${identifier}?`)) return;
     const { error } = await supabase.from('profiles').delete().eq('id', id);
     if (error) showNotify('error', error.message);
     else {
-      showNotify('success', 'Matagumpay na natanggal ang record.');
+      showNotify('success', 'Record removed successfully.');
       fetchAllData();
     }
   };
 
   const handleDeleteEvent = async (id, title) => {
     if (userRole !== 'admin') {
-      alert('Administrator lamang ang maaaring magbura ng events.');
+      alert('Only administrators can delete events.');
       return;
     }
-    if (!confirm(`Sigurado ka bang nais mong burahin ang event na "${title}"?`)) return;
+    if (!confirm(`Are you sure you want to delete event "${title}"?`)) return;
     const { error } = await supabase.from('events').delete().eq('id', id);
     if (error) showNotify('error', error.message);
     else {
-      showNotify('success', 'Matagumpay na nabura ang event.');
+      showNotify('success', 'Event deleted successfully.');
       fetchAllData();
     }
   };
@@ -1075,7 +1077,7 @@ export default function AdminDashboard() {
       )}
 
       <div className={styles.portalWrapper}>
-        {/* SIDEBAR NAVIGATION (WALANG EMOJI) */}
+        {/* SIDEBAR NAVIGATION */}
         <aside
           style={{
             position: 'fixed',
@@ -1428,7 +1430,7 @@ export default function AdminDashboard() {
                       {filteredStudents.length === 0 ? (
                         <tr>
                           <td colSpan={isAdmin ? 4 : 3} style={{ textAlign: 'center', padding: '20px', color: '#94a3b8' }}>
-                            Walang nakitang student records.
+                            No student records found.
                           </td>
                         </tr>
                       ) : (
@@ -1604,7 +1606,7 @@ export default function AdminDashboard() {
                     >
                       {compressingImage ? (
                         <div style={{ padding: '14px 0', color: '#15803d', fontWeight: 800, fontSize: '0.8rem' }}>
-                          Optimizing picture...
+                          Optimizing image...
                         </div>
                       ) : eventImage ? (
                         <div style={{ position: 'relative' }}>
@@ -1768,7 +1770,7 @@ export default function AdminDashboard() {
 
                 {filteredEvents.length === 0 ? (
                   <div style={{ textAlign: 'center', padding: '24px', color: '#94a3b8', fontSize: '0.85rem' }}>
-                    Walang nakitang events.
+                    No events found.
                   </div>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', width: '100%' }}>
@@ -1896,7 +1898,7 @@ export default function AdminDashboard() {
                   Live Camera QR Scanner
                 </h3>
                 <p style={{ fontSize: '0.82rem', color: '#64748b', marginBottom: '18px', lineHeight: 1.45 }}>
-                  I-scan ang student QR code. Awtomatikong tutunog ang beep at maglalabas ng verification profile.
+                  Scan the student QR code. A confirmation beep will sound and the verification profile will appear automatically.
                 </p>
 
                 <div style={{ marginBottom: '14px', textAlign: 'left' }}>
@@ -1933,7 +1935,7 @@ export default function AdminDashboard() {
                   Manual School ID Check-in
                 </h3>
                 <p style={{ fontSize: '0.8rem', color: '#64748b', marginBottom: '14px' }}>
-                  Para sa mga estudyanteng walang dalang smartphone o mababang liwanag sa camera.
+                  For students without smartphones or in low-light camera environments.
                 </p>
 
                 <form onSubmit={handleManualScanSubmit} className={styles.loginForm}>
@@ -1980,7 +1982,7 @@ export default function AdminDashboard() {
                   Search Student Attendance Records
                 </h3>
                 <p style={{ fontSize: '0.85rem', color: '#64748b', margin: '0 0 16px 0', lineHeight: 1.45 }}>
-                  Ilagay ang School ID ng estudyante upang makita ang kabuuang bilang ng Present, Absent, at talaan ng Time In at Time Out sa lahat ng events.
+                  Enter the student&apos;s School ID to view total Present, Absent, and complete Time In / Time Out logs across all events.
                 </p>
 
                 <form onSubmit={handleSearchStudentHistory} style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
@@ -1999,7 +2001,7 @@ export default function AdminDashboard() {
                     className={styles.adminPrimaryBtn}
                     style={{ minHeight: '44px', padding: '10px 20px', fontSize: '0.92rem', flexShrink: 0 }}
                   >
-                    {searchingHistory ? 'Hinahanap...' : 'Search Student'}
+                    {searchingHistory ? 'Searching...' : 'Search Student'}
                   </button>
                 </form>
 
@@ -2096,7 +2098,7 @@ export default function AdminDashboard() {
                     </div>
                   </div>
 
-                  {/* RESPONSIVE CARDS PARA BUONG MAKITA SA CP SCREEN */}
+                  {/* MOBILE-RESPONSIVE ATTENDANCE CARDS */}
                   <div className={styles.adminFormCard} style={{ padding: '16px 14px', width: '100%', boxSizing: 'border-box' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '8px' }}>
                       <h3 className={styles.analyticsTitle} style={{ fontSize: '0.95rem', margin: 0 }}>
@@ -2106,7 +2108,7 @@ export default function AdminDashboard() {
 
                     {studentAttendanceRecords.length === 0 ? (
                       <div style={{ textAlign: 'center', padding: '20px', color: '#94a3b8', fontSize: '0.85rem' }}>
-                        Walang naitalang events.
+                        No events recorded.
                       </div>
                     ) : (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', width: '100%' }}>
