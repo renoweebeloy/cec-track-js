@@ -18,7 +18,7 @@ export default function AdminDashboard() {
   const [currentUser, setCurrentUser] = useState({ name: '', email: '', school_id: '' });
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
-  // Navigation Tabs: 'profile' | 'add-student' | 'add-staff' | 'add-event' | 'scan-qr'
+  // Navigation Tabs: 'profile' | 'add-student' | 'add-staff' | 'add-event' | 'scan-qr' | 'search-student'
   const [activeTab, setActiveTab] = useState('profile');
   const [loading, setLoading] = useState(false);
   const [notification, setNotification] = useState({ type: '', message: '' });
@@ -53,12 +53,19 @@ export default function AdminDashboard() {
   const [selectedEventId, setSelectedEventId] = useState('');
   const [scanLogMsg, setScanLogMsg] = useState({ type: '', text: '' });
 
-  // 5. Live Camera Scanner & Scanned Student Verification Modal States
+  // 5. Live Camera Scanner & Scanned Student Modal
   const [isCameraModalOpen, setIsCameraModalOpen] = useState(false);
   const [isScannerRunning, setIsScannerRunning] = useState(false);
   const [scannedStudentData, setScannedStudentData] = useState(null);
   const [showVerifyModal, setShowVerifyModal] = useState(false);
   const [confirmingAttendance, setConfirmingAttendance] = useState(false);
+
+  // 6. BAGONG FEATURE: Search Student Attendance History States
+  const [searchHistoryId, setSearchHistoryId] = useState('');
+  const [searchingHistory, setSearchingHistory] = useState(false);
+  const [searchedStudent, setSearchedStudent] = useState(null);
+  const [studentAttendanceRecords, setStudentAttendanceRecords] = useState([]);
+  const [historySearchMessage, setHistorySearchMessage] = useState('');
 
   // Collections & Filters
   const [students, setStudents] = useState([]);
@@ -67,7 +74,7 @@ export default function AdminDashboard() {
   const [searchStudentQuery, setSearchStudentQuery] = useState('');
   const [searchEventQuery, setSearchEventQuery] = useState('');
 
-  // 5 Official College Courses
+  // 5 Opisyal na Kurso sa Kolehiyo
   const courses = [
     { code: 'BSCRIM', name: 'Bachelor of Science in Criminology', badge: styles.bscrimBadge },
     { code: 'BSBA', name: 'Bachelor of Science in Business Administration', badge: styles.bsbaBadge },
@@ -77,17 +84,8 @@ export default function AdminDashboard() {
   ];
 
   const sectionsList = [
-    'Section A',
-    'Section B',
-    'Section C',
-    'Section D',
-    'Section E',
-    'Section F',
-    'Section G',
-    'Section H',
-    'Section I',
-    'Section J',
-    'Section K',
+    'Section A', 'Section B', 'Section C', 'Section D', 'Section E',
+    'Section F', 'Section G', 'Section H', 'Section I', 'Section J', 'Section K',
   ];
 
   const showNotify = (type, message) => {
@@ -98,7 +96,31 @@ export default function AdminDashboard() {
   };
 
   // ========================================================
-  // 5-MINUTE AUTOMATIC SESSION TIMEOUT & BROWSER CLOSURE GUARD
+  // BEEP SOUND GENERATOR ("TIT" SOUND PAGKA-SCAN)
+  // ========================================================
+  const playBeepSound = () => {
+    try {
+      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const oscillator = audioCtx.createOscillator();
+      const gainNode = audioCtx.createGain();
+
+      oscillator.type = 'sine';
+      oscillator.frequency.setValueAtTime(880, audioCtx.currentTime); // 880 Hz standard scanner pitch
+      gainNode.gain.setValueAtTime(0.2, audioCtx.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.16);
+
+      oscillator.connect(gainNode);
+      gainNode.connect(audioCtx.destination);
+
+      oscillator.start();
+      oscillator.stop(audioCtx.currentTime + 0.16);
+    } catch (e) {
+      console.warn('AudioContext beep error:', e);
+    }
+  };
+
+  // ========================================================
+  // 5-MINUTE AUTOMATIC SESSION TIMEOUT GUARD
   // ========================================================
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -121,7 +143,7 @@ export default function AdminDashboard() {
             } catch (e) {}
           }
 
-          alert('Your session has expired due to 5 minutes of inactivity or browser closure. Please log in again.');
+          alert('Nag-expire ang iyong session dahil sa 5 minutong walang aktibidad. Mangyaring mag-log in muli.');
           router.replace('/login');
           return;
         }
@@ -223,9 +245,6 @@ export default function AdminDashboard() {
     verifyPortalAccess();
   }, [router]);
 
-  // ========================================================
-  // FETCH ALL DATA & AUTOMATICALLY DEACTIVATE EXPIRED EVENTS
-  // ========================================================
   const fetchAllData = async () => {
     if (!supabase) return;
     setLoading(true);
@@ -296,13 +315,13 @@ export default function AdminDashboard() {
     router.replace('/');
   };
 
-  // AUTOMATIC IMAGE COMPRESSOR TO PREVENT TIMEOUTS
+  // Image compressor
   const handleEventImageUpload = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     if (!file.type.startsWith('image/')) {
-      showNotify('error', 'Please select a valid image file (PNG, JPG, JPEG).');
+      showNotify('error', 'Pumili ng wastong image file (PNG, JPG, JPEG).');
       return;
     }
 
@@ -338,7 +357,7 @@ export default function AdminDashboard() {
         const compressedBase64 = canvas.toDataURL('image/jpeg', 0.7);
         setEventImage(compressedBase64);
         setCompressingImage(false);
-        showNotify('success', 'Image successfully optimized!');
+        showNotify('success', 'Matagumpay na na-optimize ang larawan!');
       };
       img.src = event.target.result;
     };
@@ -373,11 +392,10 @@ export default function AdminDashboard() {
     setEventImage('');
   };
 
-  // SAVE / PUBLISH / UPDATE EVENT
   const handleSaveEvent = async (e) => {
     e.preventDefault();
     if (compressingImage) {
-      showNotify('error', 'Please wait until image optimization completes.');
+      showNotify('error', 'Pakihintay matapos ang image optimization.');
       return;
     }
 
@@ -402,34 +420,36 @@ export default function AdminDashboard() {
           .eq('id', editingEventId);
 
         if (error) throw new Error(error.message);
-        showNotify('success', `Event "${eventTitle}" updated successfully!`);
+        showNotify('success', `Na-update ang event na "${eventTitle}"!`);
       } else {
         const { error } = await supabase
           .from('events')
           .insert([eventPayload]);
 
         if (error) throw new Error(error.message);
-        showNotify('success', `Official event "${eventTitle}" published successfully!`);
+        showNotify('success', `Na-publish ang event na "${eventTitle}"!`);
       }
 
       handleCancelEditEvent();
       fetchAllData();
     } catch (err) {
-      showNotify('error', `Error saving event: ${err.message}`);
+      showNotify('error', `Error sa pag-save ng event: ${err.message}`);
     } finally {
       setLoading(false);
     }
   };
 
-  // CAMERA SCANNER FUNCTIONS
+  // ========================================================
+  // CAMERA SCANNER FUNCTION (MAY SOUND AT MALINIS NA VIEWPORT)
+  // ========================================================
   const startCameraScanner = async () => {
     if (!selectedEventId) {
-      showNotify('error', 'Please select an Active Event Schedule below before scanning.');
+      showNotify('error', 'Pumili muna ng Active Event Schedule bago mag-scan.');
       return;
     }
 
     if (!window.Html5Qrcode) {
-      showNotify('error', 'Scanner library is loading. Please try again shortly.');
+      showNotify('error', 'Kasalukuyang naglo-load ang scanner library. Subukan muli sandali.');
       return;
     }
 
@@ -451,7 +471,7 @@ export default function AdminDashboard() {
         setIsScannerRunning(true);
       } catch (err) {
         console.error('Error starting camera scanner:', err);
-        showNotify('error', 'Unable to access camera. Please ensure camera permissions are granted.');
+        showNotify('error', 'Hindi ma-access ang camera. Tiyaking pinayagan ang camera permission.');
         setIsCameraModalOpen(false);
       }
     }, 400);
@@ -486,6 +506,9 @@ export default function AdminDashboard() {
       } catch (e) {}
     }
 
+    // PATUNUGIN ANG BEEP ("TIT")
+    playBeepSound();
+
     const cleanSchoolId = decodedText.trim();
 
     try {
@@ -496,7 +519,7 @@ export default function AdminDashboard() {
         .single();
 
       if (error || !student) {
-        alert(`❌ ACCESS DENIED:\nSchool ID "${cleanSchoolId}" is not registered in the whitelist database!`);
+        alert(`❌ ACCESS DENIED:\nAng School ID na "${cleanSchoolId}" ay hindi rehistrado sa database!`);
         if (scannerRef.current) {
           try {
             await scannerRef.current.resume();
@@ -514,11 +537,11 @@ export default function AdminDashboard() {
 
       if (existingAttendance) {
         alert(
-          `🚫 SCAN DENIED / ALREADY SCANNED!\n\n` +
-          `Student Name: ${student.full_name}\n` +
+          `🚫 ALREADY SCANNED!\n\n` +
+          `Pangalan: ${student.full_name}\n` +
           `School ID: ${student.school_id}\n` +
-          `Recorded Time In: ${existingAttendance.time_in}\n\n` +
-          `Attendance has already been recorded for this student in this event schedule.`
+          `Naitalang Time In: ${existingAttendance.time_in}\n\n` +
+          `Na-record na ang attendance para sa event na ito.`
         );
 
         if (scannerRef.current) {
@@ -529,6 +552,7 @@ export default function AdminDashboard() {
         return;
       }
 
+      // Awtomatikong ipakita ang Profile Modal
       setScannedStudentData(student);
       setShowVerifyModal(true);
     } catch (err) {
@@ -557,7 +581,7 @@ export default function AdminDashboard() {
         if (error.code === '23505') {
           showNotify(
             'error',
-            `⚠️ Already scanned: ${scannedStudentData.full_name} (${scannedStudentData.school_id}) is already recorded!`
+            `⚠️ Already scanned: ${scannedStudentData.full_name} (${scannedStudentData.school_id}) ay naitala na!`
           );
         } else {
           showNotify('error', `Attendance error: ${error.message}`);
@@ -565,7 +589,7 @@ export default function AdminDashboard() {
       } else {
         showNotify(
           'success',
-          `✅ DONE SCANNING: Attendance recorded for ${scannedStudentData.full_name} (School ID: ${scannedStudentData.school_id})!`
+          `✅ ATTENDANCE CONFIRMED: Naitala si ${scannedStudentData.full_name} (${scannedStudentData.school_id})!`
         );
       }
 
@@ -584,12 +608,92 @@ export default function AdminDashboard() {
     }
   };
 
+  // ========================================================
+  // BAGONG FEATURE: SEARCH STUDENT ATTENDANCE HISTORY
+  // ========================================================
+  const handleSearchStudentHistory = async (e) => {
+    e.preventDefault();
+    const cleanId = searchHistoryId.trim();
+
+    if (!cleanId) {
+      setHistorySearchMessage('Mangyaring ilagay ang School ID ng estudyante.');
+      return;
+    }
+
+    setSearchingHistory(true);
+    setHistorySearchMessage('');
+    setSearchedStudent(null);
+    setStudentAttendanceRecords([]);
+
+    try {
+      // 1. Hanapin ang detalye ng estudyante sa profiles
+      const { data: student, error: studentErr } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('school_id', cleanId)
+        .maybeSingle();
+
+      if (studentErr || !student) {
+        setHistorySearchMessage(`Walang nahanap na estudyante na may School ID: "${cleanId}"`);
+        setSearchingHistory(false);
+        return;
+      }
+
+      setSearchedStudent(student);
+
+      // 2. Kunin ang lahat ng opisyal na events
+      const { data: allEvents } = await supabase
+        .from('events')
+        .select('*')
+        .order('date', { ascending: false });
+
+      // 3. Kunin ang attendance records ng estudyante
+      const { data: attLogs } = await supabase
+        .from('attendance')
+        .select('*')
+        .eq('student_id', cleanId);
+
+      const logsMap = {};
+      if (attLogs) {
+        attLogs.forEach((log) => {
+          logsMap[log.event_id] = log;
+        });
+      }
+
+      // 4. I-combine ang lahat ng events upang makita kung Present o Absent ang estudyante
+      const combinedRecords = (allEvents || []).map((ev) => {
+        const matchingLog = logsMap[ev.id];
+        const isPresent = Boolean(matchingLog && matchingLog.status === 'PRESENT');
+
+        return {
+          eventId: ev.id,
+          eventTitle: ev.title,
+          eventDate: ev.date,
+          eventLocation: ev.location,
+          scheduledTimeIn: ev.time_in,
+          scheduledTimeOut: ev.time_out,
+          status: isPresent ? 'PRESENT' : 'ABSENT',
+          actualTimeIn: matchingLog ? matchingLog.time_in : '--:--',
+          actualTimeOut: matchingLog ? matchingLog.time_out || ev.time_out : '--:--',
+          scannedBy: matchingLog ? matchingLog.scanned_by : 'N/A',
+        };
+      });
+
+      setStudentAttendanceRecords(combinedRecords);
+    } catch (err) {
+      console.error('Error searching student history:', err);
+      setHistorySearchMessage('Nagka-error habang kinukuha ang attendance record.');
+    } finally {
+      setSearchingHistory(false);
+    }
+  };
+
   const handleAddStudent = async (e) => {
     e.preventDefault();
 
     const idRegex = /^\d{4}-\d{4,5}$/;
     if (!idRegex.test(studentId.trim())) {
-      showNotify('error', 'Invalid Student ID format. Please follow format: 2024-0616.');
+      showNotify('error', 'Maling format ng School ID. Gamitin ang format: 2024-0616.');
       return;
     }
 
@@ -621,7 +725,7 @@ export default function AdminDashboard() {
 
       showNotify(
         'success',
-        `Student ${studentName.trim()} (${studentSection}) added successfully! Default password: ${defaultPassword}`
+        `Matagumpay na naidagdag si ${studentName.trim()} (${studentSection})! Default password: ${defaultPassword}`
       );
       setStudentId('');
       setStudentName('');
@@ -636,18 +740,18 @@ export default function AdminDashboard() {
 
   const handleRemoveAllStudents = async () => {
     if (userRole !== 'admin') {
-      alert('Only administrators are authorized to remove student records.');
+      alert('Tanging administrator lamang ang may pahintulot magtanggal ng mga records.');
       return;
     }
 
     if (students.length === 0) {
-      alert('No enrolled student records found to remove.');
+      alert('Walang nakitang student records upang tanggalin.');
       return;
     }
 
     const isConfirmed = window.confirm(
-      'Are you sure you want to remove all students?\n\n' +
-      'Warning: This action will permanently delete all enrolled student records from the database. This action cannot be undone. Click OK to confirm or Cancel to abort.'
+      'Sigurado ka bang nais mong tanggalin ang LAHAT ng student records?\n\n' +
+      'Babala: Mabubura ang lahat ng estudyante sa database at hindi na ito mababawi. Pindutin ang OK upang kumpirmahin.'
     );
 
     if (!isConfirmed) return;
@@ -663,10 +767,10 @@ export default function AdminDashboard() {
         throw new Error(error.message);
       }
 
-      showNotify('success', 'All student records have been permanently removed.');
+      showNotify('success', 'Lahat ng student records ay matagumpay na natanggal.');
       fetchAllData();
     } catch (err) {
-      showNotify('error', `Error removing records: ${err.message}`);
+      showNotify('error', `Error sa pagtanggal: ${err.message}`);
     } finally {
       setLoading(false);
     }
@@ -675,7 +779,7 @@ export default function AdminDashboard() {
   const handleAddStaff = async (e) => {
     e.preventDefault();
     if (userRole !== 'admin') {
-      showNotify('error', 'Only administrators can register staff members.');
+      showNotify('error', 'Administrator lamang ang maaaring magrehistro ng staff.');
       return;
     }
 
@@ -704,7 +808,7 @@ export default function AdminDashboard() {
 
         showNotify(
           'success',
-          `Account upgraded! ${existingUser.full_name} (${cleanEmail}) now has scanning clearance on their dashboard.`
+          `Na-upgrade ang account! May scanner clearance na si ${existingUser.full_name}.`
         );
       } else {
         const generatedStaffId = `STAFF-${Math.floor(1000 + Math.random() * 9000)}`;
@@ -727,7 +831,7 @@ export default function AdminDashboard() {
 
         showNotify(
           'success',
-          `Staff officer ${staffName} registered successfully! Default password: ${generatedStaffId}`
+          `Matagumpay na nairehistro si ${staffName}! Default password: ${generatedStaffId}`
         );
       }
 
@@ -745,7 +849,7 @@ export default function AdminDashboard() {
     e.preventDefault();
     if (!manualStudentId) return;
 
-    setScanLogMsg({ type: 'info', text: 'Validating School ID against Whitelist database...' });
+    setScanLogMsg({ type: 'info', text: 'Bina-validate ang School ID sa database...' });
 
     const studentMatch = students.find(
       (s) => s.school_id?.toLowerCase() === manualStudentId.trim().toLowerCase()
@@ -754,7 +858,7 @@ export default function AdminDashboard() {
     if (!studentMatch) {
       setScanLogMsg({
         type: 'error',
-        text: 'Access Denied: Student ID is not registered in the whitelist database.',
+        text: 'Access Denied: Ang School ID ay hindi rehistrado sa whitelist database.',
       });
       return;
     }
@@ -769,7 +873,7 @@ export default function AdminDashboard() {
     if (existing) {
       setScanLogMsg({
         type: 'warning',
-        text: `🚫 DENIED / ALREADY SCANNED: Attendance was already recorded at ${existing.time_in} for ${studentMatch.full_name} (${studentMatch.school_id})!`,
+        text: `🚫 ALREADY SCANNED: Naitala na noong ${existing.time_in} si ${studentMatch.full_name} (${studentMatch.school_id})!`,
       });
       return;
     }
@@ -788,9 +892,10 @@ export default function AdminDashboard() {
     if (error) {
       setScanLogMsg({ type: 'error', text: `Error: ${error.message}` });
     } else {
+      playBeepSound();
       setScanLogMsg({
         type: 'success',
-        text: `Done scanning! Attendance confirmed for ${studentMatch.full_name} (${studentMatch.school_id}).`,
+        text: `Done scanning! Kinumpirma ang attendance para kay ${studentMatch.full_name} (${studentMatch.school_id}).`,
       });
       setManualStudentId('');
     }
@@ -798,28 +903,28 @@ export default function AdminDashboard() {
 
   const handleDeleteUser = async (id, identifier) => {
     if (userRole !== 'admin') {
-      alert('Only administrators are authorized to remove accounts.');
+      alert('Administrator lamang ang maaaring magbura ng account.');
       return;
     }
-    if (!confirm(`Are you sure you want to remove ${identifier}?`)) return;
+    if (!confirm(`Sigurado ka bang nais mong tanggalin si ${identifier}?`)) return;
     const { error } = await supabase.from('profiles').delete().eq('id', id);
     if (error) showNotify('error', error.message);
     else {
-      showNotify('success', 'Record removed successfully.');
+      showNotify('success', 'Matagumpay na natanggal ang record.');
       fetchAllData();
     }
   };
 
   const handleDeleteEvent = async (id, title) => {
     if (userRole !== 'admin') {
-      alert('Only administrators are authorized to delete events.');
+      alert('Administrator lamang ang maaaring magbura ng events.');
       return;
     }
-    if (!confirm(`Are you sure you want to delete event "${title}"?`)) return;
+    if (!confirm(`Sigurado ka bang nais mong burahin ang event na "${title}"?`)) return;
     const { error } = await supabase.from('events').delete().eq('id', id);
     if (error) showNotify('error', error.message);
     else {
-      showNotify('success', 'Event deleted successfully.');
+      showNotify('success', 'Matagumpay na nabura ang event.');
       fetchAllData();
     }
   };
@@ -851,6 +956,12 @@ export default function AdminDashboard() {
 
   const isAdmin = userRole === 'admin';
 
+  // Stats para sa Seach Student History
+  const historyPresentCount = studentAttendanceRecords.filter((r) => r.status === 'PRESENT').length;
+  const historyAbsentCount = studentAttendanceRecords.filter((r) => r.status === 'ABSENT').length;
+  const historyTotalEvents = studentAttendanceRecords.length;
+  const historyComplianceRate = historyTotalEvents > 0 ? Math.round((historyPresentCount / historyTotalEvents) * 100) : 0;
+
   return (
     <div className={styles.container} style={{ paddingBottom: 0, overflowX: 'hidden', maxWidth: '100vw' }}>
       <Head>
@@ -859,7 +970,7 @@ export default function AdminDashboard() {
         <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js" async />
       </Head>
 
-      {/* TOP HEADER: RESPONSIVE SINGLE ROW NA HINDI LUMALAGPAS SA SCREEN NG CP */}
+      {/* TOP HEADER */}
       <header
         style={{
           position: 'sticky',
@@ -941,7 +1052,7 @@ export default function AdminDashboard() {
             </div>
           </div>
 
-          {/* RIGHT: COMPACT CAMPUS BADGE */}
+          {/* RIGHT: CAMPUS BADGE */}
           <div
             style={{
               display: 'flex',
@@ -1043,7 +1154,7 @@ export default function AdminDashboard() {
                 className={activeTab === 'profile' ? `${styles.portalNavLink} ${styles.portalNavLinkActive}` : styles.portalNavLink}
                 style={{ fontSize: '0.92rem', padding: '12px 14px' }}
               >
-                <span></span>
+                <span>👤</span>
                 <span>System Overview</span>
               </button>
 
@@ -1052,7 +1163,7 @@ export default function AdminDashboard() {
                 className={activeTab === 'add-student' ? `${styles.portalNavLink} ${styles.portalNavLinkActive}` : styles.portalNavLink}
                 style={{ fontSize: '0.92rem', padding: '12px 14px' }}
               >
-                <span></span>
+                <span>🎓</span>
                 <span>Add Student</span>
               </button>
 
@@ -1062,7 +1173,7 @@ export default function AdminDashboard() {
                   className={activeTab === 'add-staff' ? `${styles.portalNavLink} ${styles.portalNavLinkActive}` : styles.portalNavLink}
                   style={{ fontSize: '0.92rem', padding: '12px 14px' }}
                 >
-                  <span></span>
+                  <span>🛡️</span>
                   <span>Manage Staff &amp; Scanners</span>
                 </button>
               )}
@@ -1072,7 +1183,7 @@ export default function AdminDashboard() {
                 className={activeTab === 'add-event' ? `${styles.portalNavLink} ${styles.portalNavLinkActive}` : styles.portalNavLink}
                 style={{ fontSize: '0.92rem', padding: '12px 14px' }}
               >
-                <span></span>
+                <span>📅</span>
                 <span>Manage Events</span>
               </button>
 
@@ -1081,8 +1192,25 @@ export default function AdminDashboard() {
                 className={activeTab === 'scan-qr' ? `${styles.portalNavLink} ${styles.portalNavLinkActive}` : styles.portalNavLink}
                 style={{ fontSize: '0.92rem', padding: '12px 14px' }}
               >
-                <span></span>
+                <span>📷</span>
                 <span>Scan QR &amp; Quick Log</span>
+              </button>
+
+              {/* BAGONG NAV BUTTON PARA SA SEARCH STUDENT ATTENDANCE */}
+              <button
+                onClick={() => { setActiveTab('search-student'); setIsSidebarOpen(false); }}
+                className={activeTab === 'search-student' ? `${styles.portalNavLink} ${styles.portalNavLinkActive}` : styles.portalNavLink}
+                style={{
+                  fontSize: '0.92rem',
+                  padding: '12px 14px',
+                  backgroundColor: activeTab === 'search-student' ? '#dcfce7' : '#f0fdf4',
+                  color: '#15803d',
+                  border: '1px solid #bbf7d0',
+                  fontWeight: 900,
+                }}
+              >
+                <span>🔍</span>
+                <span>Student Records &amp; Logs</span>
               </button>
             </nav>
           </div>
@@ -1333,7 +1461,7 @@ export default function AdminDashboard() {
                       {filteredStudents.length === 0 ? (
                         <tr>
                           <td colSpan={isAdmin ? 4 : 3} style={{ textAlign: 'center', padding: '20px', color: '#94a3b8' }}>
-                            No student records found.
+                            Walang nakitang student records.
                           </td>
                         </tr>
                       ) : (
@@ -1457,10 +1585,10 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          {/* TAB 4: MANAGE EVENTS */}
+          {/* TAB 4: MANAGE EVENTS (FULL-WIDTH & RESPONSIVE NA PARA HINDI NAPUPUTOL) */}
           {activeTab === 'add-event' && (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))', gap: '20px' }}>
-              <div className={styles.adminFormCard} ref={formRef}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '22px', width: '100%' }}>
+              <div className={styles.adminFormCard} ref={formRef} style={{ width: '100%', boxSizing: 'border-box' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
                   <h3 className={styles.analyticsTitle} style={{ fontSize: '0.9rem', margin: 0 }}>
                     {editingEventId ? 'Edit Event' : 'Publish New Event'}
@@ -1545,7 +1673,7 @@ export default function AdminDashboard() {
                     />
                   </div>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '10px' }}>
                     <div className={styles.inputGroup}>
                       <label className={styles.inputLabel} style={{ fontSize: '0.75rem' }}>Location *</label>
                       <input
@@ -1656,115 +1784,138 @@ export default function AdminDashboard() {
                 </form>
               </div>
 
-              <div className={styles.adminFormCard}>
-                <h3 className={styles.analyticsTitle} style={{ fontSize: '0.9rem', marginBottom: '14px' }}>
-                  Published Events ({filteredEvents.length})
-                </h3>
-                <div className={styles.adminTableWrapper}>
-                  <table className={styles.adminTable}>
-                    <thead>
-                      <tr>
-                        <th>Poster</th>
-                        <th>Title</th>
-                        <th>Schedule</th>
-                        <th>Status</th>
-                        {isAdmin && <th style={{ textAlign: 'right' }}>Action</th>}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredEvents.map((ev) => {
-                        const isActive = ev.status === 'active';
-                        return (
-                          <tr key={ev.id} style={{ backgroundColor: editingEventId === ev.id ? '#f0fdf4' : 'transparent' }}>
-                            <td>
-                              {ev.image_url ? (
-                                <img
-                                  src={ev.image_url}
-                                  alt="Event"
-                                  style={{ width: '40px', height: '40px', borderRadius: '8px', objectFit: 'cover' }}
-                                />
-                              ) : (
-                                <div
-                                  style={{
-                                    width: '40px',
-                                    height: '40px',
-                                    borderRadius: '8px',
-                                    backgroundColor: '#f1f5f9',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    fontSize: '1.1rem',
-                                  }}
-                                >
-                                  📅
-                                </div>
-                              )}
-                            </td>
-                            <td>
-                              <div style={{ fontWeight: 800 }}>{ev.title}</div>
-                              <div style={{ fontSize: '0.7rem', color: '#15803d', fontWeight: 700 }}>
-                                📍 {ev.location || 'FaCET Facade'}
-                              </div>
-                            </td>
-                            <td>
-                              <div>{ev.date}</div>
-                              <div style={{ fontSize: '0.7rem', color: '#64748b' }}>
-                                {ev.time_in} - {ev.time_out}
-                              </div>
-                            </td>
-                            <td>
-                              <span
-                                className={styles.idBadge}
+              {/* PUBLISHED EVENTS CARD (NAKADISENYO PARA BUO AT SWAK SA CP) */}
+              <div className={styles.adminFormCard} style={{ width: '100%', boxSizing: 'border-box', padding: '16px 14px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '8px' }}>
+                  <h3 className={styles.analyticsTitle} style={{ fontSize: '0.95rem', margin: 0 }}>
+                    Published Events ({filteredEvents.length})
+                  </h3>
+                  <input
+                    type="text"
+                    placeholder="🔍 Search event..."
+                    value={searchEventQuery}
+                    onChange={(e) => setSearchEventQuery(e.target.value)}
+                    className={styles.loginInput}
+                    style={{ width: '130px', padding: '6px 10px', fontSize: '0.8rem' }}
+                  />
+                </div>
+
+                {filteredEvents.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '24px', color: '#94a3b8', fontSize: '0.85rem' }}>
+                    Walang nakitang events.
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', width: '100%' }}>
+                    {filteredEvents.map((ev) => {
+                      const isActive = ev.status === 'active';
+                      return (
+                        <div
+                          key={ev.id}
+                          style={{
+                            backgroundColor: editingEventId === ev.id ? '#f0fdf4' : '#ffffff',
+                            border: `1px solid ${editingEventId === ev.id ? '#86efac' : '#e2e8f0'}`,
+                            borderRadius: '14px',
+                            padding: '12px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            gap: '10px',
+                            width: '100%',
+                            boxSizing: 'border-box',
+                            boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0, flex: 1 }}>
+                            {ev.image_url ? (
+                              <img
+                                src={ev.image_url}
+                                alt="Event"
+                                style={{ width: '48px', height: '48px', borderRadius: '10px', objectFit: 'cover', flexShrink: 0 }}
+                              />
+                            ) : (
+                              <div
                                 style={{
-                                  backgroundColor: isActive ? '#dcfce7' : '#f1f5f9',
-                                  color: isActive ? '#15803d' : '#64748b',
+                                  width: '48px',
+                                  height: '48px',
+                                  borderRadius: '10px',
+                                  backgroundColor: '#f1f5f9',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  fontSize: '1.25rem',
+                                  flexShrink: 0,
                                 }}
                               >
-                                {isActive ? 'ACTIVE' : 'INACTIVE'}
-                              </span>
-                            </td>
-                            {isAdmin && (
-                              <td style={{ textAlign: 'right' }}>
-                                <div style={{ display: 'inline-flex', gap: '6px' }}>
-                                  <button
-                                    onClick={() => handleStartEditEvent(ev)}
-                                    style={{
-                                      background: 'none',
-                                      border: '1px solid #bbf7d0',
-                                      backgroundColor: '#f0fdf4',
-                                      color: '#15803d',
-                                      fontWeight: 800,
-                                      cursor: 'pointer',
-                                      padding: '3px 6px',
-                                      borderRadius: '6px',
-                                      fontSize: '0.72rem',
-                                    }}
-                                  >
-                                    Edit
-                                  </button>
-                                  <button
-                                    onClick={() => handleDeleteEvent(ev.id, ev.title)}
-                                    style={{
-                                      background: 'none',
-                                      border: 'none',
-                                      color: '#b91c1c',
-                                      fontWeight: 800,
-                                      cursor: 'pointer',
-                                      padding: '3px 4px',
-                                      fontSize: '0.72rem',
-                                    }}
-                                  >
-                                    Delete
-                                  </button>
-                                </div>
-                              </td>
+                                📅
+                              </div>
                             )}
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
+
+                            <div style={{ minWidth: 0, flex: 1 }}>
+                              <h4 style={{ margin: '0 0 2px 0', fontSize: '0.88rem', fontWeight: 900, color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                {ev.title}
+                              </h4>
+                              <div style={{ fontSize: '0.72rem', color: '#15803d', fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                📍 {ev.location || 'FaCET Facade'}
+                              </div>
+                              <div style={{ fontSize: '0.7rem', color: '#64748b', fontWeight: 600, marginTop: '2px' }}>
+                                {ev.date} • {ev.time_in}-{ev.time_out}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '6px', flexShrink: 0 }}>
+                            <span
+                              className={styles.idBadge}
+                              style={{
+                                backgroundColor: isActive ? '#dcfce7' : '#f1f5f9',
+                                color: isActive ? '#15803d' : '#64748b',
+                                fontSize: '0.62rem',
+                                padding: '2px 8px',
+                              }}
+                            >
+                              {isActive ? 'ACTIVE' : 'CLOSED'}
+                            </span>
+
+                            {isAdmin && (
+                              <div style={{ display: 'inline-flex', gap: '4px' }}>
+                                <button
+                                  onClick={() => handleStartEditEvent(ev)}
+                                  style={{
+                                    border: '1px solid #bbf7d0',
+                                    backgroundColor: '#f0fdf4',
+                                    color: '#15803d',
+                                    fontWeight: 800,
+                                    cursor: 'pointer',
+                                    padding: '3px 8px',
+                                    borderRadius: '6px',
+                                    fontSize: '0.7rem',
+                                  }}
+                                >
+                                  Edit
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteEvent(ev.id, ev.title)}
+                                  style={{
+                                    border: '1px solid #fecaca',
+                                    backgroundColor: '#fef2f2',
+                                    color: '#b91c1c',
+                                    fontWeight: 800,
+                                    cursor: 'pointer',
+                                    padding: '3px 8px',
+                                    borderRadius: '6px',
+                                    fontSize: '0.7rem',
+                                  }}
+                                >
+                                  Del
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -1794,7 +1945,7 @@ export default function AdminDashboard() {
                   Live Camera QR Scanner
                 </h3>
                 <p style={{ fontSize: '0.82rem', color: '#64748b', marginBottom: '18px', lineHeight: 1.45 }}>
-                  Scan student QR codes to verify profiles and record official attendance.
+                  I-scan ang student QR code. Awtomatikong magpapatunog ng beep at maglalabas ng verification profile.
                 </p>
 
                 <div style={{ marginBottom: '14px', textAlign: 'left' }}>
@@ -1831,7 +1982,7 @@ export default function AdminDashboard() {
                   Manual School ID Check-in
                 </h3>
                 <p style={{ fontSize: '0.8rem', color: '#64748b', marginBottom: '14px' }}>
-                  For students without smartphones or during low camera lighting conditions.
+                  Para sa mga estudyanteng walang dalang smartphone o mababang liwanag sa camera.
                 </p>
 
                 <form onSubmit={handleManualScanSubmit} className={styles.loginForm}>
@@ -1869,10 +2020,203 @@ export default function AdminDashboard() {
               </div>
             </div>
           )}
+
+          {/* TAB 6: BAGONG FEATURE - SEARCH STUDENT ATTENDANCE HISTORY */}
+          {activeTab === 'search-student' && (
+            <div style={{ maxWidth: '900px', margin: '0 auto', width: '100%' }}>
+              <div className={styles.adminFormCard} style={{ padding: '20px', marginBottom: '20px' }}>
+                <h3 className={styles.analyticsTitle} style={{ fontSize: '1.1rem', marginBottom: '6px' }}>
+                  🔍 Search Student Attendance Records
+                </h3>
+                <p style={{ fontSize: '0.85rem', color: '#64748b', margin: '0 0 16px 0', lineHeight: 1.45 }}>
+                  Ilagay ang School ID ng estudyante upang makita ang kabuuang bilang ng Present, Absent, at talaan ng Time In at Time Out sa lahat ng events.
+                </p>
+
+                <form onSubmit={handleSearchStudentHistory} style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                  <input
+                    type="text"
+                    placeholder="e.g. 2024-0616"
+                    value={searchHistoryId}
+                    onChange={(e) => setSearchHistoryId(e.target.value)}
+                    className={styles.loginInput}
+                    style={{ flex: 1, minWidth: '180px', padding: '10px 14px', fontSize: '0.95rem' }}
+                    required
+                  />
+                  <button
+                    type="submit"
+                    disabled={searchingHistory}
+                    className={styles.adminPrimaryBtn}
+                    style={{ minHeight: '44px', padding: '10px 20px', fontSize: '0.92rem', flexShrink: 0 }}
+                  >
+                    {searchingHistory ? 'Hinahanap...' : '🔍 Search Student'}
+                  </button>
+                </form>
+
+                {historySearchMessage && (
+                  <div
+                    className={styles.alertMessage}
+                    style={{ marginTop: '14px', backgroundColor: '#fef2f2', color: '#b91c1c', borderColor: '#fecaca', fontSize: '0.85rem' }}
+                  >
+                    {historySearchMessage}
+                  </div>
+                )}
+              </div>
+
+              {/* SEARCH RESULTS VIEW */}
+              {searchedStudent && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+                  {/* STUDENT PROFILE SUMMARY CARD */}
+                  <div
+                    style={{
+                      backgroundColor: '#ffffff',
+                      border: '1px solid #bbf7d0',
+                      borderRadius: '20px',
+                      padding: '18px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '16px',
+                      boxShadow: '0 4px 12px rgba(21, 128, 61, 0.08)',
+                      flexWrap: 'wrap',
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: '64px',
+                        height: '64px',
+                        borderRadius: '16px',
+                        backgroundColor: '#dcfce7',
+                        border: '2px solid #15803d',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '1.8rem',
+                        overflow: 'hidden',
+                        flexShrink: 0,
+                      }}
+                    >
+                      {searchedStudent.avatar_url ? (
+                        <img src={searchedStudent.avatar_url} alt={searchedStudent.full_name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      ) : (
+                        '👤'
+                      )}
+                    </div>
+
+                    <div style={{ flex: 1, minWidth: '180px' }}>
+                      <span className={styles.idBadge} style={{ fontSize: '0.7rem', padding: '2px 8px' }}>
+                        VERIFIED STUDENT
+                      </span>
+                      <h2 style={{ margin: '4px 0 2px 0', fontSize: '1.25rem', fontWeight: 900, color: '#0f172a' }}>
+                        {searchedStudent.full_name}
+                      </h2>
+                      <div style={{ fontSize: '0.82rem', fontWeight: 800, color: '#15803d' }}>
+                        ID: {searchedStudent.school_id} • {searchedStudent.course} ({searchedStudent.section || 'Section A'})
+                      </div>
+                      <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '2px' }}>
+                        {searchedStudent.email}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* ATTENDANCE COUNTERS */}
+                  <div className={styles.attendanceStatsGrid}>
+                    <div className={styles.attStatCard} style={{ padding: '16px' }}>
+                      <span className={styles.attStatLabel} style={{ fontSize: '0.75rem' }}>Total Events</span>
+                      <div className={styles.attStatValue} style={{ fontSize: '1.8rem' }}>{historyTotalEvents}</div>
+                    </div>
+
+                    <div className={styles.attStatCard} style={{ padding: '16px' }}>
+                      <span className={styles.attStatLabel} style={{ fontSize: '0.75rem' }}>Total Present</span>
+                      <div className={`${styles.attStatValue} ${styles.attGreenText}`} style={{ fontSize: '1.8rem' }}>
+                        {historyPresentCount}
+                      </div>
+                    </div>
+
+                    <div className={styles.attStatCard} style={{ padding: '16px' }}>
+                      <span className={styles.attStatLabel} style={{ fontSize: '0.75rem' }}>Total Absences</span>
+                      <div className={styles.attStatValue} style={{ color: '#b91c1c', fontSize: '1.8rem' }}>
+                        {historyAbsentCount}
+                      </div>
+                    </div>
+
+                    <div className={styles.attStatCard} style={{ padding: '16px' }}>
+                      <span className={styles.attStatLabel} style={{ fontSize: '0.75rem' }}>Compliance Rate</span>
+                      <div className={`${styles.attStatValue} ${styles.attGreenText}`} style={{ fontSize: '1.8rem' }}>
+                        {historyComplianceRate}%
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* ALL EVENTS ATTENDANCE TABLE */}
+                  <div className={styles.adminFormCard} style={{ padding: '18px 14px' }}>
+                    <h3 className={styles.analyticsTitle} style={{ fontSize: '0.95rem', marginBottom: '14px' }}>
+                      Detailed Event Attendance Logs ({studentAttendanceRecords.length})
+                    </h3>
+
+                    <div className={styles.adminTableWrapper}>
+                      <table className={styles.adminTable}>
+                        <thead>
+                          <tr>
+                            <th>Event Title &amp; Location</th>
+                            <th>Date</th>
+                            <th>Time In</th>
+                            <th>Time Out</th>
+                            <th style={{ textAlign: 'center' }}>Attendance Status</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {studentAttendanceRecords.length === 0 ? (
+                            <tr>
+                              <td colSpan={5} style={{ textAlign: 'center', padding: '24px', color: '#94a3b8' }}>
+                                Walang naitalang events.
+                              </td>
+                            </tr>
+                          ) : (
+                            studentAttendanceRecords.map((record) => {
+                              const isPresent = record.status === 'PRESENT';
+                              return (
+                                <tr key={record.eventId}>
+                                  <td>
+                                    <div style={{ fontWeight: 800 }}>{record.eventTitle}</div>
+                                    <div style={{ fontSize: '0.72rem', color: '#15803d', fontWeight: 700 }}>
+                                      📍 {record.eventLocation || 'FaCET Facade'}
+                                    </div>
+                                  </td>
+                                  <td style={{ fontWeight: 600 }}>{record.eventDate}</td>
+                                  <td style={{ fontWeight: 800, color: isPresent ? '#15803d' : '#94a3b8' }}>
+                                    {record.actualTimeIn}
+                                  </td>
+                                  <td style={{ fontWeight: 800, color: isPresent ? '#15803d' : '#94a3b8' }}>
+                                    {record.actualTimeOut}
+                                  </td>
+                                  <td style={{ textAlign: 'center' }}>
+                                    <span
+                                      className={styles.idBadge}
+                                      style={{
+                                        backgroundColor: isPresent ? '#dcfce7' : '#fef2f2',
+                                        color: isPresent ? '#15803d' : '#b91c1c',
+                                        borderColor: isPresent ? '#bbf7d0' : '#fecaca',
+                                        fontWeight: 900,
+                                      }}
+                                    >
+                                      {isPresent ? '✓ PRESENT' : '✕ ABSENT'}
+                                    </span>
+                                  </td>
+                                </tr>
+                              );
+                            })
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </main>
       </div>
 
-      {/* 1. CAMERA SCANNER MODAL POPUP */}
+      {/* 1. CAMERA SCANNER MODAL POPUP (MALINIS AT TINANGGAL ANG DOBLE NA BOX) */}
       {isCameraModalOpen && (
         <div
           style={{
@@ -1906,6 +2250,7 @@ export default function AdminDashboard() {
               </h3>
             </div>
 
+            {/* VIEWFINDER (TINANGGAL ANG INNER DUPLICATE MARKERS NA NAKADOBLE) */}
             <div
               style={{
                 position: 'relative',
@@ -1922,13 +2267,6 @@ export default function AdminDashboard() {
               }}
             >
               <div id="interactive-qr-reader" style={{ width: '100%', height: '100%' }} />
-
-              <div style={{ position: 'absolute', width: '180px', height: '180px', pointerEvents: 'none', boxSizing: 'border-box' }}>
-                <div style={{ position: 'absolute', top: 0, left: 0, width: '28px', height: '28px', borderTop: '4px solid #ffffff', borderLeft: '4px solid #ffffff', borderTopLeftRadius: '6px' }} />
-                <div style={{ position: 'absolute', top: 0, right: 0, width: '28px', height: '28px', borderTop: '4px solid #ffffff', borderRight: '4px solid #ffffff', borderTopRightRadius: '6px' }} />
-                <div style={{ position: 'absolute', bottom: 0, left: 0, width: '28px', height: '28px', borderBottom: '4px solid #ffffff', borderLeft: '4px solid #ffffff', borderBottomLeftRadius: '6px' }} />
-                <div style={{ position: 'absolute', bottom: 0, right: 0, width: '28px', height: '28px', borderBottom: '4px solid #ffffff', borderRight: '4px solid #ffffff', borderBottomRightRadius: '6px' }} />
-              </div>
             </div>
 
             <div style={{ marginTop: '10px', marginBottom: '12px' }}>
@@ -1981,7 +2319,7 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      {/* 2. SCANNED VERIFICATION MODAL */}
+      {/* 2. SCANNED VERIFICATION MODAL POPUP */}
       {showVerifyModal && scannedStudentData && (
         <div
           style={{
