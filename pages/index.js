@@ -269,7 +269,7 @@ export default function Home() {
             />
           </div>
 
-          <div className={styles.tagBadge}>✨ EMPOWERING FUTURE LEADERS</div>
+          <div className={styles.tagBadge}> EMPOWERING FUTURE LEADERS</div>
           <h1 className={styles.heroTitle} style={{ fontSize: '3rem', marginBottom: '2px' }}>
             CEC
           </h1>
