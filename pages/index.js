@@ -245,7 +245,7 @@ export default function Home() {
               whiteSpace: 'nowrap',
             }}
           >
-            🛡️ Official CEC Portal
+             Official CEC Portal
           </div>
         </div>
 
