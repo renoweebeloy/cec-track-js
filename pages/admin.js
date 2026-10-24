@@ -57,7 +57,7 @@ export default function AdminDashboard() {
   const [eventImage, setEventImage] = useState('');
   const [compressingImage, setCompressingImage] = useState(false);
 
-  // 4. Officer Management States (BAG-O)
+  // 4. Officer Management States
   const [officerName, setOfficerName] = useState('');
   const [officerPosition, setOfficerPosition] = useState('');
   const [officerDepartment, setOfficerDepartment] = useState('Supreme Student Government (SSG)');
@@ -67,7 +67,7 @@ export default function AdminDashboard() {
   const [officersList, setOfficersList] = useState([]);
 
   // 5. Scanner Controls & Gate State
-  const [scanMode, setScanMode] = useState('time_in'); // 'time_in' | 'time_out'
+  const [scanMode, setScanMode] = useState('time_in');
   const [isScannerGateOpen, setIsScannerGateOpen] = useState(true);
   const [selectedEventId, setSelectedEventId] = useState('');
   const [manualStudentId, setManualStudentId] = useState('');
@@ -104,7 +104,6 @@ export default function AdminDashboard() {
     'Section F', 'Section G', 'Section H', 'Section I', 'Section J', 'Section K',
   ];
 
-  // Helper: Convert 24h to 12h (e.g. 5:00 PM)
   const formatTime12Hour = (time24) => {
     if (!time24 || time24 === '--:--') return '--:--';
     if (time24.includes('AM') || time24.includes('PM')) return time24;
@@ -279,7 +278,6 @@ export default function AdminDashboard() {
     if (!supabase) return;
     setLoading(true);
     try {
-      // 1. Profiles
       const { data: profilesData } = await supabase
         .from('profiles')
         .select('*')
@@ -290,7 +288,6 @@ export default function AdminDashboard() {
         setStaffList(profilesData.filter((p) => p.role === 'admin' || p.role === 'staff' || p.can_scan === true));
       }
 
-      // 2. Events
       const { data: eventsData } = await supabase
         .from('events')
         .select('*')
@@ -332,7 +329,6 @@ export default function AdminDashboard() {
         }
       }
 
-      // 3. Officers (Gikan sa officers table)
       const { data: officersData } = await supabase
         .from('officers')
         .select('*')
@@ -357,13 +353,12 @@ export default function AdminDashboard() {
     router.replace('/');
   };
 
-  // Upload og Litrato sa Opisyal (Compress to 400px base64)
   const handleOfficerAvatarUpload = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     if (!file.type.startsWith('image/')) {
-      showNotify('error', 'Palihug pagpili og saktong file sa litrato (PNG, JPG, o JPEG).');
+      showNotify('error', 'Pumili ng tamang file ng larawan (PNG, JPG, o JPEG).');
       return;
     }
 
@@ -398,19 +393,18 @@ export default function AdminDashboard() {
         const compressedBase64 = canvas.toDataURL('image/jpeg', 0.8);
         setOfficerAvatar(compressedBase64);
         setCompressingOfficerAvatar(false);
-        showNotify('success', 'Naka-attach na ang litrato sa opisyal!');
+        showNotify('success', 'Nai-attach na ang larawan ng opisyal!');
       };
       img.src = event.target.result;
     };
     reader.readAsDataURL(file);
   };
 
-  // I-save ang Bag-ong Opisyal
   const handleSaveOfficer = async (e) => {
     e.preventDefault();
 
     if (!officerName.trim() || !officerPosition.trim()) {
-      showNotify('error', 'Palihug pun-i ang Ngalan ug Posisyon sa Opisyal.');
+      showNotify('error', 'Punan ang Pangalan at Posisyon ng Opisyal.');
       return;
     }
 
@@ -429,7 +423,7 @@ export default function AdminDashboard() {
 
       if (error) throw new Error(error.message);
 
-      showNotify('success', `Opisyal nga narehistro si ${officerName.trim()} isip ${officerPosition.trim()}!`);
+      showNotify('success', `Opisyal na nairehistro si ${officerName.trim()} bilang ${officerPosition.trim()}!`);
       setOfficerName('');
       setOfficerPosition('');
       setOfficerAvatar('');
@@ -572,7 +566,6 @@ export default function AdminDashboard() {
     setDeleteModal({ isOpen: true, type, id, title });
   };
 
-  // Confirmation Action Handler
   const handleConfirmDelete = async () => {
     if (!deleteModal.id || userRole !== 'admin') return;
     setDeletingRecord(true);
@@ -581,7 +574,7 @@ export default function AdminDashboard() {
       if (deleteModal.type === 'officer') {
         const { error } = await supabase.from('officers').delete().eq('id', deleteModal.id);
         if (error) throw new Error(error.message);
-        showNotify('success', `Natangtang na si "${deleteModal.title}" sa listahan sa mga opisyales.`);
+        showNotify('success', `Natanggal na si "${deleteModal.title}" sa listahan ng mga opisyal.`);
       } else if (deleteModal.type === 'event') {
         await supabase.from('attendance').delete().eq('event_id', deleteModal.id);
         const { error } = await supabase.from('events').delete().eq('id', deleteModal.id);
@@ -598,7 +591,6 @@ export default function AdminDashboard() {
         if (error) throw new Error(error.message);
         showNotify('success', 'All enrolled student records have been permanently removed.');
       } else if (deleteModal.type === 'staff') {
-        // DILI PWEDE MA-REVOKE ANG SYSTEM ADMINISTRATOR
         const targetStaff = staffList.find((s) => s.id === deleteModal.id);
         if (targetStaff && targetStaff.role === 'admin') {
           showNotify('error', 'Denied: The System Administrator account is permanent and cannot be revoked.');
@@ -607,7 +599,6 @@ export default function AdminDashboard() {
           return;
         }
 
-        // I-DOWNGRADE BALIK ISIP REGULAR STUDENT (DILI MA-DELETE ANG ACCOUNT)
         const { error: updateError } = await supabase
           .from('profiles')
           .update({
@@ -633,7 +624,6 @@ export default function AdminDashboard() {
     }
   };
 
-  // Camera Scanner Functions
   const startCameraScanner = async () => {
     if (!selectedEventId) {
       showNotify('error', 'Please select an Active Event Schedule before scanning.');
@@ -1318,7 +1308,7 @@ export default function AdminDashboard() {
       )}
 
       <div className={styles.portalWrapper}>
-        {/* SIDEBAR NAVIGATION */}
+        {/* SIDEBAR NAVIGATION (PANTAY-PANTAY ANG STYLING NANG WALANG SOBRANG KULAY) */}
         <aside
           style={{
             position: 'fixed',
@@ -1406,25 +1396,18 @@ export default function AdminDashboard() {
                 </button>
               )}
 
-              {/* BAG-ONG MENU: MANAGE OFFICERS */}
+              {/* TAB: MANAGE OFFICERS (STANDARD BUTTON STYLING) */}
               {isAdmin && (
                 <button
                   onClick={() => { setActiveTab('manage-officers'); setIsSidebarOpen(false); }}
                   className={activeTab === 'manage-officers' ? `${styles.portalNavLink} ${styles.portalNavLinkActive}` : styles.portalNavLink}
-                  style={{
-                    fontSize: '0.92rem',
-                    padding: '12px 14px',
-                    justifyContent: 'flex-start',
-                    backgroundColor: activeTab === 'manage-officers' ? '#15803d' : '#f0fdf4',
-                    color: activeTab === 'manage-officers' ? '#ffffff' : '#15803d',
-                    border: '1px solid #bbf7d0',
-                    fontWeight: 900,
-                  }}
+                  style={{ fontSize: '0.92rem', padding: '12px 14px', justifyContent: 'flex-start' }}
                 >
                   <span>Manage Officers</span>
                 </button>
               )}
 
+              {/* TAB: SCAN QR & QUICK LOG */}
               <button
                 onClick={() => { setActiveTab('scan-qr'); setIsSidebarOpen(false); }}
                 className={activeTab === 'scan-qr' ? `${styles.portalNavLink} ${styles.portalNavLinkActive}` : styles.portalNavLink}
@@ -1433,18 +1416,11 @@ export default function AdminDashboard() {
                 <span>Scan QR &amp; Quick Log</span>
               </button>
 
+              {/* TAB: STUDENT RECORDS & LOGS (STANDARD BUTTON STYLING) */}
               <button
                 onClick={() => { setActiveTab('search-student'); setIsSidebarOpen(false); }}
                 className={activeTab === 'search-student' ? `${styles.portalNavLink} ${styles.portalNavLinkActive}` : styles.portalNavLink}
-                style={{
-                  fontSize: '0.92rem',
-                  padding: '12px 14px',
-                  backgroundColor: activeTab === 'search-student' ? '#dcfce7' : '#f0fdf4',
-                  color: '#15803d',
-                  border: '1px solid #bbf7d0',
-                  fontWeight: 900,
-                  justifyContent: 'flex-start',
-                }}
+                style={{ fontSize: '0.92rem', padding: '12px 14px', justifyContent: 'flex-start' }}
               >
                 <span>Student Records &amp; Logs</span>
               </button>
@@ -1489,7 +1465,7 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          {/* TAB 1: SYSTEM OVERVIEW (ADMIN ONLY) */}
+          {/* TAB 1: SYSTEM OVERVIEW */}
           {activeTab === 'profile' && isAdmin && (
             <div>
               <div className={styles.attendanceStatsGrid}>
@@ -1540,10 +1516,9 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          {/* TAB: MANAGE OFFICERS (NEW FULL FEATURE) */}
+          {/* TAB: MANAGE OFFICERS */}
           {activeTab === 'manage-officers' && isAdmin && (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))', gap: '20px' }}>
-              {/* Form to Add Officer */}
               <div className={styles.adminFormCard}>
                 <h3 className={styles.analyticsTitle} style={{ fontSize: '0.95rem', marginBottom: '14px' }}>
                   Add Student Leader / Officer
@@ -1558,7 +1533,6 @@ export default function AdminDashboard() {
                     style={{ display: 'none' }}
                   />
 
-                  {/* Upload Formal 2x2 Picture */}
                   <div className={styles.inputGroup}>
                     <label className={styles.inputLabel} style={{ fontSize: '0.75rem' }}>Officer 2x2 / Formal Photo</label>
                     <div
@@ -1634,8 +1608,6 @@ export default function AdminDashboard() {
                       style={{ padding: '10px 12px', fontSize: '0.9rem' }}
                     >
                       <option value="Supreme Student Government (SSG)">Supreme Student Government (SSG)</option>
-                      <option value="FaCET Student Council">FaCET Student Council</option>
-                      <option value="BSIT Department">BSIT Department</option>
                       <option value="BSCRIM Department">BSCRIM Department</option>
                       <option value="BSBA Department">BSBA Department</option>
                       <option value="BSA Department">BSA Department</option>
@@ -1755,7 +1727,7 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          {/* TAB 2: ADD STUDENT & ENROLLED STUDENTS (ADMIN ONLY) */}
+          {/* TAB 2: ADD STUDENT */}
           {activeTab === 'add-student' && isAdmin && (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))', gap: '20px' }}>
               <div className={styles.adminFormCard}>
@@ -1957,7 +1929,7 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          {/* TAB 3: MANAGE STAFF & AUTHORIZED SCANNERS */}
+          {/* TAB 3: MANAGE STAFF */}
           {activeTab === 'add-staff' && isAdmin && (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))', gap: '20px' }}>
               <div className={styles.adminFormCard}>
@@ -2009,7 +1981,7 @@ export default function AdminDashboard() {
                 </form>
               </div>
 
-              {/* AUTHORIZED SCANNERS LIST - PERMANENT SYSTEM ADMIN */}
+              {/* AUTHORIZED SCANNERS LIST */}
               <div className={styles.adminFormCard}>
                 <h3 className={styles.analyticsTitle} style={{ fontSize: '0.95rem', marginBottom: '14px' }}>
                   Authorized Scanners ({staffList.length})
@@ -2103,7 +2075,7 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          {/* TAB 4: MANAGE EVENTS (ADMIN ONLY) */}
+          {/* TAB 4: MANAGE EVENTS */}
           {activeTab === 'add-event' && isAdmin && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '22px', width: '100%' }}>
               <div className={styles.adminFormCard} ref={formRef} style={{ width: '100%', boxSizing: 'border-box' }}>
@@ -2950,7 +2922,6 @@ export default function AdminDashboard() {
               </button>
             </div>
 
-            {/* VIEWFINDER CONTAINER */}
             <div
               style={{
                 position: 'relative',
@@ -2968,7 +2939,6 @@ export default function AdminDashboard() {
               <div id="interactive-qr-reader" style={{ width: '100%', height: '100%' }} />
             </div>
 
-            {/* LIVE DETAILED STUDENT PROFILE SCAN CARD */}
             {liveScanFeedback && (
               <div
                 style={{
