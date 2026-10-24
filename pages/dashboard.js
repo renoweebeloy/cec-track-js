@@ -1690,7 +1690,7 @@ export default function StudentDashboard() {
                     marginBottom: '14px',
                   }}
                 >
-                  ✨ ABOUT CECTRACK
+                   ABOUT CECTRACK
                 </div>
 
                 <h1
