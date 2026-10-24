@@ -36,14 +36,15 @@ export default function StudentDashboard() {
     can_scan: false,
   });
 
-  // Events & Attendance States
+  // Events, Attendance, & Officers States
   const [events, setEvents] = useState([]);
   const [attendanceLogs, setAttendanceLogs] = useState([]);
+  const [officersList, setOfficersList] = useState([]);
   const [attendanceFilter, setAttendanceFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [notification, setNotification] = useState({ type: '', message: '' });
 
-  // 12-Hour AM/PM Formatter (pananglitan: 8:00 AM, 5:00 PM)
+  // 12-Hour AM/PM Formatter
   const formatTime12Hour = (time24) => {
     if (!time24 || time24 === '--:--') return '--:--';
     if (time24.includes('AM') || time24.includes('PM')) return time24;
@@ -128,7 +129,7 @@ export default function StudentDashboard() {
     fetchStudentData();
   }, []);
 
-  // Pagkuha sa datos sa estudyante gikan sa Supabase
+  // Pagkuha sa datos sa estudyante, kalihokan, ug mga opisyales gikan sa Supabase
   const fetchStudentData = async () => {
     setLoading(true);
     try {
@@ -172,7 +173,7 @@ export default function StudentDashboard() {
         }
       }
 
-      // Kumuha sa mga opisyal nga events
+      // 1. Kumuha sa mga opisyal nga kalihokan (events)
       const { data: eventsData } = await supabase
         .from('events')
         .select('*')
@@ -182,7 +183,7 @@ export default function StudentDashboard() {
         setEvents(eventsData);
       }
 
-      // Kumuha sa attendance records sa maong estudyante
+      // 2. Kumuha sa attendance records sa maong estudyante
       const { data: studentLogs } = await supabase
         .from('attendance')
         .select('*')
@@ -195,7 +196,6 @@ export default function StudentDashboard() {
         });
       }
 
-      // Pagsamahon ang mga records
       if (eventsData && eventsData.length > 0) {
         const mergedRecords = eventsData.map((ev) => {
           const matchingLog = logsMap[ev.id];
@@ -220,6 +220,16 @@ export default function StudentDashboard() {
       } else {
         setAttendanceLogs([]);
       }
+
+      // 3. Kumuha sa Dinamikong Talaan sa mga Opisyales (Officers Roster)
+      const { data: officersData } = await supabase
+        .from('officers')
+        .select('*')
+        .order('id', { ascending: true });
+
+      if (officersData) {
+        setOfficersList(officersData);
+      }
     } catch (err) {
       console.error('Error fetching dashboard records:', err);
     } finally {
@@ -227,7 +237,7 @@ export default function StudentDashboard() {
     }
   };
 
-  // Upload og 2x2 Photo direkta sa Supabase Database (Cloud Sync)
+  // Upload og 2x2 Photo direkta sa Supabase Database (Universal Cloud Sync)
   const handlePhotoUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -414,7 +424,7 @@ export default function StudentDashboard() {
         <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" async />
       </Head>
 
-      {/* RESPONSIVE CSS INJECTION: 100% WIDTH SA CELLPHONE ARON DILI MAIPIT O MAPUTOL */}
+      {/* RESPONSIVE CSS INJECTION: PURE GREEN & FULL WIDTH SA MOBILE */}
       <style jsx>{`
         @media (max-width: 768px) {
           .portal-sidebar {
@@ -578,7 +588,7 @@ export default function StudentDashboard() {
 
       <div style={{ display: 'flex', flex: 1, minWidth: 0, width: '100%' }}>
         {/* ======================================================== */}
-        {/* SIDEBAR NAVIGATION (WALA NA ANG FINANCE UG VOTING) */}
+        {/* SIDEBAR NAVIGATION (PURE GREEN THEME) */}
         {/* ======================================================== */}
         <aside
           className="portal-sidebar"
@@ -904,7 +914,6 @@ export default function StudentDashboard() {
               <input type="file" ref={fileInputRef} onChange={handlePhotoUpload} accept="image/*" style={{ display: 'none' }} />
 
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))', gap: '24px', alignItems: 'start', width: '100%' }}>
-                {/* ID Card Display */}
                 <div style={{ maxWidth: '340px', margin: '0 auto', width: '100%' }}>
                   <div
                     ref={idCardRef}
@@ -1331,37 +1340,103 @@ export default function StudentDashboard() {
             </div>
           )}
 
-          {/* TAB 4: OFFICERS */}
+          {/* TAB 4: OFFICERS (DINAMIKO GIKAN SA OFFICERS TABLE) */}
           {activeTab === 'officers' && (
             <div style={{ maxWidth: '980px', margin: '0 auto', width: '100%' }}>
-              <div style={{ marginBottom: '20px' }}>
-                <h1 style={{ fontSize: '1.65rem', fontWeight: 900, color: '#0f172a', margin: '0 0 4px 0' }}>
+              <div style={{ marginBottom: '22px' }}>
+                <div style={{ display: 'inline-block', backgroundColor: '#f0fdf4', color: '#15803d', border: '1px solid #bbf7d0', padding: '4px 14px', borderRadius: '9999px', fontSize: '0.72rem', fontWeight: 900, textTransform: 'uppercase', marginBottom: '8px' }}>
+                  STUDENT LEADERSHIP ROSTER
+                </div>
+                <h1 style={{ fontSize: '1.75rem', fontWeight: 900, color: '#0f172a', margin: '0 0 4px 0' }}>
                   Organization Officers
                 </h1>
-                <p style={{ fontSize: '0.88rem', color: '#64748b', margin: 0 }}>
-                  Elected leadership and executive council roster.
+                <p style={{ fontSize: '0.85rem', color: '#15803d', margin: 0, fontWeight: 700 }}>
+                  Meet the official campus and department student leaders.
                 </p>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '18px' }}>
-                <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '20px', padding: '24px', textAlign: 'center' }}>
-                  <div style={{ width: '56px', height: '56px', borderRadius: '16px', backgroundColor: '#f0fdf4', color: '#15803d', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px auto' }}>
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <circle cx="12" cy="8" r="5" />
-                      <polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88" />
-                    </svg>
-                  </div>
-                  <h3 style={{ margin: '0 0 4px 0', fontSize: '1.1rem', fontWeight: 900, color: '#0f172a' }}>Executive Council</h3>
-                  <p style={{ margin: 0, fontSize: '0.82rem', color: '#64748b' }}>Supreme Student Government &amp; Campus Representatives</p>
+              {officersList.length === 0 ? (
+                <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '20px', padding: '40px 20px', textAlign: 'center' }}>
+                  <div style={{ fontSize: '2rem', marginBottom: '8px' }}>🏅</div>
+                  <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 900, color: '#0f172a' }}>Officers Roster Coming Soon</h3>
+                  <p style={{ fontSize: '0.82rem', color: '#64748b', margin: '4px 0 0 0' }}>Wala pa&apos;y gidugang nga opisyales ang mga tagdumala.</p>
                 </div>
-              </div>
+              ) : (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '18px' }}>
+                  {officersList.map((off) => (
+                    <div
+                      key={off.id}
+                      style={{
+                        backgroundColor: '#ffffff',
+                        border: '1px solid #e2e8f0',
+                        borderRadius: '22px',
+                        padding: '24px 20px',
+                        textAlign: 'center',
+                        boxShadow: '0 2px 8px rgba(0,0,0,0.03)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                      }}
+                    >
+                      <div
+                        style={{
+                          width: '84px',
+                          height: '84px',
+                          borderRadius: '24px',
+                          backgroundColor: '#dcfce7',
+                          border: '3px solid #15803d',
+                          overflow: 'hidden',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          marginBottom: '14px',
+                          boxShadow: '0 4px 12px rgba(21,128,61,0.15)',
+                        }}
+                      >
+                        {off.avatar_url ? (
+                          <img src={off.avatar_url} alt={off.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        ) : (
+                          <span style={{ fontSize: '2rem' }}>👤</span>
+                        )}
+                      </div>
+
+                      <span
+                        style={{
+                          backgroundColor: '#f0fdf4',
+                          color: '#15803d',
+                          border: '1px solid #bbf7d0',
+                          padding: '3px 12px',
+                          borderRadius: '9999px',
+                          fontSize: '0.68rem',
+                          fontWeight: 900,
+                          textTransform: 'uppercase',
+                          marginBottom: '8px',
+                        }}
+                      >
+                        {off.position}
+                      </span>
+
+                      <h3 style={{ fontSize: '1.2rem', fontWeight: 900, color: '#0f172a', margin: '0 0 4px 0' }}>
+                        {off.name}
+                      </h3>
+
+                      <p style={{ fontSize: '0.8rem', color: '#64748b', margin: '0 0 10px 0', fontWeight: 600 }}>
+                        {off.department}
+                      </p>
+
+                      <div style={{ fontSize: '0.72rem', color: '#94a3b8', fontWeight: 800, borderTop: '1px solid #f1f5f9', width: '100%', paddingTop: '8px' }}>
+                        Term: {off.term || '2026 - 2027'}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
           {/* TAB 5: SANCTIONS (EKSAKTONG LOGOS SA IMAGE_7CF0E1.PNG) */}
           {activeTab === 'sanctions' && (
             <div style={{ maxWidth: '980px', margin: '0 auto', width: '100%' }}>
-              {/* Ulohan nga may Refresh Button */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px', flexWrap: 'wrap', gap: '8px' }}>
                 <div>
                   <h1 style={{ fontSize: '1.65rem', fontWeight: 900, color: '#0f172a', margin: '0 0 4px 0', letterSpacing: '-0.025em' }}>
@@ -1397,9 +1472,8 @@ export default function StudentDashboard() {
                 </button>
               </div>
 
-              {/* 3 STATS CARDS (EXACT MATCH SA IMAGE_7CF0E1.PNG) */}
+              {/* 3 STATS CARDS */}
               <div className="stats-grid-three" style={{ display: 'grid', marginBottom: '20px' }}>
-                {/* 1. TOTAL EVENTS (ORANGE/PEACH CALENDAR LOGO) */}
                 <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '18px 22px', display: 'flex', alignItems: 'center', gap: '14px', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
                   <div style={{ width: '44px', height: '44px', borderRadius: '12px', backgroundColor: '#fff7ed', border: '1px solid #ffedd5', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ea580c" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -1415,7 +1489,6 @@ export default function StudentDashboard() {
                   </div>
                 </div>
 
-                {/* 2. EVENTS ATTENDED (GREEN USER+CHECK LOGO) */}
                 <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '18px 22px', display: 'flex', alignItems: 'center', gap: '14px', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
                   <div style={{ width: '44px', height: '44px', borderRadius: '12px', backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -1430,9 +1503,8 @@ export default function StudentDashboard() {
                   </div>
                 </div>
 
-                {/* 3. TOTAL ABSENCES (RED WARNING TRIANGLE LOGO) */}
                 <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '18px 22px', display: 'flex', alignItems: 'center', gap: '14px', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
-                  <div style={{ width: '44px', height: '44px', borderRadius: '12px', backgroundColor: '#fef2f2', border: '1px solid #fee2e2', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <div style={{ width: '44px', height: '44px', borderRadius: '12px', backgroundColor: totalAbsencesCount > 0 ? '#fef2f2' : '#f0fdf4', border: `1px solid ${totalAbsencesCount > 0 ? '#fee2e2' : '#bbf7d0'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
                       <line x1="12" y1="9" x2="12" y2="13" />
@@ -1446,7 +1518,6 @@ export default function StudentDashboard() {
                 </div>
               </div>
 
-              {/* Attendance Alert kung duna gyoy unexcused absences */}
               {totalAbsencesCount > 0 && (
                 <div style={{ backgroundColor: '#fff1f2', border: '1px solid #ffe4e6', borderRadius: '18px', padding: '18px 20px', marginBottom: '20px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#be123c', fontWeight: 900, fontSize: '0.88rem', marginBottom: '6px' }}>
@@ -1466,7 +1537,6 @@ export default function StudentDashboard() {
                 </div>
               )}
 
-              {/* Sanctions Policy Notice */}
               <div style={{ marginBottom: '12px' }}>
                 <h3 style={{ fontSize: '0.82rem', fontWeight: 900, color: '#0f172a', textTransform: 'uppercase', letterSpacing: '0.04em', margin: 0 }}>
                   OFFICIAL SANCTIONS &amp; PENALTIES ({totalAbsencesCount})
@@ -1499,7 +1569,7 @@ export default function StudentDashboard() {
             </div>
           )}
 
-          {/* TAB 6: PROFILE (GITANGTANG NA ANG ADMINISTRATOR MANAGED PROFILE) */}
+          {/* TAB 6: PROFILE */}
           {activeTab === 'profile' && (
             <div style={{ maxWidth: '640px', margin: '0 auto', width: '100%' }}>
               <div style={{ textAlign: 'center', marginBottom: '20px' }}>
@@ -1601,7 +1671,7 @@ export default function StudentDashboard() {
             </div>
           )}
 
-          {/* TAB 7: ABOUT (BUONG UNOD SA ABOUT.JS DIREKTA SA DASHBOARD) */}
+          {/* TAB 7: ABOUT */}
           {activeTab === 'about' && (
             <div style={{ maxWidth: '980px', margin: '0 auto', width: '100%' }}>
               <section style={{ textAlign: 'center', marginBottom: '32px' }}>
@@ -1620,7 +1690,7 @@ export default function StudentDashboard() {
                     marginBottom: '14px',
                   }}
                 >
-                   ABOUT CECTRACK
+                  ✨ ABOUT CECTRACK
                 </div>
 
                 <h1
