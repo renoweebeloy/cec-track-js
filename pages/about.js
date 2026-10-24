@@ -51,12 +51,13 @@ export default function About() {
       <main style={{ maxWidth: '980px', margin: '0 auto', padding: '40px 18px 80px 18px' }}>
         {/* Top Hero Section */}
         <section style={{ textAlign: 'center', marginBottom: '44px' }}>
+          {/* GREEN ABOUT CECTRACK BADGE */}
           <div
             style={{
               display: 'inline-block',
-              backgroundColor: '#fff7ed',
-              color: '#ea580c',
-              border: '1px solid #ffedd5',
+              backgroundColor: '#f0fdf4',
+              color: '#15803d',
+              border: '1px solid #bbf7d0',
               padding: '6px 18px',
               borderRadius: '9999px',
               fontSize: '0.75rem',
@@ -66,7 +67,7 @@ export default function About() {
               marginBottom: '16px',
             }}
           >
-            ✨ ABOUT CECTRACK
+             ABOUT CECTRACK
           </div>
 
           <h1
@@ -115,13 +116,13 @@ export default function About() {
                 width: '46px',
                 height: '46px',
                 borderRadius: '14px',
-                backgroundColor: '#fff7ed',
-                color: '#ea580c',
+                backgroundColor: '#f0fdf4',
+                color: '#15803d',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 fontSize: '1.4rem',
-                border: '1px solid #fed7aa',
+                border: '1px solid #bbf7d0',
               }}
             >
               📑
@@ -364,8 +365,11 @@ export default function About() {
               <h2 style={{ fontSize: '1.85rem', fontWeight: 900, margin: '0 0 6px 0', letterSpacing: '-0.02em', color: '#ffffff' }}>
                 Renowee Beloy
               </h2>
-              <p style={{ fontSize: '0.88rem', color: '#a7f3d0', margin: 0, fontWeight: 700 }}>
+              {/* WITH FACULTY OF COMPUTING, ENGINEERING, AND TECHNOLOGY (FaCET) */}
+              <p style={{ fontSize: '0.88rem', color: '#a7f3d0', margin: 0, fontWeight: 700, lineHeight: 1.45 }}>
                 Lead Creator • BS Information Technology (BSIT)
+                <br />
+                Faculty of Computing, Engineering, and Technology (FaCET)
               </p>
             </div>
           </div>
@@ -426,7 +430,7 @@ export default function About() {
               paddingTop: '18px',
             }}
           >
-            CECTRACK was conceptualized and developed by <strong>Renowee Beloy</strong> as a specialized institutional software initiative for Davao Oriental State University. Engineered to resolve manual attendance bottlenecks, it replaces tedious paper logs with reliable digital identification, camera-based QR scanning, and automated attendance reporting.
+            CECTRACK was conceptualized and developed by <strong>Renowee Beloy</strong> from the <strong>Faculty of Computing, Engineering, and Technology (FaCET)</strong> as a specialized institutional software initiative for Davao Oriental State University. Engineered to resolve manual attendance bottlenecks, it replaces tedious paper logs with reliable digital identification, camera-based QR scanning, and automated attendance reporting.
           </p>
         </section>
       </main>
