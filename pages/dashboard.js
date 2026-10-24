@@ -10,7 +10,7 @@ export default function StudentDashboard() {
   const fileInputRef = useRef(null);
   const idCardRef = useRef(null);
 
-  // Active Tab Navigation: 'my-id' | 'attendance' | 'events' | 'officers' | 'finance' | 'sanctions' | 'voting' | 'profile' | 'about'
+  // Active Tab Navigation: 'my-id' | 'attendance' | 'events' | 'officers' | 'sanctions' | 'profile' | 'about'
   const [activeTab, setActiveTab] = useState('my-id');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -43,7 +43,7 @@ export default function StudentDashboard() {
   const [searchQuery, setSearchQuery] = useState('');
   const [notification, setNotification] = useState({ type: '', message: '' });
 
-  // 12-Hour AM/PM Formatter (hal. 8:00 AM, 5:00 PM)
+  // 12-Hour AM/PM Formatter (pananglitan: 8:00 AM, 5:00 PM)
   const formatTime12Hour = (time24) => {
     if (!time24 || time24 === '--:--') return '--:--';
     if (time24.includes('AM') || time24.includes('PM')) return time24;
@@ -128,7 +128,7 @@ export default function StudentDashboard() {
     fetchStudentData();
   }, []);
 
-  // Pagkuha sa datos ng estudyante mula sa Supabase
+  // Pagkuha sa datos sa estudyante gikan sa Supabase
   const fetchStudentData = async () => {
     setLoading(true);
     try {
@@ -172,7 +172,7 @@ export default function StudentDashboard() {
         }
       }
 
-      // Kumuha ng mga opisyal na events
+      // Kumuha sa mga opisyal nga events
       const { data: eventsData } = await supabase
         .from('events')
         .select('*')
@@ -182,7 +182,7 @@ export default function StudentDashboard() {
         setEvents(eventsData);
       }
 
-      // Kumuha ng attendance records ng naturang estudyante
+      // Kumuha sa attendance records sa maong estudyante
       const { data: studentLogs } = await supabase
         .from('attendance')
         .select('*')
@@ -195,7 +195,7 @@ export default function StudentDashboard() {
         });
       }
 
-      // Pagsamahin ang events at logs
+      // Pagsamahon ang mga records
       if (eventsData && eventsData.length > 0) {
         const mergedRecords = eventsData.map((ev) => {
           const matchingLog = logsMap[ev.id];
@@ -227,13 +227,13 @@ export default function StudentDashboard() {
     }
   };
 
-  // Upload ng ID photo direkta sa database (Cloud Sync sa cellphone at laptop)
+  // Upload og 2x2 Photo direkta sa Supabase Database (Cloud Sync)
   const handlePhotoUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     if (!file.type.startsWith('image/')) {
-      alert('Pumili ng tamang image file (PNG, JPG, o JPEG).');
+      alert('Palihug pagpili og saktong litrato (PNG, JPG, o JPEG).');
       return;
     }
 
@@ -275,9 +275,9 @@ export default function StudentDashboard() {
             .eq('school_id', profile.school_id);
 
           if (dbError) {
-            alert('Hindi nai-sync ang litrato sa database: ' + dbError.message);
+            alert('Wala ma-sync ang litrato sa database: ' + dbError.message);
           } else {
-            showNotify('success', 'Nai-save at naka-sync na ang litrato sa lahat ng devices!');
+            showNotify('success', 'Profile photo updated and synced across all devices!');
           }
         } catch (err) {
           console.warn('Avatar database sync error:', err);
@@ -334,12 +334,12 @@ export default function StudentDashboard() {
     setPasswordMsg({ type: '', text: '' });
 
     if (newPassword.length < 6) {
-      setPasswordMsg({ type: 'error', text: 'Ang password ay dapat hindi bababa sa 6 characters.' });
+      setPasswordMsg({ type: 'error', text: 'Ang password kinahanglang labing menos 6 ka letra/numero.' });
       return;
     }
 
     if (newPassword !== confirmPassword) {
-      setPasswordMsg({ type: 'error', text: 'Hindi magkatugma ang bagong password.' });
+      setPasswordMsg({ type: 'error', text: 'Wala magkatugma ang bag-ong password.' });
       return;
     }
 
@@ -356,7 +356,7 @@ export default function StudentDashboard() {
 
       if (error) throw new Error(error.message);
 
-      setPasswordMsg({ type: 'success', text: 'Matagumpay na nabago ang iyong password!' });
+      setPasswordMsg({ type: 'success', text: 'Malampusong nabag-o ang imong password!' });
       setTimeout(() => {
         setIsChangePasswordOpen(false);
         setOldPassword('');
@@ -414,7 +414,7 @@ export default function StudentDashboard() {
         <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" async />
       </Head>
 
-      {/* RESPONSIVE CSS INJECTION: SINISIGURONG NASA ILALIM ANG DRAWER SA CP */}
+      {/* RESPONSIVE CSS INJECTION: 100% WIDTH SA CELLPHONE ARON DILI MAIPIT O MAPUTOL */}
       <style jsx>{`
         @media (max-width: 768px) {
           .portal-sidebar {
@@ -461,7 +461,7 @@ export default function StudentDashboard() {
           }
           .stats-grid-three {
             grid-template-columns: repeat(3, 1fr) !important;
-            gap: 20px !important;
+            gap: 18px !important;
           }
         }
       `}</style>
@@ -578,7 +578,7 @@ export default function StudentDashboard() {
 
       <div style={{ display: 'flex', flex: 1, minWidth: 0, width: '100%' }}>
         {/* ======================================================== */}
-        {/* SIDEBAR NAVIGATION (DRAWER SA CELLPHONE, EMBEDDED SA PC) */}
+        {/* SIDEBAR NAVIGATION (WALA NA ANG FINANCE UG VOTING) */}
         {/* ======================================================== */}
         <aside
           className="portal-sidebar"
@@ -730,36 +730,7 @@ export default function StudentDashboard() {
                 <span>Officers</span>
               </button>
 
-              {/* 5. Finance */}
-              <button
-                onClick={() => { setActiveTab('finance'); setIsSidebarOpen(false); }}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '12px',
-                  padding: '10px 14px',
-                  borderRadius: '12px',
-                  border: 'none',
-                  fontSize: '0.85rem',
-                  fontWeight: activeTab === 'finance' ? 900 : 700,
-                  cursor: 'pointer',
-                  textAlign: 'left',
-                  backgroundColor: activeTab === 'finance' ? '#15803d' : 'transparent',
-                  color: activeTab === 'finance' ? '#ffffff' : '#64748b',
-                  boxShadow: activeTab === 'finance' ? '0 4px 12px rgba(21, 128, 61, 0.25)' : 'none',
-                  transition: 'all 0.15s ease',
-                  touchAction: 'manipulation',
-                }}
-              >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M21 12V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-5z" />
-                  <path d="M16 12h5" />
-                  <circle cx="18" cy="12" r="1" />
-                </svg>
-                <span>Finance</span>
-              </button>
-
-              {/* 6. Sanctions */}
+              {/* 5. Sanctions */}
               <button
                 onClick={() => { setActiveTab('sanctions'); setIsSidebarOpen(false); }}
                 style={{
@@ -788,36 +759,7 @@ export default function StudentDashboard() {
                 <span>Sanctions</span>
               </button>
 
-              {/* 7. Voting */}
-              <button
-                onClick={() => { setActiveTab('voting'); setIsSidebarOpen(false); }}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '12px',
-                  padding: '10px 14px',
-                  borderRadius: '12px',
-                  border: 'none',
-                  fontSize: '0.85rem',
-                  fontWeight: activeTab === 'voting' ? 900 : 700,
-                  cursor: 'pointer',
-                  textAlign: 'left',
-                  backgroundColor: activeTab === 'voting' ? '#15803d' : 'transparent',
-                  color: activeTab === 'voting' ? '#ffffff' : '#64748b',
-                  boxShadow: activeTab === 'voting' ? '0 4px 12px rgba(21, 128, 61, 0.25)' : 'none',
-                  transition: 'all 0.15s ease',
-                  touchAction: 'manipulation',
-                }}
-              >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="m9 12 2 2 4-4" />
-                  <path d="M5 7c0-1.1.9-2 2-2h10a2 2 0 0 1 2 2v12H5V7Z" />
-                  <path d="M22 19H2" />
-                </svg>
-                <span>Voting</span>
-              </button>
-
-              {/* 8. Profile */}
+              {/* 6. Profile */}
               <button
                 onClick={() => { setActiveTab('profile'); setIsSidebarOpen(false); }}
                 style={{
@@ -845,7 +787,7 @@ export default function StudentDashboard() {
                 <span>Profile</span>
               </button>
 
-              {/* 9. About */}
+              {/* 7. About */}
               <button
                 onClick={() => { setActiveTab('about'); setIsSidebarOpen(false); }}
                 style={{
@@ -906,7 +848,7 @@ export default function StudentDashboard() {
         </aside>
 
         {/* ======================================================== */}
-        {/* MAIN BODY VIEWPORT (BUONG 100% LAPAD SA MOBILE) */}
+        {/* MAIN BODY VIEWPORT */}
         {/* ======================================================== */}
         <main className="portal-main-content" style={{ boxSizing: 'border-box', overflowY: 'auto' }}>
           {notification.message && (
@@ -962,7 +904,7 @@ export default function StudentDashboard() {
               <input type="file" ref={fileInputRef} onChange={handlePhotoUpload} accept="image/*" style={{ display: 'none' }} />
 
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))', gap: '24px', alignItems: 'start', width: '100%' }}>
-                {/* ID Card Box */}
+                {/* ID Card Display */}
                 <div style={{ maxWidth: '340px', margin: '0 auto', width: '100%' }}>
                   <div
                     ref={idCardRef}
@@ -1158,7 +1100,7 @@ export default function StudentDashboard() {
                 </button>
               </div>
 
-              {/* STATS ROW (RESPONSIVE GRID) */}
+              {/* STATS ROW */}
               <div className="stats-grid-responsive" style={{ display: 'grid', marginBottom: '20px' }}>
                 <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '16px' }}>
                   <span style={{ fontSize: '0.68rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase' }}>TOTAL EVENTS</span>
@@ -1249,7 +1191,7 @@ export default function StudentDashboard() {
                 />
               </div>
 
-              {/* Table Wrapper na may horizontal scroll para hindi maputol */}
+              {/* Table Wrapper */}
               <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '16px', overflowX: 'auto', width: '100%' }}>
                 <table style={{ width: '100%', minWidth: '600px', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.82rem' }}>
                   <thead>
@@ -1416,32 +1358,10 @@ export default function StudentDashboard() {
             </div>
           )}
 
-          {/* TAB 5: FINANCE */}
-          {activeTab === 'finance' && (
-            <div style={{ maxWidth: '980px', margin: '0 auto', width: '100%' }}>
-              <div style={{ marginBottom: '20px' }}>
-                <h1 style={{ fontSize: '1.65rem', fontWeight: 900, color: '#0f172a', margin: '0 0 4px 0' }}>
-                  Financial Records
-                </h1>
-                <p style={{ fontSize: '0.88rem', color: '#64748b', margin: 0 }}>
-                  Membership dues and official organization collections.
-                </p>
-              </div>
-
-              <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '20px', padding: '32px 20px', textAlign: 'center' }}>
-                <h3 style={{ fontSize: '1.15rem', fontWeight: 900, color: '#0f172a', margin: '0 0 6px 0' }}>
-                  Account in Good Standing
-                </h3>
-                <p style={{ fontSize: '0.85rem', color: '#64748b', margin: 0 }}>
-                  No pending balances or disciplinary fees assessed.
-                </p>
-              </div>
-            </div>
-          )}
-
-          {/* TAB 6: SANCTIONS (DYNAMIC ZERO ABSENCE STATE) */}
+          {/* TAB 5: SANCTIONS (EKSAKTONG LOGOS SA IMAGE_7CF0E1.PNG) */}
           {activeTab === 'sanctions' && (
             <div style={{ maxWidth: '980px', margin: '0 auto', width: '100%' }}>
+              {/* Ulohan nga may Refresh Button */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px', flexWrap: 'wrap', gap: '8px' }}>
                 <div>
                   <h1 style={{ fontSize: '1.65rem', fontWeight: 900, color: '#0f172a', margin: '0 0 4px 0', letterSpacing: '-0.025em' }}>
@@ -1460,13 +1380,14 @@ export default function StudentDashboard() {
                     gap: '6px',
                     backgroundColor: '#ffffff',
                     border: '1px solid #e2e8f0',
-                    borderRadius: '8px',
-                    padding: '8px 14px',
+                    borderRadius: '10px',
+                    padding: '8px 16px',
                     fontSize: '0.82rem',
                     fontWeight: 700,
                     color: '#334155',
                     cursor: 'pointer',
                     touchAction: 'manipulation',
+                    boxShadow: '0 1px 2px rgba(0,0,0,0.02)',
                   }}
                 >
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -1476,40 +1397,56 @@ export default function StudentDashboard() {
                 </button>
               </div>
 
-              {/* STAT CARDS */}
+              {/* 3 STATS CARDS (EXACT MATCH SA IMAGE_7CF0E1.PNG) */}
               <div className="stats-grid-three" style={{ display: 'grid', marginBottom: '20px' }}>
-                <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '18px', display: 'flex', alignItems: 'center', gap: '14px' }}>
-                  <div style={{ width: '42px', height: '42px', borderRadius: '12px', backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#15803d', fontSize: '1.2rem' }}>
-                    📅
+                {/* 1. TOTAL EVENTS (ORANGE/PEACH CALENDAR LOGO) */}
+                <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '18px 22px', display: 'flex', alignItems: 'center', gap: '14px', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
+                  <div style={{ width: '44px', height: '44px', borderRadius: '12px', backgroundColor: '#fff7ed', border: '1px solid #ffedd5', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ea580c" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="3" y="4" width="18" height="18" rx="2" />
+                      <line x1="16" y1="2" x2="16" y2="6" />
+                      <line x1="8" y1="2" x2="8" y2="6" />
+                      <line x1="3" y1="10" x2="21" y2="10" />
+                    </svg>
                   </div>
                   <div>
-                    <span style={{ fontSize: '0.68rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase' }}>TOTAL EVENTS</span>
-                    <div style={{ fontSize: '1.75rem', fontWeight: 900, color: '#0f172a', lineHeight: 1.15 }}>{totalEventsCount}</div>
+                    <span style={{ fontSize: '0.68rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.04em' }}>TOTAL EVENTS</span>
+                    <div style={{ fontSize: '1.75rem', fontWeight: 900, color: '#0f172a', lineHeight: 1.15, marginTop: '2px' }}>{totalEventsCount}</div>
                   </div>
                 </div>
 
-                <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '18px', display: 'flex', alignItems: 'center', gap: '14px' }}>
-                  <div style={{ width: '42px', height: '42px', borderRadius: '12px', backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#15803d', fontSize: '1.2rem' }}>
-                    👤
+                {/* 2. EVENTS ATTENDED (GREEN USER+CHECK LOGO) */}
+                <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '18px 22px', display: 'flex', alignItems: 'center', gap: '14px', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
+                  <div style={{ width: '44px', height: '44px', borderRadius: '12px', backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                      <circle cx="9" cy="7" r="4" />
+                      <polyline points="16 11 18 13 22 9" />
+                    </svg>
                   </div>
                   <div>
-                    <span style={{ fontSize: '0.68rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase' }}>EVENTS ATTENDED</span>
-                    <div style={{ fontSize: '1.75rem', fontWeight: 900, color: '#15803d', lineHeight: 1.15 }}>{totalPresentCount}</div>
+                    <span style={{ fontSize: '0.68rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.04em' }}>EVENTS ATTENDED</span>
+                    <div style={{ fontSize: '1.75rem', fontWeight: 900, color: '#16a34a', lineHeight: 1.15, marginTop: '2px' }}>{totalPresentCount}</div>
                   </div>
                 </div>
 
-                <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '18px', display: 'flex', alignItems: 'center', gap: '14px' }}>
-                  <div style={{ width: '42px', height: '42px', borderRadius: '12px', backgroundColor: totalAbsencesCount > 0 ? '#fef2f2' : '#f0fdf4', border: `1px solid ${totalAbsencesCount > 0 ? '#fee2e2' : '#bbf7d0'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: totalAbsencesCount > 0 ? '#dc2626' : '#15803d', fontSize: '1.2rem' }}>
-                    ⚠️
+                {/* 3. TOTAL ABSENCES (RED WARNING TRIANGLE LOGO) */}
+                <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '18px 22px', display: 'flex', alignItems: 'center', gap: '14px', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
+                  <div style={{ width: '44px', height: '44px', borderRadius: '12px', backgroundColor: '#fef2f2', border: '1px solid #fee2e2', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
+                      <line x1="12" y1="9" x2="12" y2="13" />
+                      <line x1="12" y1="17" x2="12.01" y2="17" />
+                    </svg>
                   </div>
                   <div>
-                    <span style={{ fontSize: '0.68rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase' }}>TOTAL ABSENCES</span>
-                    <div style={{ fontSize: '1.75rem', fontWeight: 900, color: totalAbsencesCount > 0 ? '#dc2626' : '#15803d', lineHeight: 1.15 }}>{totalAbsencesCount}</div>
+                    <span style={{ fontSize: '0.68rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.04em' }}>TOTAL ABSENCES</span>
+                    <div style={{ fontSize: '1.75rem', fontWeight: 900, color: totalAbsencesCount > 0 ? '#dc2626' : '#15803d', lineHeight: 1.15, marginTop: '2px' }}>{totalAbsencesCount}</div>
                   </div>
                 </div>
               </div>
 
-              {/* Attendance Alert kung may totoong absences */}
+              {/* Attendance Alert kung duna gyoy unexcused absences */}
               {totalAbsencesCount > 0 && (
                 <div style={{ backgroundColor: '#fff1f2', border: '1px solid #ffe4e6', borderRadius: '18px', padding: '18px 20px', marginBottom: '20px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#be123c', fontWeight: 900, fontSize: '0.88rem', marginBottom: '6px' }}>
@@ -1562,30 +1499,7 @@ export default function StudentDashboard() {
             </div>
           )}
 
-          {/* TAB 7: VOTING */}
-          {activeTab === 'voting' && (
-            <div style={{ maxWidth: '980px', margin: '0 auto', width: '100%' }}>
-              <div style={{ marginBottom: '20px' }}>
-                <h1 style={{ fontSize: '1.65rem', fontWeight: 900, color: '#0f172a', margin: '0 0 4px 0' }}>
-                  Student Voting &amp; Elections
-                </h1>
-                <p style={{ fontSize: '0.88rem', color: '#64748b', margin: 0 }}>
-                  Official ballot voting for student body elections.
-                </p>
-              </div>
-
-              <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '20px', padding: '40px 20px', textAlign: 'center' }}>
-                <h3 style={{ fontSize: '1.2rem', fontWeight: 900, color: '#0f172a', margin: '0 0 8px 0' }}>
-                  Elections Closed
-                </h3>
-                <p style={{ fontSize: '0.85rem', color: '#64748b', margin: 0 }}>
-                  There are no active ballots at this time. Upcoming elections will be announced by the COMELEC.
-                </p>
-              </div>
-            </div>
-          )}
-
-          {/* TAB 8: PROFILE (HINDI NA PUTOL SA CELLPHONE) */}
+          {/* TAB 6: PROFILE (GITANGTANG NA ANG ADMINISTRATOR MANAGED PROFILE) */}
           {activeTab === 'profile' && (
             <div style={{ maxWidth: '640px', margin: '0 auto', width: '100%' }}>
               <div style={{ textAlign: 'center', marginBottom: '20px' }}>
@@ -1655,7 +1569,7 @@ export default function StudentDashboard() {
               </div>
 
               {/* CHANGE PASSWORD ROW */}
-              <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '18px', padding: '16px 20px', marginBottom: '18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap', width: '100%', boxSizing: 'border-box' }}>
+              <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '18px', padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap', width: '100%', boxSizing: 'border-box' }}>
                 <div style={{ minWidth: 0, flex: 1 }}>
                   <h4 style={{ margin: '0 0 2px 0', fontSize: '0.9rem', fontWeight: 900, color: '#0f172a' }}>
                     Portal Account Password
@@ -1684,23 +1598,10 @@ export default function StudentDashboard() {
                   🔒 Change Password
                 </button>
               </div>
-
-              {/* FOOTER NOTICE */}
-              <div style={{ backgroundColor: '#eff6ff', border: '1px solid #dbeafe', borderRadius: '16px', padding: '16px 18px', display: 'flex', alignItems: 'flex-start', gap: '10px', width: '100%', boxSizing: 'border-box' }}>
-                <span style={{ color: '#2563eb', fontSize: '1.1rem' }}>ℹ️</span>
-                <div>
-                  <span style={{ fontSize: '0.72rem', fontWeight: 900, color: '#1e40af', textTransform: 'uppercase' }}>
-                    ADMINISTRATOR MANAGED PROFILE
-                  </span>
-                  <p style={{ margin: '2px 0 0 0', fontSize: '0.75rem', color: '#3b82f6', lineHeight: 1.45 }}>
-                    Your official student record (Name, Student ID, Email, Course, Section, and Year) is maintained by the organization administrators. If you need any corrections to your details, please contact an organization officer or administrator.
-                  </p>
-                </div>
-              </div>
             </div>
           )}
 
-          {/* TAB 9: ABOUT (BUONG UNOD SA ABOUT.JS DIREKTA SA DASHBOARD) */}
+          {/* TAB 7: ABOUT (BUONG UNOD SA ABOUT.JS DIREKTA SA DASHBOARD) */}
           {activeTab === 'about' && (
             <div style={{ maxWidth: '980px', margin: '0 auto', width: '100%' }}>
               <section style={{ textAlign: 'center', marginBottom: '32px' }}>
