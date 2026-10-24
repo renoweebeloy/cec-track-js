@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
@@ -27,7 +27,7 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(false);
   const [notification, setNotification] = useState({ type: '', message: '' });
 
-  // Mobile In-App Delete Confirmation Modal States
+  // Mobile In-App Confirmation Modal States
   const [deleteModal, setDeleteModal] = useState({ isOpen: false, type: '', id: null, title: '' });
   const [deletingRecord, setDeletingRecord] = useState(false);
 
@@ -56,7 +56,7 @@ export default function AdminDashboard() {
   const [eventImage, setEventImage] = useState('');
   const [compressingImage, setCompressingImage] = useState(false);
 
-  // 4. Scanner Controls & Toggle Modes
+  // 4. Scanner Controls & Gate State (Synced with Admin)
   const [scanMode, setScanMode] = useState('time_in'); // 'time_in' | 'time_out'
   const [isScannerGateOpen, setIsScannerGateOpen] = useState(true);
   const [selectedEventId, setSelectedEventId] = useState('');
@@ -94,7 +94,7 @@ export default function AdminDashboard() {
     'Section F', 'Section G', 'Section H', 'Section I', 'Section J', 'Section K',
   ];
 
-  // Helper: Convert 24h (17:00) to 12h (5:00 PM)
+  // Helper: Convert 24h to 12h (e.g. 5:00 PM)
   const formatTime12Hour = (time24) => {
     if (!time24 || time24 === '--:--') return '--:--';
     if (time24.includes('AM') || time24.includes('PM')) return time24;
@@ -132,7 +132,7 @@ export default function AdminDashboard() {
       oscillator.start();
       oscillator.stop(audioCtx.currentTime + 0.16);
     } catch (e) {
-      console.warn('AudioContext beep warning:', e);
+      console.warn('AudioContext warning:', e);
     }
   };
 
@@ -143,20 +143,21 @@ export default function AdminDashboard() {
     const FIVE_MINUTES_MS = 5 * 60 * 1000;
 
     const checkSessionActivity = async () => {
-      const lastActive = localStorage.getItem('cec_last_active_time');
+      let lastActive = null;
+      try {
+        lastActive = localStorage.getItem('cec_last_active_time');
+      } catch (e) {}
+
       const now = Date.now();
 
       if (lastActive) {
         const timeElapsed = now - parseInt(lastActive, 10);
         if (timeElapsed > FIVE_MINUTES_MS) {
-          sessionStorage.clear();
-          localStorage.removeItem('cec_last_active_time');
-
-          if (supabase) {
-            try {
-              await supabase.auth.signOut();
-            } catch (e) {}
-          }
+          try {
+            sessionStorage.clear();
+            localStorage.removeItem('cec_last_active_time');
+            if (supabase) await supabase.auth.signOut();
+          } catch (e) {}
 
           alert('Your session has expired due to 5 minutes of inactivity. Please log in again.');
           router.replace('/login');
@@ -164,13 +165,17 @@ export default function AdminDashboard() {
         }
       }
 
-      localStorage.setItem('cec_last_active_time', now.toString());
+      try {
+        localStorage.setItem('cec_last_active_time', now.toString());
+      } catch (e) {}
     };
 
     checkSessionActivity();
 
     const updateActivity = () => {
-      localStorage.setItem('cec_last_active_time', Date.now().toString());
+      try {
+        localStorage.setItem('cec_last_active_time', Date.now().toString());
+      } catch (e) {}
     };
 
     window.addEventListener('mousemove', updateActivity);
@@ -223,7 +228,7 @@ export default function AdminDashboard() {
           .from('profiles')
           .select('*')
           .eq('email', userEmail.trim().toLowerCase())
-          .single();
+          .maybeSingle();
 
         if (error || !profile) {
           router.replace('/login');
@@ -238,7 +243,7 @@ export default function AdminDashboard() {
 
         setUserRole(profile.role);
         setCurrentUser({
-          name: profile.full_name || (profile.role === 'admin' ? 'Administrator' : 'Staff Officer'),
+          name: profile.full_name || (profile.role === 'admin' ? 'System Administrator' : 'Staff Officer'),
           email: profile.email,
           school_id: profile.school_id || '',
         });
@@ -270,8 +275,10 @@ export default function AdminDashboard() {
         .order('created_at', { ascending: false });
 
       if (profilesData) {
+        // Ang mga students mao kadtong naay role student ug can_scan === false
         setStudents(profilesData.filter((p) => p.role === 'student' || (!p.role && p.role !== 'admin' && p.role !== 'staff')));
-        setStaffList(profilesData.filter((p) => p.role === 'staff' || p.can_scan === true));
+        // Ang mga staff mao kadtong can_scan === true o role === staff/admin
+        setStaffList(profilesData.filter((p) => p.role === 'admin' || p.role === 'staff' || p.can_scan === true));
       }
 
       const { data: eventsData } = await supabase
@@ -323,10 +330,10 @@ export default function AdminDashboard() {
 
   const handleSignOut = async () => {
     if (supabase) await supabase.auth.signOut();
-    if (typeof window !== 'undefined') {
+    try {
       sessionStorage.clear();
       localStorage.removeItem('cec_last_active_time');
-    }
+    } catch (e) {}
     router.replace('/');
   };
 
@@ -453,16 +460,18 @@ export default function AdminDashboard() {
     }
   };
 
-  // Trigger Confirmation Modal for Single Delete & Remove All
+  // Trigger Confirmation Modal for Single Delete, Revoke Staff & Remove All
   const triggerDeletePrompt = (type, id, title) => {
     if (userRole !== 'admin') {
-      alert('Only administrators have permission to delete records.');
+      alert('Only administrators have permission to perform this action.');
       return;
     }
     setDeleteModal({ isOpen: true, type, id, title });
   };
 
-  // Perform Confirmation Deletion
+  // =========================================================================
+  // PERFORM CONFIRMATION ACTION (REVOKE STAFF = UPDATE DILI DELETE)
+  // =========================================================================
   const handleConfirmDelete = async () => {
     if (!deleteModal.id || userRole !== 'admin') return;
     setDeletingRecord(true);
@@ -481,31 +490,48 @@ export default function AdminDashboard() {
 
         showNotify('success', `Student record removed successfully.`);
       } else if (deleteModal.type === 'all_students') {
-        // Remove All Students
         await supabase.from('attendance').delete().neq('id', 0);
         const { error } = await supabase.from('profiles').delete().eq('role', 'student');
         if (error) throw new Error(error.message);
 
         showNotify('success', 'All enrolled student records have been permanently removed.');
       } else if (deleteModal.type === 'staff') {
-        const { error } = await supabase.from('profiles').delete().eq('id', deleteModal.id);
-        if (error) throw new Error(error.message);
+        // 1. DILI PWEDE MA-REVOKE ANG SYSTEM ADMINISTRATOR
+        const targetStaff = staffList.find((s) => s.id === deleteModal.id);
+        if (targetStaff && targetStaff.role === 'admin') {
+          showNotify('error', 'Denied: The System Administrator account is permanent and cannot be revoked.');
+          setDeleteModal({ isOpen: false, type: '', id: null, title: '' });
+          setDeletingRecord(false);
+          return;
+        }
 
-        showNotify('success', `Staff authorization revoked.`);
+        // 2. I-DOWNGRADE BALIK ISIP REGULAR STUDENT (DILI MA-DELETE ANG CREDENTIALS)
+        const { error: updateError } = await supabase
+          .from('profiles')
+          .update({
+            role: 'student',
+            can_scan: false,
+          })
+          .eq('id', deleteModal.id);
+
+        if (updateError) throw new Error(updateError.message);
+
+        showNotify(
+          'success',
+          `Scanner access revoked for ${deleteModal.title}. Successfully returned to Student status.`
+        );
       }
 
       setDeleteModal({ isOpen: false, type: '', id: null, title: '' });
       fetchAllData();
     } catch (err) {
-      showNotify('error', `Delete error: ${err.message}`);
+      showNotify('error', `Action error: ${err.message}`);
     } finally {
       setDeletingRecord(false);
     }
   };
 
-  // ========================================================
-  // CAMERA SCANNER FUNCTION (WITH "OK • SCAN NEXT" BUTTON)
-  // ========================================================
+  // Camera Scanner Functions
   const startCameraScanner = async () => {
     if (!selectedEventId) {
       showNotify('error', 'Please select an Active Event Schedule before scanning.');
@@ -513,7 +539,7 @@ export default function AdminDashboard() {
     }
 
     if (!isScannerGateOpen) {
-      showNotify('error', 'Scanner is currently CLOSED. Please turn ON the Scanner Gate switch.');
+      showNotify('error', 'Scanner is currently CLOSED by Administrator. Please contact the Admin to turn it ON.');
       return;
     }
 
@@ -588,7 +614,7 @@ export default function AdminDashboard() {
       setLiveScanFeedback({
         type: 'error',
         title: 'SCANNER CLOSED',
-        message: 'Attendance scanning is currently turned OFF by Admin.',
+        message: 'Attendance scanning is currently turned OFF by Administrator.',
       });
       return;
     }
@@ -926,7 +952,7 @@ export default function AdminDashboard() {
     if (!manualStudentId) return;
 
     if (!isScannerGateOpen) {
-      setScanLogMsg({ type: 'error', text: 'Scanner Gate is currently CLOSED by Admin.' });
+      setScanLogMsg({ type: 'error', text: 'Scanner Gate is currently CLOSED by Administrator.' });
       return;
     }
 
@@ -1238,21 +1264,25 @@ export default function AdminDashboard() {
             </div>
 
             <nav style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <button
-                onClick={() => { setActiveTab('profile'); setIsSidebarOpen(false); }}
-                className={activeTab === 'profile' ? `${styles.portalNavLink} ${styles.portalNavLinkActive}` : styles.portalNavLink}
-                style={{ fontSize: '0.92rem', padding: '12px 14px', justifyContent: 'flex-start' }}
-              >
-                <span>System Overview</span>
-              </button>
+              {isAdmin && (
+                <button
+                  onClick={() => { setActiveTab('profile'); setIsSidebarOpen(false); }}
+                  className={activeTab === 'profile' ? `${styles.portalNavLink} ${styles.portalNavLinkActive}` : styles.portalNavLink}
+                  style={{ fontSize: '0.92rem', padding: '12px 14px', justifyContent: 'flex-start' }}
+                >
+                  <span>System Overview</span>
+                </button>
+              )}
 
-              <button
-                onClick={() => { setActiveTab('add-student'); setIsSidebarOpen(false); }}
-                className={activeTab === 'add-student' ? `${styles.portalNavLink} ${styles.portalNavLinkActive}` : styles.portalNavLink}
-                style={{ fontSize: '0.92rem', padding: '12px 14px', justifyContent: 'flex-start' }}
-              >
-                <span>Add Student</span>
-              </button>
+              {isAdmin && (
+                <button
+                  onClick={() => { setActiveTab('add-student'); setIsSidebarOpen(false); }}
+                  className={activeTab === 'add-student' ? `${styles.portalNavLink} ${styles.portalNavLinkActive}` : styles.portalNavLink}
+                  style={{ fontSize: '0.92rem', padding: '12px 14px', justifyContent: 'flex-start' }}
+                >
+                  <span>Add Student</span>
+                </button>
+              )}
 
               {isAdmin && (
                 <button
@@ -1264,13 +1294,15 @@ export default function AdminDashboard() {
                 </button>
               )}
 
-              <button
-                onClick={() => { setActiveTab('add-event'); setIsSidebarOpen(false); }}
-                className={activeTab === 'add-event' ? `${styles.portalNavLink} ${styles.portalNavLinkActive}` : styles.portalNavLink}
-                style={{ fontSize: '0.92rem', padding: '12px 14px', justifyContent: 'flex-start' }}
-              >
-                <span>Manage Events</span>
-              </button>
+              {isAdmin && (
+                <button
+                  onClick={() => { setActiveTab('add-event'); setIsSidebarOpen(false); }}
+                  className={activeTab === 'add-event' ? `${styles.portalNavLink} ${styles.portalNavLinkActive}` : styles.portalNavLink}
+                  style={{ fontSize: '0.92rem', padding: '12px 14px', justifyContent: 'flex-start' }}
+                >
+                  <span>Manage Events</span>
+                </button>
+              )}
 
               <button
                 onClick={() => { setActiveTab('scan-qr'); setIsSidebarOpen(false); }}
@@ -1336,8 +1368,8 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          {/* TAB 1: SYSTEM OVERVIEW */}
-          {activeTab === 'profile' && (
+          {/* TAB 1: SYSTEM OVERVIEW (ADMIN ONLY) */}
+          {activeTab === 'profile' && isAdmin && (
             <div>
               <div className={styles.attendanceStatsGrid}>
                 <div className={styles.attStatCard} style={{ padding: '16px' }}>
@@ -1387,109 +1419,107 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          {/* TAB 2: ADD STUDENT & ENROLLED STUDENTS WITH "REMOVE ALL" BUTTON */}
-          {activeTab === 'add-student' && (
+          {/* TAB 2: ADD STUDENT & ENROLLED STUDENTS (ADMIN ONLY) */}
+          {activeTab === 'add-student' && isAdmin && (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))', gap: '20px' }}>
-              {isAdmin && (
-                <div className={styles.adminFormCard}>
-                  <h3 className={styles.analyticsTitle} style={{ fontSize: '0.9rem', marginBottom: '14px' }}>
-                    Add Student
-                  </h3>
+              <div className={styles.adminFormCard}>
+                <h3 className={styles.analyticsTitle} style={{ fontSize: '0.9rem', marginBottom: '14px' }}>
+                  Add Student
+                </h3>
 
-                  <form onSubmit={handleAddStudent} className={styles.loginForm}>
+                <form onSubmit={handleAddStudent} className={styles.loginForm}>
+                  <div className={styles.inputGroup}>
+                    <label className={styles.inputLabel} style={{ fontSize: '0.75rem' }}>School ID (Format: 2024-0616) *</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. 2024-0616"
+                      value={studentId}
+                      onChange={(e) => setStudentId(e.target.value)}
+                      pattern="\d{4}-\d{4,5}"
+                      className={styles.loginInput}
+                      style={{ padding: '10px 12px', fontSize: '0.9rem' }}
+                      required
+                    />
+                  </div>
+
+                  <div className={styles.inputGroup}>
+                    <label className={styles.inputLabel} style={{ fontSize: '0.75rem' }}>Full Name *</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Juan Dela Cruz"
+                      value={studentName}
+                      onChange={(e) => setStudentName(e.target.value)}
+                      className={styles.loginInput}
+                      style={{ padding: '10px 12px', fontSize: '0.9rem' }}
+                      required
+                    />
+                  </div>
+
+                  <div className={styles.inputGroup}>
+                    <label className={styles.inputLabel} style={{ fontSize: '0.75rem' }}>Student Email Address *</label>
+                    <input
+                      type="email"
+                      placeholder="e.g. student@dorsu.edu.ph"
+                      value={studentEmail}
+                      onChange={(e) => setStudentEmail(e.target.value)}
+                      className={styles.loginInput}
+                      style={{ padding: '10px 12px', fontSize: '0.9rem' }}
+                      required
+                    />
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                     <div className={styles.inputGroup}>
-                      <label className={styles.inputLabel} style={{ fontSize: '0.75rem' }}>School ID (Format: 2024-0616) *</label>
-                      <input
-                        type="text"
-                        placeholder="e.g. 2024-0616"
-                        value={studentId}
-                        onChange={(e) => setStudentId(e.target.value)}
-                        pattern="\d{4}-\d{4,5}"
-                        className={styles.loginInput}
-                        style={{ padding: '10px 12px', fontSize: '0.9rem' }}
-                        required
-                      />
-                    </div>
-
-                    <div className={styles.inputGroup}>
-                      <label className={styles.inputLabel} style={{ fontSize: '0.75rem' }}>Full Name *</label>
-                      <input
-                        type="text"
-                        placeholder="e.g. Juan Dela Cruz"
-                        value={studentName}
-                        onChange={(e) => setStudentName(e.target.value)}
-                        className={styles.loginInput}
-                        style={{ padding: '10px 12px', fontSize: '0.9rem' }}
-                        required
-                      />
-                    </div>
-
-                    <div className={styles.inputGroup}>
-                      <label className={styles.inputLabel} style={{ fontSize: '0.75rem' }}>Student Email Address *</label>
-                      <input
-                        type="email"
-                        placeholder="e.g. student@dorsu.edu.ph"
-                        value={studentEmail}
-                        onChange={(e) => setStudentEmail(e.target.value)}
-                        className={styles.loginInput}
-                        style={{ padding: '10px 12px', fontSize: '0.9rem' }}
-                        required
-                      />
-                    </div>
-
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                      <div className={styles.inputGroup}>
-                        <label className={styles.inputLabel} style={{ fontSize: '0.75rem' }}>Course</label>
-                        <select
-                          value={studentCourse}
-                          onChange={(e) => setStudentCourse(e.target.value)}
-                          className={styles.loginInput}
-                          style={{ padding: '10px 12px', fontSize: '0.9rem' }}
-                        >
-                          {courses.map((c) => (
-                            <option key={c.code} value={c.code}>{c.code}</option>
-                          ))}
-                        </select>
-                      </div>
-
-                      <div className={styles.inputGroup}>
-                        <label className={styles.inputLabel} style={{ fontSize: '0.75rem' }}>Year Level</label>
-                        <select
-                          value={studentYear}
-                          onChange={(e) => setStudentYear(e.target.value)}
-                          className={styles.loginInput}
-                          style={{ padding: '10px 12px', fontSize: '0.9rem' }}
-                        >
-                          <option value="1st Year">1st Year</option>
-                          <option value="2nd Year">2nd Year</option>
-                          <option value="3rd Year">3rd Year</option>
-                          <option value="4th Year">4th Year</option>
-                        </select>
-                      </div>
-                    </div>
-
-                    <div className={styles.inputGroup}>
-                      <label className={styles.inputLabel} style={{ fontSize: '0.75rem' }}>Section (A - K) *</label>
+                      <label className={styles.inputLabel} style={{ fontSize: '0.75rem' }}>Course</label>
                       <select
-                        value={studentSection}
-                        onChange={(e) => setStudentSection(e.target.value)}
+                        value={studentCourse}
+                        onChange={(e) => setStudentCourse(e.target.value)}
                         className={styles.loginInput}
                         style={{ padding: '10px 12px', fontSize: '0.9rem' }}
                       >
-                        {sectionsList.map((sec) => (
-                          <option key={sec} value={sec}>{sec}</option>
+                        {courses.map((c) => (
+                          <option key={c.code} value={c.code}>{c.code}</option>
                         ))}
                       </select>
                     </div>
 
-                    <button type="submit" disabled={loading} className={styles.adminPrimaryBtn} style={{ minHeight: '44px', fontSize: '0.9rem' }}>
-                      {loading ? 'Saving...' : 'Add Student ➔'}
-                    </button>
-                  </form>
-                </div>
-              )}
+                    <div className={styles.inputGroup}>
+                      <label className={styles.inputLabel} style={{ fontSize: '0.75rem' }}>Year Level</label>
+                      <select
+                        value={studentYear}
+                        onChange={(e) => setStudentYear(e.target.value)}
+                        className={styles.loginInput}
+                        style={{ padding: '10px 12px', fontSize: '0.9rem' }}
+                      >
+                        <option value="1st Year">1st Year</option>
+                        <option value="2nd Year">2nd Year</option>
+                        <option value="3rd Year">3rd Year</option>
+                        <option value="4th Year">4th Year</option>
+                      </select>
+                    </div>
+                  </div>
 
-              {/* ENROLLED STUDENTS CARD (MAY "REMOVE ALL" BUTTON AT SEARCH) */}
+                  <div className={styles.inputGroup}>
+                    <label className={styles.inputLabel} style={{ fontSize: '0.75rem' }}>Section (A - K) *</label>
+                    <select
+                      value={studentSection}
+                      onChange={(e) => setStudentSection(e.target.value)}
+                      className={styles.loginInput}
+                      style={{ padding: '10px 12px', fontSize: '0.9rem' }}
+                    >
+                      {sectionsList.map((sec) => (
+                        <option key={sec} value={sec}>{sec}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <button type="submit" disabled={loading} className={styles.adminPrimaryBtn} style={{ minHeight: '44px', fontSize: '0.9rem' }}>
+                    {loading ? 'Saving...' : 'Add Student ➔'}
+                  </button>
+                </form>
+              </div>
+
+              {/* ENROLLED STUDENTS LIST */}
               <div className={styles.adminFormCard}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '8px' }}>
                   <div>
@@ -1508,7 +1538,7 @@ export default function AdminDashboard() {
                       style={{ width: '130px', padding: '6px 10px', fontSize: '0.8rem' }}
                     />
 
-                    {isAdmin && students.length > 0 && (
+                    {students.length > 0 && (
                       <button
                         type="button"
                         onClick={() => triggerDeletePrompt('all_students', 'ALL', 'ALL enrolled students')}
@@ -1538,13 +1568,13 @@ export default function AdminDashboard() {
                         <th>School ID</th>
                         <th>Student Details</th>
                         <th>Course &amp; Section</th>
-                        {isAdmin && <th style={{ textAlign: 'right' }}>Action</th>}
+                        <th style={{ textAlign: 'right' }}>Action</th>
                       </tr>
                     </thead>
                     <tbody>
                       {filteredStudents.length === 0 ? (
                         <tr>
-                          <td colSpan={isAdmin ? 4 : 3} style={{ textAlign: 'center', padding: '20px', color: '#94a3b8' }}>
+                          <td colSpan={4} style={{ textAlign: 'center', padding: '20px', color: '#94a3b8' }}>
                             No student records found.
                           </td>
                         </tr>
@@ -1562,27 +1592,25 @@ export default function AdminDashboard() {
                                 {st.section || 'Section A'} • {st.year_level || '1st Year'}
                               </div>
                             </td>
-                            {isAdmin && (
-                              <td style={{ textAlign: 'right' }}>
-                                <button
-                                  type="button"
-                                  onClick={() => triggerDeletePrompt('student', st.id, st.school_id)}
-                                  style={{
-                                    border: '1px solid #fecaca',
-                                    backgroundColor: '#fef2f2',
-                                    color: '#b91c1c',
-                                    fontWeight: 800,
-                                    cursor: 'pointer',
-                                    padding: '5px 10px',
-                                    borderRadius: '8px',
-                                    fontSize: '0.75rem',
-                                    touchAction: 'manipulation',
-                                  }}
-                                >
-                                  Remove
-                                </button>
-                              </td>
-                            )}
+                            <td style={{ textAlign: 'right' }}>
+                              <button
+                                type="button"
+                                onClick={() => triggerDeletePrompt('student', st.id, st.school_id)}
+                                style={{
+                                  border: '1px solid #fecaca',
+                                  backgroundColor: '#fef2f2',
+                                  color: '#b91c1c',
+                                  fontWeight: 800,
+                                  cursor: 'pointer',
+                                  padding: '5px 10px',
+                                  borderRadius: '8px',
+                                  fontSize: '0.75rem',
+                                  touchAction: 'manipulation',
+                                }}
+                              >
+                                Remove
+                              </button>
+                            </td>
                           </tr>
                         ))
                       )}
@@ -1593,7 +1621,7 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          {/* TAB 3: MANAGE STAFF & AUTHORIZED SCANNERS */}
+          {/* TAB 3: MANAGE STAFF & AUTHORIZED SCANNERS (PERMANENT SYSTEM ADMINISTRATOR) */}
           {activeTab === 'add-staff' && isAdmin && (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))', gap: '20px' }}>
               <div className={styles.adminFormCard}>
@@ -1645,7 +1673,7 @@ export default function AdminDashboard() {
                 </form>
               </div>
 
-              {/* AUTHORIZED SCANNERS LIST - CELLPHONE COMPATIBLE */}
+              {/* AUTHORIZED SCANNERS LIST - PERMANENT SYSTEM ADMIN */}
               <div className={styles.adminFormCard}>
                 <h3 className={styles.analyticsTitle} style={{ fontSize: '0.95rem', marginBottom: '14px' }}>
                   Authorized Scanners ({staffList.length})
@@ -1657,60 +1685,91 @@ export default function AdminDashboard() {
                   </div>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', width: '100%' }}>
-                    {staffList.map((st) => (
-                      <div
-                        key={st.id}
-                        style={{
-                          backgroundColor: '#ffffff',
-                          border: '1px solid #e2e8f0',
-                          borderRadius: '14px',
-                          padding: '12px 14px',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          gap: '10px',
-                          width: '100%',
-                          boxSizing: 'border-box',
-                          boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
-                        }}
-                      >
-                        <div style={{ minWidth: 0, flex: 1 }}>
-                          <h4 style={{ margin: '0 0 2px 0', fontSize: '0.92rem', fontWeight: 900, color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                            {st.full_name}
-                          </h4>
-                          <div style={{ fontSize: '0.75rem', color: '#64748b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                            {st.email}
-                          </div>
-                        </div>
+                    {staffList.map((st) => {
+                      const isPermanentAdmin = st.role === 'admin';
 
-                        <button
-                          type="button"
-                          onClick={() => triggerDeletePrompt('staff', st.id, st.full_name)}
+                      return (
+                        <div
+                          key={st.id}
                           style={{
-                            border: '1px solid #fecaca',
-                            backgroundColor: '#fef2f2',
-                            color: '#b91c1c',
-                            fontWeight: 900,
-                            cursor: 'pointer',
-                            padding: '6px 14px',
-                            borderRadius: '10px',
-                            fontSize: '0.82rem',
-                            flexShrink: 0,
-                            touchAction: 'manipulation',
+                            backgroundColor: '#ffffff',
+                            border: `1px solid ${isPermanentAdmin ? '#bbf7d0' : '#e2e8f0'}`,
+                            borderRadius: '14px',
+                            padding: '12px 14px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            gap: '10px',
+                            width: '100%',
+                            boxSizing: 'border-box',
+                            boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
                           }}
                         >
-                          Revoke
-                        </button>
-                      </div>
-                    ))}
+                          <div style={{ minWidth: 0, flex: 1 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <h4 style={{ margin: '0 0 2px 0', fontSize: '0.92rem', fontWeight: 900, color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                {st.full_name}
+                              </h4>
+                              {isPermanentAdmin && (
+                                <span style={{ fontSize: '0.62rem', fontWeight: 900, color: '#15803d', backgroundColor: '#dcfce7', padding: '2px 6px', borderRadius: '6px', border: '1px solid #bbf7d0' }}>
+                                  ADMIN
+                                </span>
+                              )}
+                            </div>
+                            <div style={{ fontSize: '0.75rem', color: '#64748b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                              {st.email}
+                            </div>
+                          </div>
+
+                          {/* KUNG SYSTEM ADMIN, PERMANENT KINI UG DILI MA-REVOKE */}
+                          {isPermanentAdmin ? (
+                            <span
+                              style={{
+                                backgroundColor: '#f0fdf4',
+                                color: '#15803d',
+                                border: '1px solid #bbf7d0',
+                                padding: '6px 12px',
+                                borderRadius: '10px',
+                                fontSize: '0.75rem',
+                                fontWeight: 900,
+                                flexShrink: 0,
+                                textTransform: 'uppercase',
+                                letterSpacing: '0.02em',
+                              }}
+                            >
+                              Permanent Admin
+                            </span>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => triggerDeletePrompt('staff', st.id, st.full_name)}
+                              style={{
+                                border: '1px solid #fed7aa',
+                                backgroundColor: '#fff7ed',
+                                color: '#ea580c',
+                                fontWeight: 900,
+                                cursor: 'pointer',
+                                padding: '6px 14px',
+                                borderRadius: '10px',
+                                fontSize: '0.82rem',
+                                flexShrink: 0,
+                                touchAction: 'manipulation',
+                              }}
+                            >
+                              Revoke
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </div>
             </div>
           )}
 
-          {/* TAB 4: MANAGE EVENTS */}
-          {activeTab === 'add-event' && (
+          {/* TAB 4: MANAGE EVENTS (ADMIN ONLY) */}
+          {activeTab === 'add-event' && isAdmin && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '22px', width: '100%' }}>
               <div className={styles.adminFormCard} ref={formRef} style={{ width: '100%', boxSizing: 'border-box' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
@@ -2001,44 +2060,42 @@ export default function AdminDashboard() {
                               {isActive ? 'ACTIVE' : 'CLOSED'}
                             </span>
 
-                            {isAdmin && (
-                              <div style={{ display: 'inline-flex', gap: '6px' }}>
-                                <button
-                                  type="button"
-                                  onClick={() => handleStartEditEvent(ev)}
-                                  style={{
-                                    border: '1px solid #bbf7d0',
-                                    backgroundColor: '#f0fdf4',
-                                    color: '#15803d',
-                                    fontWeight: 800,
-                                    cursor: 'pointer',
-                                    padding: '5px 10px',
-                                    borderRadius: '8px',
-                                    fontSize: '0.72rem',
-                                    touchAction: 'manipulation',
-                                  }}
-                                >
-                                  Edit
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => triggerDeletePrompt('event', ev.id, ev.title)}
-                                  style={{
-                                    border: '1px solid #fecaca',
-                                    backgroundColor: '#fef2f2',
-                                    color: '#b91c1c',
-                                    fontWeight: 900,
-                                    cursor: 'pointer',
-                                    padding: '5px 10px',
-                                    borderRadius: '8px',
-                                    fontSize: '0.72rem',
-                                    touchAction: 'manipulation',
-                                  }}
-                                >
-                                  Del
-                                </button>
-                              </div>
-                            )}
+                            <div style={{ display: 'inline-flex', gap: '6px' }}>
+                              <button
+                                type="button"
+                                onClick={() => handleStartEditEvent(ev)}
+                                style={{
+                                  border: '1px solid #bbf7d0',
+                                  backgroundColor: '#f0fdf4',
+                                  color: '#15803d',
+                                  fontWeight: 800,
+                                  cursor: 'pointer',
+                                  padding: '5px 10px',
+                                  borderRadius: '8px',
+                                  fontSize: '0.72rem',
+                                  touchAction: 'manipulation',
+                                }}
+                              >
+                                Edit
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => triggerDeletePrompt('event', ev.id, ev.title)}
+                                style={{
+                                  border: '1px solid #fecaca',
+                                  backgroundColor: '#fef2f2',
+                                  color: '#b91c1c',
+                                  fontWeight: 900,
+                                  cursor: 'pointer',
+                                  padding: '5px 10px',
+                                  borderRadius: '8px',
+                                  fontSize: '0.72rem',
+                                  touchAction: 'manipulation',
+                                }}
+                              >
+                                Del
+                              </button>
+                            </div>
                           </div>
                         </div>
                       );
@@ -2049,7 +2106,7 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          {/* TAB 5: SCAN QR & QUICK LOG */}
+          {/* TAB 5: SCAN QR & QUICK LOG (ADMIN & STAFF SYNCED) */}
           {activeTab === 'scan-qr' && (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))', gap: '20px' }}>
               <div className={styles.adminFormCard} style={{ padding: '24px 18px', textAlign: 'center' }}>
@@ -2078,28 +2135,46 @@ export default function AdminDashboard() {
                       Scanner Gate: {isScannerGateOpen ? 'OPEN (ACCEPTING SCANS)' : 'CLOSED (PAUSED)'}
                     </div>
                     <span style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: 700 }}>
-                      {isScannerGateOpen ? 'Students can scan right now' : 'Attendance logging is stopped'}
+                      {isScannerGateOpen
+                        ? 'Students can scan right now'
+                        : 'Attendance logging is stopped by Administrator'}
                     </span>
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={() => setIsScannerGateOpen(!isScannerGateOpen)}
-                    style={{
-                      backgroundColor: isScannerGateOpen ? '#15803d' : '#ef4444',
-                      color: '#ffffff',
-                      border: 'none',
-                      borderRadius: '10px',
-                      padding: '8px 14px',
-                      fontSize: '0.78rem',
-                      fontWeight: 900,
-                      cursor: 'pointer',
-                      boxShadow: '0 2px 6px rgba(0,0,0,0.1)',
-                      touchAction: 'manipulation',
-                    }}
-                  >
-                    {isScannerGateOpen ? 'Turn OFF' : 'Turn ON'}
-                  </button>
+                  {isAdmin ? (
+                    <button
+                      type="button"
+                      onClick={() => setIsScannerGateOpen(!isScannerGateOpen)}
+                      style={{
+                        backgroundColor: isScannerGateOpen ? '#15803d' : '#ef4444',
+                        color: '#ffffff',
+                        border: 'none',
+                        borderRadius: '10px',
+                        padding: '8px 14px',
+                        fontSize: '0.78rem',
+                        fontWeight: 900,
+                        cursor: 'pointer',
+                        boxShadow: '0 2px 6px rgba(0,0,0,0.1)',
+                        touchAction: 'manipulation',
+                      }}
+                    >
+                      {isScannerGateOpen ? 'Turn OFF' : 'Turn ON'}
+                    </button>
+                  ) : (
+                    <div
+                      style={{
+                        fontSize: '0.72rem',
+                        fontWeight: 800,
+                        color: '#475569',
+                        backgroundColor: '#f1f5f9',
+                        border: '1px solid #cbd5e1',
+                        padding: '6px 10px',
+                        borderRadius: '8px',
+                      }}
+                    >
+                      Admin Controlled
+                    </div>
+                  )}
                 </div>
 
                 {/* TIME IN vs TIME OUT TOGGLE BUTTONS */}
@@ -2185,6 +2260,7 @@ export default function AdminDashboard() {
                   )}
                 </div>
 
+                {/* LAUNCH SCANNER BUTTON */}
                 <button
                   type="button"
                   onClick={startCameraScanner}
@@ -2195,10 +2271,13 @@ export default function AdminDashboard() {
                     fontSize: '0.95rem',
                     fontWeight: 900,
                     backgroundColor: !isScannerGateOpen ? '#94a3b8' : scanMode === 'time_in' ? '#15803d' : '#2563eb',
+                    cursor: !isScannerGateOpen ? 'not-allowed' : 'pointer',
                     touchAction: 'manipulation',
                   }}
                 >
-                  Launch {scanMode === 'time_in' ? 'Time In' : 'Time Out'} Scanner ➔
+                  {!isScannerGateOpen
+                    ? 'Scanner Gate is Closed'
+                    : `Launch ${scanMode === 'time_in' ? 'Time In' : 'Time Out'} Scanner ➔`}
                 </button>
               </div>
 
@@ -2227,15 +2306,17 @@ export default function AdminDashboard() {
 
                   <button
                     type="submit"
+                    disabled={!isScannerGateOpen}
                     className={styles.adminPrimaryBtn}
                     style={{
                       minHeight: '44px',
                       fontSize: '0.9rem',
-                      backgroundColor: scanMode === 'time_in' ? '#15803d' : '#2563eb',
+                      backgroundColor: !isScannerGateOpen ? '#94a3b8' : scanMode === 'time_in' ? '#15803d' : '#2563eb',
+                      cursor: !isScannerGateOpen ? 'not-allowed' : 'pointer',
                       touchAction: 'manipulation',
                     }}
                   >
-                    Mark {scanMode === 'time_in' ? 'Time In' : 'Time Out'}
+                    {!isScannerGateOpen ? 'Scanner Closed' : `Mark ${scanMode === 'time_in' ? 'Time In' : 'Time Out'}`}
                   </button>
                 </form>
 
@@ -2380,7 +2461,6 @@ export default function AdminDashboard() {
                     </div>
                   </div>
 
-                  {/* RESPONSIVE ATTENDANCE CARDS VIEW */}
                   <div className={styles.adminFormCard} style={{ padding: '16px 14px', width: '100%', boxSizing: 'border-box' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '8px' }}>
                       <h3 className={styles.analyticsTitle} style={{ fontSize: '0.95rem', margin: 0 }}>
@@ -2476,7 +2556,7 @@ export default function AdminDashboard() {
         </main>
       </div>
 
-      {/* CONTINUOUS CAMERA SCANNER MODAL WITH "OK • SCAN NEXT" BUTTON */}
+      {/* CONTINUOUS CAMERA SCANNER MODAL */}
       {isCameraModalOpen && (
         <div
           style={{
@@ -2554,7 +2634,7 @@ export default function AdminDashboard() {
               <div id="interactive-qr-reader" style={{ width: '100%', height: '100%' }} />
             </div>
 
-            {/* LIVE DETAILED STUDENT PROFILE SCAN CARD WITH "OK • SCAN NEXT" */}
+            {/* LIVE DETAILED STUDENT PROFILE SCAN CARD */}
             {liveScanFeedback && (
               <div
                 style={{
@@ -2580,7 +2660,6 @@ export default function AdminDashboard() {
                 {liveScanFeedback.student ? (
                   <div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '10px' }}>
-                      {/* PHOTO */}
                       <div
                         style={{
                           width: '54px',
@@ -2606,7 +2685,6 @@ export default function AdminDashboard() {
                         )}
                       </div>
 
-                      {/* DETAILS: NAME, SCHOOL ID, COURSE, YEAR, SECTION */}
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                           <span
@@ -2635,7 +2713,6 @@ export default function AdminDashboard() {
                       </div>
                     </div>
 
-                    {/* OK BUTTON PARA ISARA AT I-SCAN ANG SUSUNOD NA QR */}
                     <button
                       type="button"
                       onClick={handleAcknowledgeScan}
@@ -2711,7 +2788,7 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      {/* MOBILE IN-APP DELETE CONFIRMATION MODAL (GINAGAMIT DIN PARA SA REMOVE ALL) */}
+      {/* MOBILE IN-APP CONFIRMATION MODAL (UPDATE/REVOKE STAFF OR PERMANENT DELETE) */}
       {deleteModal.isOpen && (
         <div
           style={{
@@ -2743,8 +2820,8 @@ export default function AdminDashboard() {
                 width: '52px',
                 height: '52px',
                 borderRadius: '16px',
-                backgroundColor: '#fee2e2',
-                color: '#b91c1c',
+                backgroundColor: deleteModal.type === 'staff' ? '#fff7ed' : '#fee2e2',
+                color: deleteModal.type === 'staff' ? '#ea580c' : '#b91c1c',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -2752,15 +2829,24 @@ export default function AdminDashboard() {
                 margin: '0 auto 12px auto',
               }}
             >
-              🗑️
+              {deleteModal.type === 'staff' ? '🛡️' : '🗑️'}
             </div>
 
             <h3 style={{ fontSize: '1.2rem', fontWeight: 900, color: '#0f172a', margin: '0 0 6px 0' }}>
-              Confirm Delete
+              {deleteModal.type === 'staff' ? 'Revoke Scanner Access' : 'Confirm Delete'}
             </h3>
             <p style={{ fontSize: '0.85rem', color: '#64748b', margin: '0 0 18px 0', lineHeight: 1.45 }}>
-              Are you sure you want to permanently delete{' '}
-              <strong style={{ color: '#b91c1c' }}>&quot;{deleteModal.title}&quot;</strong>? This action cannot be undone.
+              {deleteModal.type === 'staff' ? (
+                <>
+                  Are you sure you want to revoke the scanner clearance of{' '}
+                  <strong style={{ color: '#ea580c' }}>&quot;{deleteModal.title}&quot;</strong>? Their account will not be deleted and will safely return to regular Student status.
+                </>
+              ) : (
+                <>
+                  Are you sure you want to permanently delete{' '}
+                  <strong style={{ color: '#b91c1c' }}>&quot;{deleteModal.title}&quot;</strong>? This action cannot be undone.
+                </>
+              )}
             </p>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -2771,7 +2857,7 @@ export default function AdminDashboard() {
                 style={{
                   width: '100%',
                   padding: '12px',
-                  backgroundColor: '#b91c1c',
+                  backgroundColor: deleteModal.type === 'staff' ? '#ea580c' : '#b91c1c',
                   color: '#ffffff',
                   border: 'none',
                   borderRadius: '14px',
@@ -2781,7 +2867,11 @@ export default function AdminDashboard() {
                   touchAction: 'manipulation',
                 }}
               >
-                {deletingRecord ? 'Deleting...' : 'Yes, Delete Record'}
+                {deletingRecord
+                  ? 'Processing...'
+                  : deleteModal.type === 'staff'
+                  ? 'Yes, Revoke Scanner Access'
+                  : 'Yes, Delete Record'}
               </button>
 
               <button
