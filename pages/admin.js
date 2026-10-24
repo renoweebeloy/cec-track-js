@@ -9,6 +9,7 @@ export default function AdminDashboard() {
   const router = useRouter();
   const scannerRef = useRef(null);
   const eventImageInputRef = useRef(null);
+  const officerAvatarInputRef = useRef(null);
   const formRef = useRef(null);
 
   // Scan Processing Lock
@@ -22,7 +23,7 @@ export default function AdminDashboard() {
   const [currentUser, setCurrentUser] = useState({ name: '', email: '', school_id: '' });
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
-  // Navigation Tabs: 'profile' | 'add-student' | 'add-staff' | 'add-event' | 'scan-qr' | 'search-student'
+  // Navigation Tabs: 'profile' | 'add-student' | 'add-staff' | 'add-event' | 'manage-officers' | 'scan-qr' | 'search-student'
   const [activeTab, setActiveTab] = useState('profile');
   const [loading, setLoading] = useState(false);
   const [notification, setNotification] = useState({ type: '', message: '' });
@@ -56,7 +57,16 @@ export default function AdminDashboard() {
   const [eventImage, setEventImage] = useState('');
   const [compressingImage, setCompressingImage] = useState(false);
 
-  // 4. Scanner Controls & Gate State (Synced with Admin)
+  // 4. Officer Management States (BAG-O)
+  const [officerName, setOfficerName] = useState('');
+  const [officerPosition, setOfficerPosition] = useState('');
+  const [officerDepartment, setOfficerDepartment] = useState('Supreme Student Government (SSG)');
+  const [officerTerm, setOfficerTerm] = useState('2026 - 2027');
+  const [officerAvatar, setOfficerAvatar] = useState('');
+  const [compressingOfficerAvatar, setCompressingOfficerAvatar] = useState(false);
+  const [officersList, setOfficersList] = useState([]);
+
+  // 5. Scanner Controls & Gate State
   const [scanMode, setScanMode] = useState('time_in'); // 'time_in' | 'time_out'
   const [isScannerGateOpen, setIsScannerGateOpen] = useState(true);
   const [selectedEventId, setSelectedEventId] = useState('');
@@ -67,7 +77,7 @@ export default function AdminDashboard() {
   const [isCameraModalOpen, setIsCameraModalOpen] = useState(false);
   const [liveScanFeedback, setLiveScanFeedback] = useState(null);
 
-  // 5. Search Student Attendance History States
+  // 6. Search Student Attendance History States
   const [searchHistoryId, setSearchHistoryId] = useState('');
   const [searchingHistory, setSearchingHistory] = useState(false);
   const [searchedStudent, setSearchedStudent] = useState(null);
@@ -269,18 +279,18 @@ export default function AdminDashboard() {
     if (!supabase) return;
     setLoading(true);
     try {
+      // 1. Profiles
       const { data: profilesData } = await supabase
         .from('profiles')
         .select('*')
         .order('created_at', { ascending: false });
 
       if (profilesData) {
-        // Ang mga students mao kadtong naay role student ug can_scan === false
         setStudents(profilesData.filter((p) => p.role === 'student' || (!p.role && p.role !== 'admin' && p.role !== 'staff')));
-        // Ang mga staff mao kadtong can_scan === true o role === staff/admin
         setStaffList(profilesData.filter((p) => p.role === 'admin' || p.role === 'staff' || p.can_scan === true));
       }
 
+      // 2. Events
       const { data: eventsData } = await supabase
         .from('events')
         .select('*')
@@ -321,6 +331,16 @@ export default function AdminDashboard() {
           setSelectedEventId(validatedEvents[0].id);
         }
       }
+
+      // 3. Officers (Gikan sa officers table)
+      const { data: officersData } = await supabase
+        .from('officers')
+        .select('*')
+        .order('id', { ascending: true });
+
+      if (officersData) {
+        setOfficersList(officersData);
+      }
     } catch (err) {
       console.error('Error fetching database records:', err);
     } finally {
@@ -335,6 +355,90 @@ export default function AdminDashboard() {
       localStorage.removeItem('cec_last_active_time');
     } catch (e) {}
     router.replace('/');
+  };
+
+  // Upload og Litrato sa Opisyal (Compress to 400px base64)
+  const handleOfficerAvatarUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      showNotify('error', 'Palihug pagpili og saktong file sa litrato (PNG, JPG, o JPEG).');
+      return;
+    }
+
+    setCompressingOfficerAvatar(true);
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const MAX_DIM = 400;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > MAX_DIM) {
+            height *= MAX_DIM / width;
+            width = MAX_DIM;
+          }
+        } else {
+          if (height > MAX_DIM) {
+            width *= MAX_DIM / height;
+            height = MAX_DIM;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+
+        const compressedBase64 = canvas.toDataURL('image/jpeg', 0.8);
+        setOfficerAvatar(compressedBase64);
+        setCompressingOfficerAvatar(false);
+        showNotify('success', 'Naka-attach na ang litrato sa opisyal!');
+      };
+      img.src = event.target.result;
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // I-save ang Bag-ong Opisyal
+  const handleSaveOfficer = async (e) => {
+    e.preventDefault();
+
+    if (!officerName.trim() || !officerPosition.trim()) {
+      showNotify('error', 'Palihug pun-i ang Ngalan ug Posisyon sa Opisyal.');
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const { error } = await supabase.from('officers').insert([
+        {
+          name: officerName.trim(),
+          position: officerPosition.trim(),
+          department: officerDepartment.trim(),
+          term: officerTerm.trim(),
+          avatar_url: officerAvatar || null,
+        },
+      ]);
+
+      if (error) throw new Error(error.message);
+
+      showNotify('success', `Opisyal nga narehistro si ${officerName.trim()} isip ${officerPosition.trim()}!`);
+      setOfficerName('');
+      setOfficerPosition('');
+      setOfficerAvatar('');
+      fetchAllData();
+    } catch (err) {
+      showNotify('error', `Error saving officer: ${err.message}`);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleEventImageUpload = (e) => {
@@ -460,7 +564,6 @@ export default function AdminDashboard() {
     }
   };
 
-  // Trigger Confirmation Modal for Single Delete, Revoke Staff & Remove All
   const triggerDeletePrompt = (type, id, title) => {
     if (userRole !== 'admin') {
       alert('Only administrators have permission to perform this action.');
@@ -469,34 +572,33 @@ export default function AdminDashboard() {
     setDeleteModal({ isOpen: true, type, id, title });
   };
 
-  // =========================================================================
-  // PERFORM CONFIRMATION ACTION (REVOKE STAFF = UPDATE DILI DELETE)
-  // =========================================================================
+  // Confirmation Action Handler
   const handleConfirmDelete = async () => {
     if (!deleteModal.id || userRole !== 'admin') return;
     setDeletingRecord(true);
 
     try {
-      if (deleteModal.type === 'event') {
+      if (deleteModal.type === 'officer') {
+        const { error } = await supabase.from('officers').delete().eq('id', deleteModal.id);
+        if (error) throw new Error(error.message);
+        showNotify('success', `Natangtang na si "${deleteModal.title}" sa listahan sa mga opisyales.`);
+      } else if (deleteModal.type === 'event') {
         await supabase.from('attendance').delete().eq('event_id', deleteModal.id);
         const { error } = await supabase.from('events').delete().eq('id', deleteModal.id);
         if (error) throw new Error(error.message);
-
         showNotify('success', `Event "${deleteModal.title}" deleted successfully.`);
       } else if (deleteModal.type === 'student') {
         await supabase.from('attendance').delete().eq('student_id', deleteModal.title);
         const { error } = await supabase.from('profiles').delete().eq('id', deleteModal.id);
         if (error) throw new Error(error.message);
-
         showNotify('success', `Student record removed successfully.`);
       } else if (deleteModal.type === 'all_students') {
         await supabase.from('attendance').delete().neq('id', 0);
         const { error } = await supabase.from('profiles').delete().eq('role', 'student');
         if (error) throw new Error(error.message);
-
         showNotify('success', 'All enrolled student records have been permanently removed.');
       } else if (deleteModal.type === 'staff') {
-        // 1. DILI PWEDE MA-REVOKE ANG SYSTEM ADMINISTRATOR
+        // DILI PWEDE MA-REVOKE ANG SYSTEM ADMINISTRATOR
         const targetStaff = staffList.find((s) => s.id === deleteModal.id);
         if (targetStaff && targetStaff.role === 'admin') {
           showNotify('error', 'Denied: The System Administrator account is permanent and cannot be revoked.');
@@ -505,7 +607,7 @@ export default function AdminDashboard() {
           return;
         }
 
-        // 2. I-DOWNGRADE BALIK ISIP REGULAR STUDENT (DILI MA-DELETE ANG CREDENTIALS)
+        // I-DOWNGRADE BALIK ISIP REGULAR STUDENT (DILI MA-DELETE ANG ACCOUNT)
         const { error: updateError } = await supabase
           .from('profiles')
           .update({
@@ -1304,6 +1406,25 @@ export default function AdminDashboard() {
                 </button>
               )}
 
+              {/* BAG-ONG MENU: MANAGE OFFICERS */}
+              {isAdmin && (
+                <button
+                  onClick={() => { setActiveTab('manage-officers'); setIsSidebarOpen(false); }}
+                  className={activeTab === 'manage-officers' ? `${styles.portalNavLink} ${styles.portalNavLinkActive}` : styles.portalNavLink}
+                  style={{
+                    fontSize: '0.92rem',
+                    padding: '12px 14px',
+                    justifyContent: 'flex-start',
+                    backgroundColor: activeTab === 'manage-officers' ? '#15803d' : '#f0fdf4',
+                    color: activeTab === 'manage-officers' ? '#ffffff' : '#15803d',
+                    border: '1px solid #bbf7d0',
+                    fontWeight: 900,
+                  }}
+                >
+                  <span>Manage Officers</span>
+                </button>
+              )}
+
               <button
                 onClick={() => { setActiveTab('scan-qr'); setIsSidebarOpen(false); }}
                 className={activeTab === 'scan-qr' ? `${styles.portalNavLink} ${styles.portalNavLinkActive}` : styles.portalNavLink}
@@ -1385,9 +1506,9 @@ export default function AdminDashboard() {
                 </div>
 
                 <div className={styles.attStatCard} style={{ padding: '16px' }}>
-                  <span className={styles.attStatLabel} style={{ fontSize: '0.75rem' }}>Active Events</span>
+                  <span className={styles.attStatLabel} style={{ fontSize: '0.75rem' }}>Campus Officers</span>
                   <div className={`${styles.attStatValue} ${styles.attGreenText}`} style={{ fontSize: '1.8rem' }}>
-                    {events.filter((e) => e.status === 'active').length}
+                    {officersList.length}
                   </div>
                 </div>
 
@@ -1415,6 +1536,221 @@ export default function AdminDashboard() {
                     );
                   })}
                 </div>
+              </div>
+            </div>
+          )}
+
+          {/* TAB: MANAGE OFFICERS (NEW FULL FEATURE) */}
+          {activeTab === 'manage-officers' && isAdmin && (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))', gap: '20px' }}>
+              {/* Form to Add Officer */}
+              <div className={styles.adminFormCard}>
+                <h3 className={styles.analyticsTitle} style={{ fontSize: '0.95rem', marginBottom: '14px' }}>
+                  Add Student Leader / Officer
+                </h3>
+
+                <form onSubmit={handleSaveOfficer} className={styles.loginForm}>
+                  <input
+                    type="file"
+                    ref={officerAvatarInputRef}
+                    onChange={handleOfficerAvatarUpload}
+                    accept="image/*"
+                    style={{ display: 'none' }}
+                  />
+
+                  {/* Upload Formal 2x2 Picture */}
+                  <div className={styles.inputGroup}>
+                    <label className={styles.inputLabel} style={{ fontSize: '0.75rem' }}>Officer 2x2 / Formal Photo</label>
+                    <div
+                      onClick={() => officerAvatarInputRef.current?.click()}
+                      style={{
+                        border: '2px dashed #bbf7d0',
+                        borderRadius: '14px',
+                        padding: '14px',
+                        textAlign: 'center',
+                        cursor: 'pointer',
+                        backgroundColor: '#f0fdf4',
+                        transition: 'border 0.2s',
+                      }}
+                    >
+                      {compressingOfficerAvatar ? (
+                        <span style={{ fontSize: '0.8rem', color: '#15803d', fontWeight: 800 }}>
+                          Compressing image...
+                        </span>
+                      ) : officerAvatar ? (
+                        <div>
+                          <img
+                            src={officerAvatar}
+                            alt="Officer Preview"
+                            style={{ width: '70px', height: '70px', borderRadius: '18px', objectFit: 'cover', margin: '0 auto', display: 'block', border: '2px solid #15803d' }}
+                          />
+                          <span style={{ fontSize: '0.72rem', color: '#15803d', fontWeight: 800, marginTop: '4px', display: 'block' }}>
+                            Click to change photo
+                          </span>
+                        </div>
+                      ) : (
+                        <div>
+                          <span style={{ fontSize: '1.4rem', display: 'block', marginBottom: '2px' }}>👤</span>
+                          <span style={{ fontSize: '0.82rem', color: '#15803d', fontWeight: 800 }}>
+                            + Upload Formal Photo
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className={styles.inputGroup}>
+                    <label className={styles.inputLabel} style={{ fontSize: '0.75rem' }}>Full Name *</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Juan Dela Cruz"
+                      value={officerName}
+                      onChange={(e) => setOfficerName(e.target.value)}
+                      className={styles.loginInput}
+                      style={{ padding: '10px 12px', fontSize: '0.9rem' }}
+                      required
+                    />
+                  </div>
+
+                  <div className={styles.inputGroup}>
+                    <label className={styles.inputLabel} style={{ fontSize: '0.75rem' }}>Official Position / Role *</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. President, Vice President, Treasurer"
+                      value={officerPosition}
+                      onChange={(e) => setOfficerPosition(e.target.value)}
+                      className={styles.loginInput}
+                      style={{ padding: '10px 12px', fontSize: '0.9rem' }}
+                      required
+                    />
+                  </div>
+
+                  <div className={styles.inputGroup}>
+                    <label className={styles.inputLabel} style={{ fontSize: '0.75rem' }}>Department / Council</label>
+                    <select
+                      value={officerDepartment}
+                      onChange={(e) => setOfficerDepartment(e.target.value)}
+                      className={styles.loginInput}
+                      style={{ padding: '10px 12px', fontSize: '0.9rem' }}
+                    >
+                      <option value="Supreme Student Government (SSG)">Supreme Student Government (SSG)</option>
+                      <option value="FaCET Student Council">FaCET Student Council</option>
+                      <option value="BSIT Department">BSIT Department</option>
+                      <option value="BSCRIM Department">BSCRIM Department</option>
+                      <option value="BSBA Department">BSBA Department</option>
+                      <option value="BSA Department">BSA Department</option>
+                      <option value="BEED Department">BEED Department</option>
+                      <option value="BSAM Department">BSAM Department</option>
+                    </select>
+                  </div>
+
+                  <div className={styles.inputGroup}>
+                    <label className={styles.inputLabel} style={{ fontSize: '0.75rem' }}>Term / Academic Year</label>
+                    <input
+                      type="text"
+                      value={officerTerm}
+                      onChange={(e) => setOfficerTerm(e.target.value)}
+                      className={styles.loginInput}
+                      style={{ padding: '10px 12px', fontSize: '0.9rem' }}
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={loading || compressingOfficerAvatar}
+                    className={styles.adminPrimaryBtn}
+                    style={{ minHeight: '44px', fontSize: '0.9rem' }}
+                  >
+                    {loading ? 'Saving...' : 'Publish Officer ➔'}
+                  </button>
+                </form>
+              </div>
+
+              {/* Published Officers Roster */}
+              <div className={styles.adminFormCard}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+                  <h3 className={styles.analyticsTitle} style={{ fontSize: '0.95rem', margin: 0 }}>
+                    Official Officers Roster ({officersList.length})
+                  </h3>
+                </div>
+
+                {officersList.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '30px', color: '#94a3b8', fontSize: '0.85rem' }}>
+                    Wala pa&apos;y narehistro nga mga opisyales.
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', width: '100%' }}>
+                    {officersList.map((off) => (
+                      <div
+                        key={off.id}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          padding: '12px 14px',
+                          borderRadius: '14px',
+                          border: '1px solid #e2e8f0',
+                          backgroundColor: '#ffffff',
+                          boxShadow: '0 1px 3px rgba(0,0,0,0.02)',
+                          gap: '10px',
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0, flex: 1 }}>
+                          <div
+                            style={{
+                              width: '46px',
+                              height: '46px',
+                              borderRadius: '12px',
+                              backgroundColor: '#dcfce7',
+                              border: '2px solid #15803d',
+                              overflow: 'hidden',
+                              flexShrink: 0,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                            }}
+                          >
+                            {off.avatar_url ? (
+                              <img src={off.avatar_url} alt={off.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            ) : (
+                              <span style={{ fontSize: '1.2rem' }}>👤</span>
+                            )}
+                          </div>
+                          <div style={{ minWidth: 0 }}>
+                            <h4 style={{ margin: 0, fontSize: '0.92rem', fontWeight: 900, color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                              {off.name}
+                            </h4>
+                            <div style={{ fontSize: '0.78rem', fontWeight: 800, color: '#15803d' }}>
+                              {off.position}
+                            </div>
+                            <div style={{ fontSize: '0.7rem', color: '#64748b' }}>
+                              {off.department} • {off.term}
+                            </div>
+                          </div>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => triggerDeletePrompt('officer', off.id, off.name)}
+                          style={{
+                            border: '1px solid #fecaca',
+                            backgroundColor: '#fef2f2',
+                            color: '#b91c1c',
+                            fontWeight: 900,
+                            padding: '6px 12px',
+                            borderRadius: '8px',
+                            fontSize: '0.75rem',
+                            cursor: 'pointer',
+                            flexShrink: 0,
+                            touchAction: 'manipulation',
+                          }}
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -1621,7 +1957,7 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          {/* TAB 3: MANAGE STAFF & AUTHORIZED SCANNERS (PERMANENT SYSTEM ADMINISTRATOR) */}
+          {/* TAB 3: MANAGE STAFF & AUTHORIZED SCANNERS */}
           {activeTab === 'add-staff' && isAdmin && (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))', gap: '20px' }}>
               <div className={styles.adminFormCard}>
@@ -1721,7 +2057,6 @@ export default function AdminDashboard() {
                             </div>
                           </div>
 
-                          {/* KUNG SYSTEM ADMIN, PERMANENT KINI UG DILI MA-REVOKE */}
                           {isPermanentAdmin ? (
                             <span
                               style={{
@@ -2106,7 +2441,7 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          {/* TAB 5: SCAN QR & QUICK LOG (ADMIN & STAFF SYNCED) */}
+          {/* TAB 5: SCAN QR & QUICK LOG */}
           {activeTab === 'scan-qr' && (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))', gap: '20px' }}>
               <div className={styles.adminFormCard} style={{ padding: '24px 18px', textAlign: 'center' }}>
@@ -2117,7 +2452,7 @@ export default function AdminDashboard() {
                   Configure the scanning mode and schedule below, then launch the continuous camera scanner.
                 </p>
 
-                {/* SCANNER ON / OFF GATE TOGGLE */}
+                {/* SCANNER GATE TOGGLE */}
                 <div
                   style={{
                     backgroundColor: isScannerGateOpen ? '#f0fdf4' : '#fef2f2',
@@ -2260,7 +2595,6 @@ export default function AdminDashboard() {
                   )}
                 </div>
 
-                {/* LAUNCH SCANNER BUTTON */}
                 <button
                   type="button"
                   onClick={startCameraScanner}
@@ -2788,7 +3122,7 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      {/* MOBILE IN-APP CONFIRMATION MODAL (UPDATE/REVOKE STAFF OR PERMANENT DELETE) */}
+      {/* MOBILE IN-APP CONFIRMATION MODAL */}
       {deleteModal.isOpen && (
         <div
           style={{
@@ -2841,6 +3175,11 @@ export default function AdminDashboard() {
                   Are you sure you want to revoke the scanner clearance of{' '}
                   <strong style={{ color: '#ea580c' }}>&quot;{deleteModal.title}&quot;</strong>? Their account will not be deleted and will safely return to regular Student status.
                 </>
+              ) : deleteModal.type === 'officer' ? (
+                <>
+                  Sigurado ka ba nga gusto nimong tangtangon si{' '}
+                  <strong style={{ color: '#b91c1c' }}>&quot;{deleteModal.title}&quot;</strong> gikan sa opisyal nga talaan sa mga opisyales?
+                </>
               ) : (
                 <>
                   Are you sure you want to permanently delete{' '}
@@ -2871,7 +3210,7 @@ export default function AdminDashboard() {
                   ? 'Processing...'
                   : deleteModal.type === 'staff'
                   ? 'Yes, Revoke Scanner Access'
-                  : 'Yes, Delete Record'}
+                  : 'Yes, Proceed'}
               </button>
 
               <button
