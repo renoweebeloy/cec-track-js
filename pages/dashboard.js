@@ -10,16 +10,15 @@ export default function StudentDashboard() {
   const fileInputRef = useRef(null);
   const idCardRef = useRef(null);
 
-  // Active Navigation Tabs: 'my-id' | 'attendance' | 'events' | 'officers' | 'finance' | 'sanctions' | 'voting' | 'profile' | 'about'
-  const [activeTab, setActiveTab] = useState('sanctions');
+  // Active Tab Navigation: 'my-id' | 'attendance' | 'events' | 'officers' | 'finance' | 'sanctions' | 'voting' | 'profile' | 'about'
+  const [activeTab, setActiveTab] = useState('my-id');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [downloadingId, setDownloadingId] = useState(false);
 
-  // Password Change Modal State
+  // Password Change Modal States
   const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
-  const [oldPassword, setOldPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [passwordLoading, setPasswordLoading] = useState(false);
@@ -44,7 +43,7 @@ export default function StudentDashboard() {
   const [searchQuery, setSearchQuery] = useState('');
   const [notification, setNotification] = useState({ type: '', message: '' });
 
-  // 12-Hour AM/PM Formatter
+  // 12-Hour Time Formatter (e.g. 5:00 PM)
   const formatTime12Hour = (time24) => {
     if (!time24 || time24 === '--:--') return '--:--';
     if (time24.includes('AM') || time24.includes('PM')) return time24;
@@ -129,6 +128,7 @@ export default function StudentDashboard() {
     fetchStudentData();
   }, []);
 
+  // Kunin ang student profile at attendance logs sa Supabase
   const fetchStudentData = async () => {
     setLoading(true);
     try {
@@ -172,7 +172,7 @@ export default function StudentDashboard() {
         }
       }
 
-      // Kumuha ng mga opisyal na events
+      // Kumuha ng events
       const { data: eventsData } = await supabase
         .from('events')
         .select('*')
@@ -182,7 +182,7 @@ export default function StudentDashboard() {
         setEvents(eventsData);
       }
 
-      // Kumuha ng attendance para sa estudyanteng ito
+      // Kumuha ng attendance para sa student na ito
       const { data: studentLogs } = await supabase
         .from('attendance')
         .select('*')
@@ -195,7 +195,7 @@ export default function StudentDashboard() {
         });
       }
 
-      // Pagsamahin ang events at logs
+      // Pagsamahin ang mga events at logs
       if (eventsData && eventsData.length > 0) {
         const mergedRecords = eventsData.map((ev) => {
           const matchingLog = logsMap[ev.id];
@@ -204,7 +204,7 @@ export default function StudentDashboard() {
           return {
             id: ev.id,
             event_id: ev.id,
-            title: ev.title || 'Campus Assembly',
+            title: ev.title || 'Official Event',
             location: ev.location || 'FaCET Facade',
             date: ev.date || 'Scheduled',
             time_in: matchingLog && matchingLog.time_in ? formatTime12Hour(matchingLog.time_in) : '--:--',
@@ -219,12 +219,13 @@ export default function StudentDashboard() {
         setAttendanceLogs([]);
       }
     } catch (err) {
-      console.error('Error loading dashboard data:', err);
+      console.error('Error fetching dashboard records:', err);
     } finally {
       setLoading(false);
     }
   };
 
+  // Upload ng 2x2 photo direkta sa database (Cloud Sync)
   const handlePhotoUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -356,7 +357,6 @@ export default function StudentDashboard() {
       setPasswordMsg({ type: 'success', text: 'Password successfully updated!' });
       setTimeout(() => {
         setIsChangePasswordOpen(false);
-        setOldPassword('');
         setNewPassword('');
         setConfirmPassword('');
         setPasswordMsg({ type: '', text: '' });
@@ -377,11 +377,12 @@ export default function StudentDashboard() {
     router.replace('/');
   };
 
-  // Dynamic Metrics mula sa database (Zero pa kung walang events)
+  // Dynamic Metrics (Zero kung walang events)
   const totalEventsCount = attendanceLogs.length;
   const totalPresentCount = attendanceLogs.filter((l) => l.status === 'PRESENT').length;
   const totalAbsencesCount = attendanceLogs.filter((l) => l.status === 'ABSENT').length;
   const absentEventsList = attendanceLogs.filter((l) => l.status === 'ABSENT');
+  const complianceRate = totalEventsCount > 0 ? Math.round((totalPresentCount / totalEventsCount) * 100) : 0;
 
   const cleanQuery = searchQuery.trim().toLowerCase();
   const filteredLogs = attendanceLogs
@@ -497,7 +498,7 @@ export default function StudentDashboard() {
 
       <div style={{ display: 'flex', flex: 1 }}>
         {/* ======================================================== */}
-        {/* SIDEBAR NAVIGATION (LAHAT AY BERDE / GREEN THEME) */}
+        {/* SIDEBAR NAVIGATION (PURE GREEN THEME) */}
         {/* ======================================================== */}
         <aside
           style={{
@@ -830,7 +831,7 @@ export default function StudentDashboard() {
             </div>
           )}
 
-          {/* TAB 1: SANCTIONS (DYNAMIC ZERO STATE KUNG WALANG EVENT/ABSENCE) */}
+          {/* TAB 1: SANCTIONS (DYNAMIC ZERO STATE) */}
           {activeTab === 'sanctions' && (
             <div style={{ maxWidth: '980px', margin: '0 auto', width: '100%' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px' }}>
@@ -941,8 +942,8 @@ export default function StudentDashboard() {
 
                 <p style={{ fontSize: '0.85rem', color: '#64748b', maxWidth: '460px', margin: '0 auto 16px auto', lineHeight: 1.55 }}>
                   {totalAbsencesCount === 0
-                    ? 'You have 0 recorded absences. You are in full compliance with all institutional assemblies and activities.'
-                    : `You currently have ${totalAbsencesCount} recorded absences. The specific community duties and requirements will be announced soon.`}
+                    ? 'You currently have 0 recorded absences. You are in full compliance with all institutional assemblies and activities.'
+                    : `You currently have ${totalAbsencesCount} recorded absences. The specific requirements and community duties will be announced soon.`}
                 </p>
 
                 <p style={{ fontSize: '0.72rem', color: '#94a3b8', margin: 0 }}>
@@ -952,10 +953,9 @@ export default function StudentDashboard() {
             </div>
           )}
 
-          {/* TAB 2: PROFILE (EXACT LAYOUT NG IMAGE_6FBA3F.PNG SA GREEN THEME) */}
+          {/* TAB 2: PROFILE */}
           {activeTab === 'profile' && (
             <div style={{ maxWidth: '640px', margin: '0 auto', width: '100%' }}>
-              {/* Profile Header */}
               <div style={{ textAlign: 'center', marginBottom: '20px' }}>
                 <h1 style={{ fontSize: '1.65rem', fontWeight: 900, color: '#0f172a', margin: '0 0 4px 0' }}>
                   {profile.full_name}
@@ -979,7 +979,6 @@ export default function StudentDashboard() {
                   </span>
                 </div>
 
-                {/* Rows with Icons */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
                     <div style={{ width: '38px', height: '38px', borderRadius: '10px', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b' }}>
@@ -1093,10 +1092,9 @@ export default function StudentDashboard() {
             </div>
           )}
 
-          {/* TAB 3: ABOUT US (BUONG LAMAN AY DIREKTANG NAKIKITA SA DASHBOARD) */}
+          {/* TAB 3: ABOUT US (BUONG DETALYE NG ABOUT NASA LOOB NA) */}
           {activeTab === 'about' && (
             <div style={{ maxWidth: '980px', margin: '0 auto', width: '100%' }}>
-              {/* Hero Banner */}
               <div style={{ textAlign: 'center', marginBottom: '32px' }}>
                 <div style={{ display: 'inline-block', backgroundColor: '#f0fdf4', color: '#15803d', border: '1px solid #bbf7d0', padding: '6px 18px', borderRadius: '9999px', fontSize: '0.75rem', fontWeight: 900, textTransform: 'uppercase', marginBottom: '12px' }}>
                   ✨ ABOUT CECTRACK
@@ -1109,7 +1107,6 @@ export default function StudentDashboard() {
                 </p>
               </div>
 
-              {/* What is CECTRACK */}
               <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '22px', padding: '28px', marginBottom: '32px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '14px' }}>
                   <div style={{ width: '42px', height: '42px', borderRadius: '12px', backgroundColor: '#f0fdf4', color: '#15803d', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.25rem', border: '1px solid #bbf7d0' }}>
@@ -1130,7 +1127,7 @@ export default function StudentDashboard() {
                 </p>
               </div>
 
-              {/* Developer Profile (With FaCET and Renowee Beloy photo) */}
+              {/* Developer Profile Card */}
               <div
                 style={{
                   background: 'linear-gradient(145deg, #064e3b 0%, #022c22 100%)',
@@ -1483,7 +1480,10 @@ export default function StudentDashboard() {
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '20px' }}>
                 <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '20px', padding: '28px', textAlign: 'center' }}>
                   <div style={{ width: '56px', height: '56px', borderRadius: '16px', backgroundColor: '#f0fdf4', color: '#15803d', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px auto' }}>
-                    🏅
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="12" cy="8" r="5" />
+                      <polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88" />
+                    </svg>
                   </div>
                   <h3 style={{ margin: '0 0 4px 0', fontSize: '1.1rem', fontWeight: 900, color: '#0f172a' }}>Executive Council</h3>
                   <p style={{ margin: 0, fontSize: '0.82rem', color: '#64748b' }}>Supreme Student Government &amp; Campus Representatives</p>
