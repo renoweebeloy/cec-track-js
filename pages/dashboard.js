@@ -10,7 +10,7 @@ export default function StudentDashboard() {
   const fileInputRef = useRef(null);
   const idCardRef = useRef(null);
 
-  // Active Tab States: 'my-id' | 'attendance' | 'events' | 'officers' | 'finance' | 'sanctions' | 'voting' | 'profile' | 'about'
+  // Active Tab Navigation: 'my-id' | 'attendance' | 'events' | 'officers' | 'finance' | 'sanctions' | 'voting' | 'profile' | 'about'
   const [activeTab, setActiveTab] = useState('my-id');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -43,7 +43,7 @@ export default function StudentDashboard() {
   const [searchQuery, setSearchQuery] = useState('');
   const [notification, setNotification] = useState({ type: '', message: '' });
 
-  // 12-Hour AM/PM Formatter
+  // 12-Hour AM/PM Formatter (e.g. 8:00 AM, 5:00 PM)
   const formatTime12Hour = (time24) => {
     if (!time24 || time24 === '--:--') return '--:--';
     if (time24.includes('AM') || time24.includes('PM')) return time24;
@@ -128,7 +128,7 @@ export default function StudentDashboard() {
     fetchStudentData();
   }, []);
 
-  // Pagkuha sa datos gikan sa Supabase
+  // Pagkuha sa Profile ug Attendance Data gikan sa Supabase
   const fetchStudentData = async () => {
     setLoading(true);
     try {
@@ -172,7 +172,7 @@ export default function StudentDashboard() {
         }
       }
 
-      // Kumuha sa mga events
+      // Kumuha sa mga opisyal nga kalihokan
       const { data: eventsData } = await supabase
         .from('events')
         .select('*')
@@ -182,7 +182,7 @@ export default function StudentDashboard() {
         setEvents(eventsData);
       }
 
-      // Kumuha sa attendance records sa maong estudyante
+      // Kumuha sa attendance logs alang niining estudyanteha
       const { data: studentLogs } = await supabase
         .from('attendance')
         .select('*')
@@ -195,7 +195,7 @@ export default function StudentDashboard() {
         });
       }
 
-      // Pagsamahin ang events at logs
+      // Pagsamahon ang mga records
       if (eventsData && eventsData.length > 0) {
         const mergedRecords = eventsData.map((ev) => {
           const matchingLog = logsMap[ev.id];
@@ -227,13 +227,13 @@ export default function StudentDashboard() {
     }
   };
 
-  // Upload og litrato direkta sa database
+  // Upload og litrato direkta sa Supabase Database (Cloud Sync sa CP ug Laptop)
   const handlePhotoUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     if (!file.type.startsWith('image/')) {
-      alert('Palihug pagpili og saktong file sa hulagway (PNG, JPG, o JPEG).');
+      alert('Palihug pagpili og saktong litrato (PNG, JPG, o JPEG).');
       return;
     }
 
@@ -275,7 +275,7 @@ export default function StudentDashboard() {
             .eq('school_id', profile.school_id);
 
           if (dbError) {
-            alert('Wala ma-sync ang litrato: ' + dbError.message);
+            alert('Wala ma-sync ang litrato sa database: ' + dbError.message);
           } else {
             showNotify('success', 'Profile photo updated and synced across all devices!');
           }
@@ -359,7 +359,6 @@ export default function StudentDashboard() {
       setPasswordMsg({ type: 'success', text: 'Password successfully updated!' });
       setTimeout(() => {
         setIsChangePasswordOpen(false);
-        setOldPassword('');
         setNewPassword('');
         setConfirmPassword('');
         setPasswordMsg({ type: '', text: '' });
@@ -380,7 +379,7 @@ export default function StudentDashboard() {
     router.replace('/');
   };
 
-  // Dynamic Statistics
+  // Dinamikong Estadistika (Zero kon walay absences o walay events)
   const totalEventsCount = attendanceLogs.length;
   const totalPresentCount = attendanceLogs.filter((l) => l.status === 'PRESENT').length;
   const totalAbsencesCount = attendanceLogs.filter((l) => l.status === 'ABSENT').length;
@@ -414,7 +413,7 @@ export default function StudentDashboard() {
         <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" async />
       </Head>
 
-      {/* TOP HEADER (MATCHING THE SCREENSHOT) */}
+      {/* TOP HEADER */}
       <header
         style={{
           position: 'sticky',
@@ -524,7 +523,7 @@ export default function StudentDashboard() {
 
       <div style={{ display: 'flex', flex: 1 }}>
         {/* ======================================================== */}
-        {/* SIDEBAR NAVIGATION (PURE GREEN THEME) */}
+        {/* SIDEBAR NAVIGATION (PURE GREEN THEME & EXACT ICONS) */}
         {/* ======================================================== */}
         <aside
           style={{
@@ -857,7 +856,7 @@ export default function StudentDashboard() {
             </div>
           )}
 
-          {/* TAB 1: MY ID (EXACT IMAGE_710C39.PNG LAYOUT) */}
+          {/* TAB 1: MY ID (IMAGE_710C39.PNG) */}
           {activeTab === 'my-id' && (
             <div style={{ maxWidth: '980px', margin: '0 auto' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
@@ -1052,7 +1051,7 @@ export default function StudentDashboard() {
             </div>
           )}
 
-          {/* TAB 2: ATTENDANCE (EXACT IMAGE_710C58.PNG LAYOUT) */}
+          {/* TAB 2: ATTENDANCE (IMAGE_710C58.PNG) */}
           {activeTab === 'attendance' && (
             <div style={{ maxWidth: '980px', margin: '0 auto' }}>
               <div style={{ display: 'inline-block', backgroundColor: '#f0fdf4', color: '#15803d', border: '1px solid #bbf7d0', padding: '4px 14px', borderRadius: '9999px', fontSize: '0.72rem', fontWeight: 900, textTransform: 'uppercase', marginBottom: '8px' }}>
@@ -1232,7 +1231,7 @@ export default function StudentDashboard() {
             </div>
           )}
 
-          {/* TAB 3: EVENTS (EXACT IMAGE_710C8F.PNG LAYOUT) */}
+          {/* TAB 3: EVENTS (IMAGE_710C8F.PNG) */}
           {activeTab === 'events' && (
             <div style={{ maxWidth: '980px', margin: '0 auto' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px' }}>
@@ -1253,7 +1252,7 @@ export default function StudentDashboard() {
                 </div>
               </div>
 
-              {/* Event Cards Grid */}
+              {/* Event Cards */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                 {events.length === 0 ? (
                   <div style={{ textAlign: 'center', padding: '40px', backgroundColor: '#ffffff', borderRadius: '20px', border: '1px solid #e2e8f0', color: '#94a3b8' }}>
@@ -1329,7 +1328,10 @@ export default function StudentDashboard() {
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '20px' }}>
                 <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '20px', padding: '28px', textAlign: 'center' }}>
                   <div style={{ width: '56px', height: '56px', borderRadius: '16px', backgroundColor: '#f0fdf4', color: '#15803d', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px auto' }}>
-                    🏅
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="12" cy="8" r="5" />
+                      <polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88" />
+                    </svg>
                   </div>
                   <h3 style={{ margin: '0 0 4px 0', fontSize: '1.1rem', fontWeight: 900, color: '#0f172a' }}>Executive Council</h3>
                   <p style={{ margin: 0, fontSize: '0.82rem', color: '#64748b' }}>Supreme Student Government &amp; Campus Representatives</p>
@@ -1506,7 +1508,7 @@ export default function StudentDashboard() {
             </div>
           )}
 
-          {/* TAB 8: PROFILE (EXACT IMAGE_710CB0.PNG & IMAGE_6FBA3F.PNG MATCH) */}
+          {/* TAB 8: PROFILE (IMAGE_710CB0.PNG) */}
           {activeTab === 'profile' && (
             <div style={{ maxWidth: '640px', margin: '0 auto', width: '100%' }}>
               <div style={{ textAlign: 'center', marginBottom: '22px' }}>
@@ -1620,57 +1622,196 @@ export default function StudentDashboard() {
             </div>
           )}
 
-          {/* TAB 9: ABOUT (BUONG KWENTO DIREKTA SA DASHBOARD) */}
+          {/* TAB 9: ABOUT (BUONG UNOD SA ABOUT.JS NAA NA DIREKTA DINHI) */}
           {activeTab === 'about' && (
             <div style={{ maxWidth: '980px', margin: '0 auto', width: '100%' }}>
-              <div style={{ textAlign: 'center', marginBottom: '32px' }}>
-                <div style={{ display: 'inline-block', backgroundColor: '#f0fdf4', color: '#15803d', border: '1px solid #bbf7d0', padding: '6px 18px', borderRadius: '9999px', fontSize: '0.75rem', fontWeight: 900, textTransform: 'uppercase', marginBottom: '12px' }}>
-                  ✨ ABOUT CECTRACK
+              {/* Hero Section */}
+              <section style={{ textAlign: 'center', marginBottom: '40px' }}>
+                <div
+                  style={{
+                    display: 'inline-block',
+                    backgroundColor: '#f0fdf4',
+                    color: '#15803d',
+                    border: '1px solid #bbf7d0',
+                    padding: '6px 18px',
+                    borderRadius: '9999px',
+                    fontSize: '0.75rem',
+                    fontWeight: 900,
+                    letterSpacing: '0.08em',
+                    textTransform: 'uppercase',
+                    marginBottom: '16px',
+                  }}
+                >
+                   ABOUT CECTRACK
                 </div>
-                <h1 style={{ fontSize: '2.2rem', fontWeight: 900, color: '#0f172a', margin: '0 0 10px 0', letterSpacing: '-0.03em' }}>
-                  Transforming Student Organization Operations
-                </h1>
-                <p style={{ fontSize: '0.92rem', color: '#64748b', maxWidth: '640px', margin: '0 auto', lineHeight: 1.6 }}>
-                  CECTRACK is an all-in-one centralized digital ecosystem engineered specifically for the students, officers, and faculty of <strong>Davao Oriental State University – Cateel Extension Campus (DOrSU-CEC)</strong>.
-                </p>
-              </div>
 
-              <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '22px', padding: '28px', marginBottom: '32px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '14px' }}>
-                  <div style={{ width: '42px', height: '42px', borderRadius: '12px', backgroundColor: '#f0fdf4', color: '#15803d', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.25rem', border: '1px solid #bbf7d0' }}>
+                <h1
+                  style={{
+                    fontSize: 'clamp(1.8rem, 4vw, 2.8rem)',
+                    fontWeight: 900,
+                    color: '#0f172a',
+                    letterSpacing: '-0.03em',
+                    margin: '0 0 16px 0',
+                    lineHeight: 1.2,
+                  }}
+                >
+                  Transforming Student <br />
+                  Organization Operations
+                </h1>
+
+                <p
+                  style={{
+                    fontSize: '0.95rem',
+                    color: '#64748b',
+                    maxWidth: '680px',
+                    margin: '0 auto',
+                    lineHeight: 1.6,
+                    fontWeight: 500,
+                  }}
+                >
+                  CECTRACK is an all-in-one centralized digital ecosystem engineered specifically for
+                  the students, officers, and faculty of <strong>Davao Oriental State University – Cateel Extension Campus (DOrSU-CEC)</strong>.
+                </p>
+              </section>
+
+              {/* Section 1: What is CECTRACK? */}
+              <section
+                style={{
+                  backgroundColor: '#ffffff',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: '24px',
+                  padding: '30px 26px',
+                  boxShadow: '0 4px 20px rgba(0,0,0,0.02)',
+                  marginBottom: '40px',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '16px' }}>
+                  <div
+                    style={{
+                      width: '44px',
+                      height: '44px',
+                      borderRadius: '14px',
+                      backgroundColor: '#f0fdf4',
+                      color: '#15803d',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '1.3rem',
+                      border: '1px solid #bbf7d0',
+                    }}
+                  >
                     📑
                   </div>
                   <div>
-                    <h2 style={{ fontSize: '1.25rem', fontWeight: 900, color: '#0f172a', margin: 0 }}>What is CECTRACK?</h2>
+                    <h2 style={{ fontSize: '1.25rem', fontWeight: 900, color: '#0f172a', margin: 0 }}>
+                      What is CECTRACK?
+                    </h2>
                     <span style={{ fontSize: '0.72rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase' }}>
                       Institutional Governance &amp; Activity Operating Platform
                     </span>
                   </div>
                 </div>
-                <p style={{ fontSize: '0.88rem', color: '#475569', lineHeight: 1.65, margin: '0 0 10px 0' }}>
-                  <strong>CECTRACK</strong> is a purpose-built platform designed to modernize campus administration. It eliminates slow paper sign-in sheets, misplaced tally forms, and disorganized spreadsheets by providing automated, tamper-proof digital attendance and student tracking.
-                </p>
-                <p style={{ fontSize: '0.88rem', color: '#475569', lineHeight: 1.65, margin: 0 }}>
-                  Equipped with live camera QR scanners, real-time duplicate check-in prevention, and instant student profile verification, CECTRACK ensures total transparency, accuracy, and operational ease for both student leaders and faculty advisers.
-                </p>
-              </div>
 
-              {/* Developer Profile Card */}
-              <div
+                <p style={{ fontSize: '0.9rem', color: '#475569', lineHeight: 1.65, margin: '0 0 12px 0' }}>
+                  <strong>CECTRACK</strong> is a purpose-built web and mobile platform designed to modernize campus administration. It eliminates slow paper sign-in sheets, misplaced tally forms, and disorganized spreadsheets by providing automated, tamper-proof digital attendance and student tracking.
+                </p>
+                <p style={{ fontSize: '0.9rem', color: '#475569', lineHeight: 1.65, margin: 0 }}>
+                  Equipped with camera QR scanners, live duplicate check-in prevention, and instant student profile verification, CECTRACK ensures total transparency, accuracy, and operational ease for both student leaders and faculty advisers.
+                </p>
+              </section>
+
+              {/* Section 2: Who Uses CECTRACK? (4 Cards) */}
+              <section style={{ marginBottom: '46px' }}>
+                <div style={{ textAlign: 'center', marginBottom: '28px' }}>
+                  <h2 style={{ fontSize: '1.75rem', fontWeight: 900, color: '#0f172a', margin: '0 0 8px 0' }}>
+                    Who Uses CECTRACK?
+                  </h2>
+                  <p style={{ fontSize: '0.85rem', color: '#64748b', margin: 0 }}>
+                    Tailored workspaces engineered for every member of the academic community.
+                  </p>
+                </div>
+
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+                    gap: '18px',
+                  }}
+                >
+                  {/* Card 1 */}
+                  <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '20px', padding: '22px' }}>
+                    <div style={{ width: '40px', height: '40px', borderRadius: '12px', backgroundColor: '#eff6ff', color: '#2563eb', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem', marginBottom: '12px' }}>
+                      👤
+                    </div>
+                    <h3 style={{ fontSize: '1rem', fontWeight: 900, color: '#0f172a', margin: '0 0 8px 0' }}>
+                      Students &amp; Members
+                    </h3>
+                    <p style={{ fontSize: '0.8rem', color: '#64748b', lineHeight: 1.5, margin: 0 }}>
+                      Access personalized digital ID badges, view attendance history, explore upcoming assemblies, and verify compliance records in real time.
+                    </p>
+                  </div>
+
+                  {/* Card 2 */}
+                  <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '20px', padding: '22px' }}>
+                    <div style={{ width: '40px', height: '40px', borderRadius: '12px', backgroundColor: '#f0fdf4', color: '#16a34a', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem', marginBottom: '12px' }}>
+                      📷
+                    </div>
+                    <h3 style={{ fontSize: '1rem', fontWeight: 900, color: '#0f172a', margin: '0 0 8px 0' }}>
+                      Attendance Officers
+                    </h3>
+                    <p style={{ fontSize: '0.8rem', color: '#64748b', lineHeight: 1.5, margin: 0 }}>
+                      High-speed event check-in using mobile camera scanning, photo verification, and automated duplicate check-in prevention.
+                    </p>
+                  </div>
+
+                  {/* Card 3 */}
+                  <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '20px', padding: '22px' }}>
+                    <div style={{ width: '40px', height: '40px', borderRadius: '12px', backgroundColor: '#fefce8', color: '#ca8a04', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem', marginBottom: '12px' }}>
+                      💼
+                    </div>
+                    <h3 style={{ fontSize: '1rem', fontWeight: 900, color: '#0f172a', margin: '0 0 8px 0' }}>
+                      Department Heads
+                    </h3>
+                    <p style={{ fontSize: '0.8rem', color: '#64748b', lineHeight: 1.5, margin: 0 }}>
+                      Manage member rosters across BSCRIM, BSBA, BSA, BEED, and BSAM programs, and monitor general assembly participation rates.
+                    </p>
+                  </div>
+
+                  {/* Card 4 */}
+                  <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '20px', padding: '22px' }}>
+                    <div style={{ width: '40px', height: '40px', borderRadius: '12px', backgroundColor: '#faf5ff', color: '#9333ea', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem', marginBottom: '12px' }}>
+                      🏛️
+                    </div>
+                    <h3 style={{ fontSize: '1rem', fontWeight: 900, color: '#0f172a', margin: '0 0 8px 0' }}>
+                      Executive Officers
+                    </h3>
+                    <p style={{ fontSize: '0.8rem', color: '#64748b', lineHeight: 1.5, margin: 0 }}>
+                      Publish official events with custom banners, oversee student enrollment whitelists, and export verified attendance records.
+                    </p>
+                  </div>
+                </div>
+              </section>
+
+              {/* SECTION 3: DEVELOPER PROFILE (FaCET & RENOWEE BELOY) */}
+              <section
                 style={{
                   background: 'linear-gradient(145deg, #064e3b 0%, #022c22 100%)',
                   borderRadius: '26px',
                   padding: '32px 28px',
                   color: '#ffffff',
-                  boxShadow: '0 16px 36px rgba(6, 78, 59, 0.25)',
+                  boxShadow: '0 18px 36px rgba(6, 78, 59, 0.25)',
                   border: '1px solid rgba(52, 211, 153, 0.25)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '18px',
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '20px', flexWrap: 'wrap', marginBottom: '20px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '22px', flexWrap: 'wrap' }}>
+                  {/* Developer Picture */}
                   <div
                     style={{
-                      width: '100px',
-                      height: '100px',
+                      width: '105px',
+                      height: '105px',
                       borderRadius: '22px',
                       backgroundColor: '#065f46',
                       border: '3px solid #34d399',
@@ -1679,12 +1820,18 @@ export default function StudentDashboard() {
                       alignItems: 'center',
                       justifyContent: 'center',
                       flexShrink: 0,
+                      boxShadow: '0 8px 20px rgba(0, 0, 0, 0.35)',
                     }}
                   >
                     <img
                       src="/beloy.jpg"
                       alt="Renowee Beloy"
-                      style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center 15%' }}
+                      style={{
+                        width: '100%',
+                        height: '100%',
+                        objectFit: 'cover',
+                        objectPosition: 'center 15%',
+                      }}
                       onError={(e) => {
                         e.currentTarget.src = 'https://github.com/renoweebeloy.png';
                       }}
@@ -1692,13 +1839,23 @@ export default function StudentDashboard() {
                   </div>
 
                   <div>
-                    <span style={{ fontSize: '0.7rem', fontWeight: 900, color: '#fbbf24', letterSpacing: '0.08em', textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>
+                    <span
+                      style={{
+                        fontSize: '0.72rem',
+                        fontWeight: 900,
+                        color: '#fbbf24',
+                        letterSpacing: '0.08em',
+                        textTransform: 'uppercase',
+                        display: 'block',
+                        marginBottom: '4px',
+                      }}
+                    >
                       DEVELOPED BY
                     </span>
-                    <h2 style={{ fontSize: '1.75rem', fontWeight: 900, margin: '0 0 4px 0', color: '#ffffff' }}>
+                    <h2 style={{ fontSize: '1.85rem', fontWeight: 900, margin: '0 0 4px 0', letterSpacing: '-0.02em', color: '#ffffff' }}>
                       Renowee Beloy
                     </h2>
-                    <p style={{ fontSize: '0.85rem', color: '#a7f3d0', margin: 0, fontWeight: 700, lineHeight: 1.4 }}>
+                    <p style={{ fontSize: '0.88rem', color: '#a7f3d0', margin: 0, fontWeight: 700, lineHeight: 1.45 }}>
                       Lead Creator • BS Information Technology (BSIT)
                       <br />
                       Faculty of Computing, Engineering, and Technology (FaCET)
@@ -1706,7 +1863,8 @@ export default function StudentDashboard() {
                   </div>
                 </div>
 
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '18px' }}>
+                {/* Badges */}
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
                   <span style={{ backgroundColor: 'rgba(52, 211, 153, 0.15)', color: '#6ee7b7', border: '1px solid rgba(52, 211, 153, 0.35)', padding: '5px 12px', borderRadius: '9999px', fontSize: '0.72rem', fontWeight: 800 }}>
                     Developer
                   </span>
@@ -1718,10 +1876,20 @@ export default function StudentDashboard() {
                   </span>
                 </div>
 
-                <p style={{ fontSize: '0.85rem', color: '#d1fae5', lineHeight: 1.65, margin: 0, borderTop: '1px solid rgba(52, 211, 153, 0.2)', paddingTop: '16px' }}>
+                {/* Bio Description */}
+                <p
+                  style={{
+                    fontSize: '0.88rem',
+                    color: '#d1fae5',
+                    lineHeight: 1.65,
+                    margin: 0,
+                    borderTop: '1px solid rgba(52, 211, 153, 0.2)',
+                    paddingTop: '16px',
+                  }}
+                >
                   CECTRACK was conceptualized and developed by <strong>Renowee Beloy</strong> from the <strong>Faculty of Computing, Engineering, and Technology (FaCET)</strong> as a specialized institutional software initiative for Davao Oriental State University. Engineered to resolve manual attendance bottlenecks, it replaces tedious paper logs with reliable digital identification, camera-based QR scanning, and automated attendance reporting.
                 </p>
-              </div>
+              </section>
             </div>
           )}
         </main>
