@@ -67,7 +67,7 @@ export default function About() {
               marginBottom: '16px',
             }}
           >
-            ✨ ABOUT CECTRACK
+             ABOUT CECTRACK
           </div>
 
           <h1
