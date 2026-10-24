@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
@@ -9,29 +9,22 @@ export default function StudentDashboard() {
   const router = useRouter();
   const fileInputRef = useRef(null);
   const idCardRef = useRef(null);
+  const scannerRef = useRef(null);
 
-  // Active Tab Navigation: 'my-id' | 'attendance' | 'events' | 'officers' | 'finance' | 'sanctions' | 'voting' | 'profile' | 'about'
-  const [activeTab, setActiveTab] = useState('my-id');
+  const [activeTab, setActiveTab] = useState('my-id'); // 'my-id' | 'attendance' | 'events' | 'profile' | 'scan-attendance'
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [downloadingId, setDownloadingId] = useState(false);
-
-  // Password Change Modal States
-  const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [passwordLoading, setPasswordLoading] = useState(false);
-  const [passwordMsg, setPasswordMsg] = useState({ type: '', text: '' });
 
   // Student Profile Data
   const [profile, setProfile] = useState({
     full_name: 'Renowee Beloy',
     school_id: '2024-0616',
     email: 'renowee.beloy@dorsu.edu.ph',
-    course: 'BSIT',
-    section: 'Section G',
-    year_level: 'Year 3',
+    course: 'BSCRIM',
+    section: 'Section A',
+    year_level: '3rd Year',
     avatar_url: '',
     can_scan: false,
   });
@@ -41,9 +34,16 @@ export default function StudentDashboard() {
   const [attendanceLogs, setAttendanceLogs] = useState([]);
   const [attendanceFilter, setAttendanceFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Scanner Clearance States
+  const [selectedEventId, setSelectedEventId] = useState('');
+  const [isCameraModalOpen, setIsCameraModalOpen] = useState(false);
+  const [scannedStudentData, setScannedStudentData] = useState(null);
+  const [showVerifyModal, setShowVerifyModal] = useState(false);
+  const [confirmingAttendance, setConfirmingAttendance] = useState(false);
   const [notification, setNotification] = useState({ type: '', message: '' });
 
-  // 12-Hour Time Formatter (e.g. 5:00 PM)
+  // Helper: Format Time to 12-Hour (AM/PM)
   const formatTime12Hour = (time24) => {
     if (!time24 || time24 === '--:--') return '--:--';
     if (time24.includes('AM') || time24.includes('PM')) return time24;
@@ -71,39 +71,34 @@ export default function StudentDashboard() {
     const FIVE_MINUTES_MS = 5 * 60 * 1000;
 
     const checkSessionActivity = async () => {
-      let lastActive = null;
-      try {
-        lastActive = localStorage.getItem('cec_last_active_time');
-      } catch (e) {}
-
+      const lastActive = localStorage.getItem('cec_last_active_time');
       const now = Date.now();
 
       if (lastActive) {
         const timeElapsed = now - parseInt(lastActive, 10);
         if (timeElapsed > FIVE_MINUTES_MS) {
-          try {
-            sessionStorage.clear();
-            localStorage.removeItem('cec_last_active_time');
-            if (supabase) await supabase.auth.signOut();
-          } catch (e) {}
+          sessionStorage.clear();
+          localStorage.removeItem('cec_last_active_time');
 
-          alert('Your session has expired due to 5 minutes of inactivity. Please log in again.');
+          if (supabase) {
+            try {
+              await supabase.auth.signOut();
+            } catch (e) {}
+          }
+
+          alert('Your session has expired due to 5 minutes of inactivity or browser closure. Please log in again.');
           router.replace('/login');
           return;
         }
       }
 
-      try {
-        localStorage.setItem('cec_last_active_time', now.toString());
-      } catch (e) {}
+      localStorage.setItem('cec_last_active_time', now.toString());
     };
 
     checkSessionActivity();
 
     const updateActivity = () => {
-      try {
-        localStorage.setItem('cec_last_active_time', Date.now().toString());
-      } catch (e) {}
+      localStorage.setItem('cec_last_active_time', Date.now().toString());
     };
 
     window.addEventListener('mousemove', updateActivity);
@@ -125,22 +120,29 @@ export default function StudentDashboard() {
   }, [router]);
 
   useEffect(() => {
+    if (typeof window !== 'undefined' && !window.Html5Qrcode) {
+      const script = document.createElement('script');
+      script.src = 'https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js';
+      script.async = true;
+      document.body.appendChild(script);
+    }
+  }, []);
+
+  useEffect(() => {
     fetchStudentData();
   }, []);
 
-  // Kunin ang student profile at attendance logs sa Supabase
+  // Kumuha ng data mula sa Supabase (Naka-sync ang Profile Photo sa Laptop at Mobile)
   const fetchStudentData = async () => {
     setLoading(true);
     try {
       if (!supabase) return;
 
-      let userEmail = null;
-      try {
-        userEmail = sessionStorage.getItem('cec_user_email');
-      } catch (e) {}
+      const cachedEmail = typeof window !== 'undefined' ? sessionStorage.getItem('cec_user_email') : null;
+      let userEmail = cachedEmail;
 
-      const { data: authData } = await supabase.auth.getUser();
-      if (authData?.user?.email) userEmail = authData.user.email;
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user?.email) userEmail = user.email;
 
       let currentStudentId = profile.school_id;
 
@@ -149,15 +151,13 @@ export default function StudentDashboard() {
           .from('profiles')
           .select('*')
           .eq('email', userEmail.trim().toLowerCase())
-          .maybeSingle();
+          .single();
 
         if (userProfile) {
           currentStudentId = userProfile.school_id || currentStudentId;
-          const hasScanClearance =
-            userProfile.can_scan === true ||
-            userProfile.role === 'staff' ||
-            userProfile.role === 'admin';
+          const hasScanClearance = userProfile.can_scan === true || userProfile.role === 'staff' || userProfile.role === 'admin';
 
+          // Kunin ang avatar_url mula sa Supabase Database upang pareho sa Laptop at Mobile
           setProfile((prev) => ({
             ...prev,
             full_name: userProfile.full_name || prev.full_name,
@@ -169,10 +169,14 @@ export default function StudentDashboard() {
             avatar_url: userProfile.avatar_url || '',
             can_scan: hasScanClearance,
           }));
+
+          if (typeof window !== 'undefined') {
+            sessionStorage.setItem('cec_can_scan', hasScanClearance ? 'true' : 'false');
+          }
         }
       }
 
-      // Kumuha ng events
+      // Kunin ang mga events
       const { data: eventsData } = await supabase
         .from('events')
         .select('*')
@@ -180,9 +184,12 @@ export default function StudentDashboard() {
 
       if (eventsData) {
         setEvents(eventsData);
+        if (eventsData.length > 0 && !selectedEventId) {
+          setSelectedEventId(eventsData[0].id);
+        }
       }
 
-      // Kumuha ng attendance para sa student na ito
+      // Kunin ang attendance logs para sa naturang estudyante
       const { data: studentLogs } = await supabase
         .from('attendance')
         .select('*')
@@ -195,7 +202,7 @@ export default function StudentDashboard() {
         });
       }
 
-      // Pagsamahin ang mga events at logs
+      // Pagsamahin ang events at attendance: Kung Time In pa lang, nananatiling '--:--' ang Time Out!
       if (eventsData && eventsData.length > 0) {
         const mergedRecords = eventsData.map((ev) => {
           const matchingLog = logsMap[ev.id];
@@ -204,10 +211,11 @@ export default function StudentDashboard() {
           return {
             id: ev.id,
             event_id: ev.id,
-            title: ev.title || 'Official Event',
+            title: ev.title || 'College Event',
             location: ev.location || 'FaCET Facade',
             date: ev.date || 'Scheduled',
             time_in: matchingLog && matchingLog.time_in ? formatTime12Hour(matchingLog.time_in) : '--:--',
+            // Blangko ang time_out kung wala pang na-scan na Time Out
             time_out: matchingLog && matchingLog.time_out ? formatTime12Hour(matchingLog.time_out) : '--:--',
             event_status: ev.status === 'active' ? 'ACTIVE' : 'CLOSED',
             status: isPresent ? 'PRESENT' : 'ABSENT',
@@ -215,17 +223,15 @@ export default function StudentDashboard() {
         });
 
         setAttendanceLogs(mergedRecords);
-      } else {
-        setAttendanceLogs([]);
       }
     } catch (err) {
-      console.error('Error fetching dashboard records:', err);
+      console.error('Error loading student dashboard data:', err);
     } finally {
       setLoading(false);
     }
   };
 
-  // Upload ng 2x2 photo direkta sa database (Cloud Sync)
+  // I-save ang photo direkta sa Supabase Database (Hindi sa Local Storage lamang)
   const handlePhotoUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -241,6 +247,7 @@ export default function StudentDashboard() {
     reader.onload = async (uploadEvent) => {
       const img = new Image();
       img.onload = async () => {
+        // I-compress ang 2x2 photo para magaan mai-save sa Supabase
         const canvas = document.createElement('canvas');
         const MAX_DIM = 400;
         let width = img.width;
@@ -264,21 +271,24 @@ export default function StudentDashboard() {
         ctx.drawImage(img, 0, 0, width, height);
         const compressedBase64 = canvas.toDataURL('image/jpeg', 0.8);
 
+        // Agarang i-update ang local state
         setProfile((prev) => ({ ...prev, avatar_url: compressedBase64 }));
 
         try {
+          // Direktang i-sync sa Supabase Cloud Database!
           const { error: dbError } = await supabase
             .from('profiles')
             .update({ avatar_url: compressedBase64 })
             .eq('school_id', profile.school_id);
 
           if (dbError) {
+            console.error('Error updating profile photo in Supabase:', dbError);
             alert('Could not sync photo to server: ' + dbError.message);
           } else {
-            showNotify('success', 'Profile photo updated and synced across all devices!');
+            showNotify('success', 'Profile photo saved and synced across all devices!');
           }
         } catch (err) {
-          console.warn('Avatar database sync error:', err);
+          console.warn('Database avatar save exception:', err);
         } finally {
           setUploadingPhoto(false);
         }
@@ -327,61 +337,19 @@ export default function StudentDashboard() {
     }
   };
 
-  const handleChangePassword = async (e) => {
-    e.preventDefault();
-    setPasswordMsg({ type: '', text: '' });
-
-    if (newPassword.length < 6) {
-      setPasswordMsg({ type: 'error', text: 'New password must be at least 6 characters.' });
-      return;
-    }
-
-    if (newPassword !== confirmPassword) {
-      setPasswordMsg({ type: 'error', text: 'New passwords do not match.' });
-      return;
-    }
-
-    setPasswordLoading(true);
-
-    try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({
-          password: newPassword.trim(),
-          must_change_password: false,
-        })
-        .eq('school_id', profile.school_id);
-
-      if (error) throw new Error(error.message);
-
-      setPasswordMsg({ type: 'success', text: 'Password successfully updated!' });
-      setTimeout(() => {
-        setIsChangePasswordOpen(false);
-        setNewPassword('');
-        setConfirmPassword('');
-        setPasswordMsg({ type: '', text: '' });
-      }, 1500);
-    } catch (err) {
-      setPasswordMsg({ type: 'error', text: err.message || 'Error updating password.' });
-    } finally {
-      setPasswordLoading(false);
-    }
-  };
-
   const handleSignOut = async () => {
     if (supabase) await supabase.auth.signOut();
-    try {
+    if (typeof window !== 'undefined') {
       sessionStorage.clear();
       localStorage.removeItem('cec_last_active_time');
-    } catch (e) {}
+    }
     router.replace('/');
   };
 
-  // Dynamic Metrics (Zero kung walang events)
+  // Stats Counters
   const totalEventsCount = attendanceLogs.length;
   const totalPresentCount = attendanceLogs.filter((l) => l.status === 'PRESENT').length;
   const totalAbsencesCount = attendanceLogs.filter((l) => l.status === 'ABSENT').length;
-  const absentEventsList = attendanceLogs.filter((l) => l.status === 'ABSENT');
   const complianceRate = totalEventsCount > 0 ? Math.round((totalPresentCount / totalEventsCount) * 100) : 0;
 
   const cleanQuery = searchQuery.trim().toLowerCase();
@@ -404,11 +372,12 @@ export default function StudentDashboard() {
   )}`;
 
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: '#f8fafc', display: 'flex', flexDirection: 'column', overflowX: 'hidden' }}>
+    <div className={styles.container} style={{ paddingBottom: 0, overflowX: 'hidden', maxWidth: '100vw' }}>
       <Head>
-        <title>Student Portal • CECTRACK</title>
+        <title>Student Portal • CEC TRACK</title>
         <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
         <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" async />
+        <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js" async />
       </Head>
 
       {/* TOP HEADER */}
@@ -419,66 +388,150 @@ export default function StudentDashboard() {
           zIndex: 40,
           backgroundColor: '#ffffff',
           borderBottom: '1px solid #e2e8f0',
-          height: '62px',
-          display: 'flex',
-          alignItems: 'center',
-          padding: '0 24px',
-          justifyContent: 'space-between',
+          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
+          width: '100%',
+          boxSizing: 'border-box',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <button
-            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-            style={{
-              background: 'none',
-              border: 'none',
-              fontSize: '1.4rem',
-              color: '#334155',
-              cursor: 'pointer',
-              padding: '4px',
-              display: 'flex',
-              alignItems: 'center',
-            }}
-          >
-            ☰
-          </button>
-          <span style={{ fontSize: '1.15rem', fontWeight: 900, color: '#15803d', letterSpacing: '-0.02em' }}>
-            CECTRACK
-          </span>
-        </div>
+        <div
+          style={{
+            maxWidth: '1280px',
+            margin: '0 auto',
+            padding: '8px 10px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '6px',
+            boxSizing: 'border-box',
+            width: '100%',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, flexShrink: 1 }}>
+            <button
+              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+              aria-label="Toggle Navigation Menu"
+              style={{
+                width: '38px',
+                height: '38px',
+                borderRadius: '12px',
+                backgroundColor: '#f1f5f9',
+                border: '1px solid #e2e8f0',
+                fontSize: '1.2rem',
+                fontWeight: 900,
+                color: '#0f172a',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+              }}
+            >
+              {isSidebarOpen ? '✕' : '☰'}
+            </button>
 
-        {/* TOP RIGHT PROFILE BADGE */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <div style={{ textAlign: 'right' }}>
-            <span style={{ fontSize: '0.82rem', fontWeight: 800, color: '#0f172a', display: 'block', lineHeight: 1.2 }}>
-              {profile.full_name}
-            </span>
-            <span style={{ fontSize: '0.72rem', color: '#15803d', fontWeight: 700 }}>
-              {profile.school_id}
-            </span>
+            <div style={{ minWidth: 0, overflow: 'hidden' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                <span
+                  style={{
+                    fontSize: '1.05rem',
+                    fontWeight: 900,
+                    color: '#15803d',
+                    letterSpacing: '-0.025em',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  CEC TRACK
+                </span>
+                <span
+                  style={{
+                    fontSize: '0.62rem',
+                    fontWeight: 900,
+                    padding: '2px 6px',
+                    borderRadius: '9999px',
+                    backgroundColor: profile.can_scan ? '#fef3c7' : '#dcfce7',
+                    color: profile.can_scan ? '#b45309' : '#15803d',
+                    border: `1px solid ${profile.can_scan ? '#fde68a' : '#bbf7d0'}`,
+                    textTransform: 'uppercase',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {profile.can_scan ? 'Scanner' : 'Student'}
+                </span>
+              </div>
+              <span
+                style={{
+                  fontSize: '0.68rem',
+                  fontWeight: 700,
+                  color: '#64748b',
+                  display: 'block',
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                }}
+              >
+                Student Access Portal
+              </span>
+            </div>
           </div>
 
           <div
             style={{
-              width: '36px',
-              height: '36px',
-              borderRadius: '50%',
-              backgroundColor: '#dcfce7',
-              border: '2px solid #15803d',
-              overflow: 'hidden',
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'center',
+              gap: '6px',
+              backgroundColor: '#ffffff',
+              border: '1px solid #e2e8f0',
+              borderRadius: '14px',
+              padding: '4px 8px',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
               flexShrink: 0,
+              maxWidth: '145px',
             }}
           >
-            {profile.avatar_url ? (
-              <img src={profile.avatar_url} alt={profile.full_name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-            ) : (
-              <span style={{ fontSize: '0.9rem', fontWeight: 900, color: '#15803d' }}>
-                {profile.full_name.charAt(0)}
+            <div style={{ textAlign: 'right', minWidth: 0 }}>
+              <span
+                style={{
+                  fontSize: '0.8rem',
+                  fontWeight: 900,
+                  color: '#0f172a',
+                  display: 'block',
+                  lineHeight: 1.15,
+                  maxWidth: '85px',
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                }}
+              >
+                {profile.full_name}
               </span>
-            )}
+              <span style={{ fontSize: '0.68rem', fontWeight: 800, color: '#15803d' }}>
+                {profile.school_id}
+              </span>
+            </div>
+
+            <div
+              style={{
+                width: '32px',
+                height: '32px',
+                borderRadius: '10px',
+                backgroundColor: '#dcfce7',
+                color: '#15803d',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontWeight: 900,
+                fontSize: '0.88rem',
+                flexShrink: 0,
+                border: '1px solid #bbf7d0',
+                overflow: 'hidden',
+              }}
+            >
+              {profile.avatar_url ? (
+                <img src={profile.avatar_url} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              ) : (
+                profile.full_name.charAt(0).toUpperCase()
+              )}
+            </div>
           </div>
         </div>
       </header>
@@ -490,760 +543,166 @@ export default function StudentDashboard() {
           style={{
             position: 'fixed',
             inset: 0,
-            backgroundColor: 'rgba(15, 23, 42, 0.5)',
+            backgroundColor: 'rgba(15, 23, 42, 0.55)',
+            backdropFilter: 'blur(3px)',
             zIndex: 90,
           }}
         />
       )}
 
-      <div style={{ display: 'flex', flex: 1 }}>
-        {/* ======================================================== */}
-        {/* SIDEBAR NAVIGATION (PURE GREEN THEME) */}
-        {/* ======================================================== */}
+      <div className={styles.portalWrapper}>
+        {/* SIDEBAR NAVIGATION */}
         <aside
           style={{
-            width: '210px',
+            position: 'fixed',
+            top: 0,
+            bottom: 0,
+            left: 0,
+            width: '280px',
+            maxWidth: '82vw',
             backgroundColor: '#ffffff',
             borderRight: '1px solid #e2e8f0',
+            zIndex: 100,
             display: 'flex',
             flexDirection: 'column',
             justifyContent: 'space-between',
-            padding: '24px 14px',
-            boxSizing: 'border-box',
-            flexShrink: 0,
-            position: isSidebarOpen ? 'fixed' : 'relative',
-            top: isSidebarOpen ? 0 : 'auto',
-            bottom: isSidebarOpen ? 0 : 'auto',
-            left: isSidebarOpen ? 0 : 'auto',
-            zIndex: isSidebarOpen ? 100 : 1,
+            padding: '20px 16px',
             boxShadow: isSidebarOpen ? '6px 0 25px rgba(0,0,0,0.15)' : 'none',
+            transform: isSidebarOpen ? 'translateX(0)' : 'translateX(-100%)',
+            transition: 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+            overflowY: 'auto',
+            boxSizing: 'border-box',
           }}
         >
           <div>
-            <div style={{ paddingLeft: '8px', marginBottom: '24px' }}>
-              <h2 style={{ fontSize: '1.25rem', fontWeight: 900, color: '#0f172a', margin: 0 }}>
-                Portal
-              </h2>
-              <span style={{ fontSize: '0.65rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                STUDENT ACCESS
-              </span>
-            </div>
-
-            <nav style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              {/* 1. My ID */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', paddingBottom: '14px', borderBottom: '1px solid #f1f5f9' }}>
+              <div>
+                <h2 style={{ fontSize: '1.25rem', fontWeight: 900, color: '#15803d', margin: 0 }}>Portal</h2>
+                <span style={{ fontSize: '0.68rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  STUDENT ACCESS
+                </span>
+              </div>
               <button
-                onClick={() => { setActiveTab('my-id'); setIsSidebarOpen(false); }}
+                onClick={() => setIsSidebarOpen(false)}
                 style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '12px',
-                  padding: '10px 14px',
-                  borderRadius: '12px',
+                  background: 'none',
                   border: 'none',
-                  fontSize: '0.85rem',
-                  fontWeight: activeTab === 'my-id' ? 900 : 700,
+                  fontSize: '1.2rem',
+                  fontWeight: 900,
+                  color: '#64748b',
                   cursor: 'pointer',
-                  textAlign: 'left',
-                  backgroundColor: activeTab === 'my-id' ? '#15803d' : 'transparent',
-                  color: activeTab === 'my-id' ? '#ffffff' : '#64748b',
-                  boxShadow: activeTab === 'my-id' ? '0 4px 12px rgba(21, 128, 61, 0.25)' : 'none',
-                  transition: 'all 0.15s ease',
+                  padding: '4px',
                 }}
               >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="3" y="4" width="18" height="16" rx="3" />
-                  <line x1="7" y1="8" x2="11" y2="8" />
-                  <line x1="7" y1="12" x2="11" y2="12" />
-                  <rect x="14" y="8" width="4" height="4" />
-                </svg>
+                ✕
+              </button>
+            </div>
+
+            <nav style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <button
+                onClick={() => { setActiveTab('my-id'); setIsSidebarOpen(false); }}
+                className={activeTab === 'my-id' ? `${styles.portalNavLink} ${styles.portalNavLinkActive}` : styles.portalNavLink}
+                style={{ fontSize: '0.92rem', padding: '12px 14px' }}
+              >
                 <span>My ID</span>
               </button>
 
-              {/* 2. Attendance */}
               <button
                 onClick={() => { setActiveTab('attendance'); setIsSidebarOpen(false); }}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '12px',
-                  padding: '10px 14px',
-                  borderRadius: '12px',
-                  border: 'none',
-                  fontSize: '0.85rem',
-                  fontWeight: activeTab === 'attendance' ? 900 : 700,
-                  cursor: 'pointer',
-                  textAlign: 'left',
-                  backgroundColor: activeTab === 'attendance' ? '#15803d' : 'transparent',
-                  color: activeTab === 'attendance' ? '#ffffff' : '#64748b',
-                  boxShadow: activeTab === 'attendance' ? '0 4px 12px rgba(21, 128, 61, 0.25)' : 'none',
-                  transition: 'all 0.15s ease',
-                }}
+                className={activeTab === 'attendance' ? `${styles.portalNavLink} ${styles.portalNavLinkActive}` : styles.portalNavLink}
+                style={{ fontSize: '0.92rem', padding: '12px 14px' }}
               >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M12 8v4l3 3" />
-                  <path d="M3.05 11a9 9 0 1 1 .5 4m-.5 5v-5h5" />
-                </svg>
                 <span>Attendance</span>
               </button>
 
-              {/* 3. Events */}
               <button
                 onClick={() => { setActiveTab('events'); setIsSidebarOpen(false); }}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '12px',
-                  padding: '10px 14px',
-                  borderRadius: '12px',
-                  border: 'none',
-                  fontSize: '0.85rem',
-                  fontWeight: activeTab === 'events' ? 900 : 700,
-                  cursor: 'pointer',
-                  textAlign: 'left',
-                  backgroundColor: activeTab === 'events' ? '#15803d' : 'transparent',
-                  color: activeTab === 'events' ? '#ffffff' : '#64748b',
-                  boxShadow: activeTab === 'events' ? '0 4px 12px rgba(21, 128, 61, 0.25)' : 'none',
-                  transition: 'all 0.15s ease',
-                }}
+                className={activeTab === 'events' ? `${styles.portalNavLink} ${styles.portalNavLinkActive}` : styles.portalNavLink}
+                style={{ fontSize: '0.92rem', padding: '12px 14px' }}
               >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="3" y="4" width="18" height="18" rx="2" />
-                  <line x1="16" y1="2" x2="16" y2="6" />
-                  <line x1="8" y1="2" x2="8" y2="6" />
-                  <line x1="3" y1="10" x2="21" y2="10" />
-                </svg>
                 <span>Events</span>
               </button>
 
-              {/* 4. Officers */}
-              <button
-                onClick={() => { setActiveTab('officers'); setIsSidebarOpen(false); }}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '12px',
-                  padding: '10px 14px',
-                  borderRadius: '12px',
-                  border: 'none',
-                  fontSize: '0.85rem',
-                  fontWeight: activeTab === 'officers' ? 900 : 700,
-                  cursor: 'pointer',
-                  textAlign: 'left',
-                  backgroundColor: activeTab === 'officers' ? '#15803d' : 'transparent',
-                  color: activeTab === 'officers' ? '#ffffff' : '#64748b',
-                  boxShadow: activeTab === 'officers' ? '0 4px 12px rgba(21, 128, 61, 0.25)' : 'none',
-                  transition: 'all 0.15s ease',
-                }}
-              >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="12" cy="8" r="5" />
-                  <polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88" />
-                </svg>
-                <span>Officers</span>
-              </button>
-
-              {/* 5. Finance */}
-              <button
-                onClick={() => { setActiveTab('finance'); setIsSidebarOpen(false); }}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '12px',
-                  padding: '10px 14px',
-                  borderRadius: '12px',
-                  border: 'none',
-                  fontSize: '0.85rem',
-                  fontWeight: activeTab === 'finance' ? 900 : 700,
-                  cursor: 'pointer',
-                  textAlign: 'left',
-                  backgroundColor: activeTab === 'finance' ? '#15803d' : 'transparent',
-                  color: activeTab === 'finance' ? '#ffffff' : '#64748b',
-                  boxShadow: activeTab === 'finance' ? '0 4px 12px rgba(21, 128, 61, 0.25)' : 'none',
-                  transition: 'all 0.15s ease',
-                }}
-              >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M21 12V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-5z" />
-                  <path d="M16 12h5" />
-                  <circle cx="18" cy="12" r="1" />
-                </svg>
-                <span>Finance</span>
-              </button>
-
-              {/* 6. Sanctions */}
-              <button
-                onClick={() => { setActiveTab('sanctions'); setIsSidebarOpen(false); }}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '12px',
-                  padding: '10px 14px',
-                  borderRadius: '12px',
-                  border: 'none',
-                  fontSize: '0.85rem',
-                  fontWeight: activeTab === 'sanctions' ? 900 : 700,
-                  cursor: 'pointer',
-                  textAlign: 'left',
-                  backgroundColor: activeTab === 'sanctions' ? '#15803d' : 'transparent',
-                  color: activeTab === 'sanctions' ? '#ffffff' : '#64748b',
-                  boxShadow: activeTab === 'sanctions' ? '0 4px 12px rgba(21, 128, 61, 0.25)' : 'none',
-                  transition: 'all 0.15s ease',
-                }}
-              >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                  <line x1="12" y1="8" x2="12" y2="12" />
-                  <line x1="12" y1="16" x2="12.01" y2="16" />
-                </svg>
-                <span>Sanctions</span>
-              </button>
-
-              {/* 7. Voting */}
-              <button
-                onClick={() => { setActiveTab('voting'); setIsSidebarOpen(false); }}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '12px',
-                  padding: '10px 14px',
-                  borderRadius: '12px',
-                  border: 'none',
-                  fontSize: '0.85rem',
-                  fontWeight: activeTab === 'voting' ? 900 : 700,
-                  cursor: 'pointer',
-                  textAlign: 'left',
-                  backgroundColor: activeTab === 'voting' ? '#15803d' : 'transparent',
-                  color: activeTab === 'voting' ? '#ffffff' : '#64748b',
-                  boxShadow: activeTab === 'voting' ? '0 4px 12px rgba(21, 128, 61, 0.25)' : 'none',
-                  transition: 'all 0.15s ease',
-                }}
-              >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="m9 12 2 2 4-4" />
-                  <path d="M5 7c0-1.1.9-2 2-2h10a2 2 0 0 1 2 2v12H5V7Z" />
-                  <path d="M22 19H2" />
-                </svg>
-                <span>Voting</span>
-              </button>
-
-              {/* 8. Profile */}
               <button
                 onClick={() => { setActiveTab('profile'); setIsSidebarOpen(false); }}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '12px',
-                  padding: '10px 14px',
-                  borderRadius: '12px',
-                  border: 'none',
-                  fontSize: '0.85rem',
-                  fontWeight: activeTab === 'profile' ? 900 : 700,
-                  cursor: 'pointer',
-                  textAlign: 'left',
-                  backgroundColor: activeTab === 'profile' ? '#15803d' : 'transparent',
-                  color: activeTab === 'profile' ? '#ffffff' : '#64748b',
-                  boxShadow: activeTab === 'profile' ? '0 4px 12px rgba(21, 128, 61, 0.25)' : 'none',
-                  transition: 'all 0.15s ease',
-                }}
+                className={activeTab === 'profile' ? `${styles.portalNavLink} ${styles.portalNavLinkActive}` : styles.portalNavLink}
+                style={{ fontSize: '0.92rem', padding: '12px 14px' }}
               >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-                  <circle cx="12" cy="7" r="4" />
-                </svg>
                 <span>Profile</span>
-              </button>
-
-              {/* 9. About */}
-              <button
-                onClick={() => { setActiveTab('about'); setIsSidebarOpen(false); }}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '12px',
-                  padding: '10px 14px',
-                  borderRadius: '12px',
-                  border: 'none',
-                  fontSize: '0.85rem',
-                  fontWeight: activeTab === 'about' ? 900 : 700,
-                  cursor: 'pointer',
-                  textAlign: 'left',
-                  backgroundColor: activeTab === 'about' ? '#15803d' : 'transparent',
-                  color: activeTab === 'about' ? '#ffffff' : '#64748b',
-                  boxShadow: activeTab === 'about' ? '0 4px 12px rgba(21, 128, 61, 0.25)' : 'none',
-                  transition: 'all 0.15s ease',
-                }}
-              >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="12" cy="12" r="10" />
-                  <line x1="12" y1="16" x2="12" y2="12" />
-                  <line x1="12" y1="8" x2="12.01" y2="8" />
-                </svg>
-                <span>About</span>
               </button>
             </nav>
           </div>
 
-          <div style={{ paddingTop: '16px' }}>
+          <div style={{ borderTop: '1px solid #f1f5f9', paddingTop: '16px', marginTop: '16px' }}>
             <button
               onClick={handleSignOut}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '10px',
-                width: '100%',
-                padding: '10px 14px',
-                background: 'none',
-                border: 'none',
-                color: '#b91c1c',
-                fontSize: '0.85rem',
-                fontWeight: 800,
-                cursor: 'pointer',
-                borderRadius: '8px',
-              }}
+              className={styles.portalNavLink}
+              style={{ color: '#b91c1c', fontWeight: 900, fontSize: '0.92rem', padding: '12px 14px' }}
             >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-                <polyline points="16 17 21 12 16 7" />
-                <line x1="21" y1="12" x2="9" y2="12" />
-              </svg>
+              <span>➔</span>
               <span>Sign Out</span>
             </button>
           </div>
         </aside>
 
-        {/* ======================================================== */}
-        {/* MAIN BODY VIEWPORT */}
-        {/* ======================================================== */}
-        <main style={{ flex: 1, padding: '32px 36px', boxSizing: 'border-box', overflowY: 'auto' }}>
+        {/* MAIN BODY CONTENT */}
+        <main className={styles.portalContentArea} style={{ padding: '16px 12px', width: '100%', boxSizing: 'border-box' }}>
           {notification.message && (
             <div
+              className={styles.alertMessage}
               style={{
-                marginBottom: '1.25rem',
+                marginBottom: '1rem',
                 fontSize: '0.85rem',
                 color: notification.type === 'error' ? '#b91c1c' : '#15803d',
                 backgroundColor: notification.type === 'error' ? '#fef2f2' : '#f0fdf4',
-                border: `1px solid ${notification.type === 'error' ? '#fee2e2' : '#bbf7d0'}`,
-                padding: '10px 16px',
-                borderRadius: '12px',
+                borderColor: notification.type === 'error' ? '#fee2e2' : '#bbf7d0',
+                padding: '10px 14px',
               }}
             >
               {notification.message}
             </div>
           )}
 
-          {/* TAB 1: SANCTIONS (DYNAMIC ZERO STATE) */}
-          {activeTab === 'sanctions' && (
-            <div style={{ maxWidth: '980px', margin: '0 auto', width: '100%' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px' }}>
-                <div>
-                  <h1 style={{ fontSize: '1.75rem', fontWeight: 900, color: '#0f172a', margin: '0 0 6px 0', letterSpacing: '-0.025em' }}>
-                    My Attendance &amp; Sanctions
-                  </h1>
-                  <p style={{ fontSize: '0.88rem', color: '#64748b', margin: 0, fontWeight: 500 }}>
-                    Monitor your event attendance compliance, absences, and assigned disciplinary duties.
-                  </p>
-                </div>
-
-                <button
-                  onClick={fetchStudentData}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    backgroundColor: '#ffffff',
-                    border: '1px solid #e2e8f0',
-                    borderRadius: '8px',
-                    padding: '8px 16px',
-                    fontSize: '0.82rem',
-                    fontWeight: 700,
-                    color: '#334155',
-                    cursor: 'pointer',
-                  }}
-                >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
-                  </svg>
-                  <span>Refresh</span>
-                </button>
-              </div>
-
-              {/* STAT CARDS (GREEN THEME) */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px', marginBottom: '22px' }}>
-                <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '20px 24px', display: 'flex', alignItems: 'center', gap: '16px' }}>
-                  <div style={{ width: '42px', height: '42px', borderRadius: '12px', backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#15803d' }}>
-                    📅
-                  </div>
-                  <div>
-                    <span style={{ fontSize: '0.68rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase' }}>TOTAL EVENTS</span>
-                    <div style={{ fontSize: '1.75rem', fontWeight: 900, color: '#0f172a', lineHeight: 1.15 }}>{totalEventsCount}</div>
-                  </div>
-                </div>
-
-                <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '20px 24px', display: 'flex', alignItems: 'center', gap: '16px' }}>
-                  <div style={{ width: '42px', height: '42px', borderRadius: '12px', backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#15803d' }}>
-                    👤
-                  </div>
-                  <div>
-                    <span style={{ fontSize: '0.68rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase' }}>EVENTS ATTENDED</span>
-                    <div style={{ fontSize: '1.75rem', fontWeight: 900, color: '#15803d', lineHeight: 1.15 }}>{totalPresentCount}</div>
-                  </div>
-                </div>
-
-                <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '20px 24px', display: 'flex', alignItems: 'center', gap: '16px' }}>
-                  <div style={{ width: '42px', height: '42px', borderRadius: '12px', backgroundColor: totalAbsencesCount > 0 ? '#fef2f2' : '#f0fdf4', border: `1px solid ${totalAbsencesCount > 0 ? '#fee2e2' : '#bbf7d0'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: totalAbsencesCount > 0 ? '#dc2626' : '#15803d' }}>
-                    ⚠️
-                  </div>
-                  <div>
-                    <span style={{ fontSize: '0.68rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase' }}>TOTAL ABSENCES</span>
-                    <div style={{ fontSize: '1.75rem', fontWeight: 900, color: totalAbsencesCount > 0 ? '#dc2626' : '#15803d', lineHeight: 1.15 }}>{totalAbsencesCount}</div>
-                  </div>
-                </div>
-              </div>
-
-              {/* ATTENDANCE ALERT BOX: LALABAS LANG KUNG MAY ABSENCES TALAGA */}
-              {totalAbsencesCount > 0 && (
-                <div style={{ backgroundColor: '#fff1f2', border: '1px solid #ffe4e6', borderRadius: '18px', padding: '20px 24px', marginBottom: '24px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#be123c', fontWeight: 900, fontSize: '0.88rem', marginBottom: '6px' }}>
-                    <span>⚠️</span>
-                    <span>Attendance Alert ({totalAbsencesCount} Event Absences)</span>
-                  </div>
-                  <p style={{ margin: '0 0 12px 0', fontSize: '0.8rem', color: '#9f1239' }}>
-                    You were recorded absent from the following mandatory event(s). Please review your assigned sanction duties below.
-                  </p>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                    {absentEventsList.map((item) => (
-                      <span key={item.id} style={{ backgroundColor: '#ffffff', border: '1px solid #fecdd3', color: '#be123c', borderRadius: '9999px', padding: '5px 14px', fontSize: '0.68rem', fontWeight: 800, textTransform: 'uppercase' }}>
-                        {item.title}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* OFFICIAL SANCTIONS & PENALTIES CARD */}
-              <div style={{ marginBottom: '14px' }}>
-                <h3 style={{ fontSize: '0.82rem', fontWeight: 900, color: '#0f172a', textTransform: 'uppercase', letterSpacing: '0.04em', margin: 0 }}>
-                  OFFICIAL SANCTIONS &amp; PENALTIES ({totalAbsencesCount})
-                </h3>
-              </div>
-
-              <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '20px', padding: '48px 24px', textAlign: 'center' }}>
-                <div style={{ width: '64px', height: '64px', borderRadius: '20px', backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#15803d', margin: '0 auto 16px auto', fontSize: '1.8rem' }}>
-                  🕒
-                </div>
-
-                <span style={{ display: 'inline-block', backgroundColor: '#f0fdf4', color: '#15803d', fontSize: '0.68rem', fontWeight: 900, padding: '4px 12px', borderRadius: '9999px', border: '1px solid #bbf7d0', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '12px' }}>
-                  POLICY NOTICE
-                </span>
-
-                <h2 style={{ fontSize: '1.45rem', fontWeight: 900, color: '#0f172a', margin: '0 0 10px 0' }}>
-                  {totalAbsencesCount === 0 ? 'No Active Sanctions' : 'Sanctions Will Be Coming Soon'}
-                </h2>
-
-                <p style={{ fontSize: '0.85rem', color: '#64748b', maxWidth: '460px', margin: '0 auto 16px auto', lineHeight: 1.55 }}>
-                  {totalAbsencesCount === 0
-                    ? 'You currently have 0 recorded absences. You are in full compliance with all institutional assemblies and activities.'
-                    : `You currently have ${totalAbsencesCount} recorded absences. The specific requirements and community duties will be announced soon.`}
-                </p>
-
-                <p style={{ fontSize: '0.72rem', color: '#94a3b8', margin: 0 }}>
-                  Please stay updated with your organizational officers for upcoming guidelines.
-                </p>
-              </div>
-            </div>
-          )}
-
-          {/* TAB 2: PROFILE */}
-          {activeTab === 'profile' && (
-            <div style={{ maxWidth: '640px', margin: '0 auto', width: '100%' }}>
-              <div style={{ textAlign: 'center', marginBottom: '20px' }}>
-                <h1 style={{ fontSize: '1.65rem', fontWeight: 900, color: '#0f172a', margin: '0 0 4px 0' }}>
-                  {profile.full_name}
-                </h1>
-                <p style={{ fontSize: '0.85rem', color: '#64748b', margin: 0, fontWeight: 700 }}>
-                  {profile.course} • {profile.section} • {profile.year_level}
-                </p>
-              </div>
-
-              {/* CARD 1: VERIFIED STUDENT DETAILS */}
-              <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '20px', padding: '24px', marginBottom: '20px', boxShadow: '0 2px 6px rgba(0,0,0,0.02)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #f1f5f9', paddingBottom: '14px', marginBottom: '14px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ color: '#15803d', fontSize: '1.1rem' }}>✓</span>
-                    <span style={{ fontSize: '0.78rem', fontWeight: 900, color: '#0f172a', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                      VERIFIED STUDENT DETAILS
-                    </span>
-                  </div>
-                  <span style={{ backgroundColor: '#f0fdf4', color: '#15803d', border: '1px solid #bbf7d0', borderRadius: '9999px', padding: '3px 10px', fontSize: '0.68rem', fontWeight: 900, textTransform: 'uppercase' }}>
-                    OFFICIAL RECORD
-                  </span>
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-                    <div style={{ width: '38px', height: '38px', borderRadius: '10px', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b' }}>
-                      👤
-                    </div>
-                    <div>
-                      <span style={{ fontSize: '0.68rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase' }}>FULL NAME</span>
-                      <div style={{ fontSize: '0.92rem', fontWeight: 900, color: '#0f172a' }}>{profile.full_name}</div>
-                    </div>
-                  </div>
-
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-                    <div style={{ width: '38px', height: '38px', borderRadius: '10px', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b', fontWeight: 900 }}>
-                      #
-                    </div>
-                    <div>
-                      <span style={{ fontSize: '0.68rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase' }}>STUDENT ID</span>
-                      <div style={{ fontSize: '0.92rem', fontWeight: 900, color: '#15803d' }}>{profile.school_id}</div>
-                    </div>
-                  </div>
-
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-                    <div style={{ width: '38px', height: '38px', borderRadius: '10px', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b' }}>
-                      ✉️
-                    </div>
-                    <div>
-                      <span style={{ fontSize: '0.68rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase' }}>EMAIL ADDRESS</span>
-                      <div style={{ fontSize: '0.92rem', fontWeight: 900, color: '#0f172a' }}>{profile.email}</div>
-                    </div>
-                  </div>
-
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-                    <div style={{ width: '38px', height: '38px', borderRadius: '10px', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b' }}>
-                      🎓
-                    </div>
-                    <div>
-                      <span style={{ fontSize: '0.68rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase' }}>COURSE</span>
-                      <div style={{ fontSize: '0.92rem', fontWeight: 900, color: '#0f172a' }}>{profile.course}</div>
-                    </div>
-                  </div>
-
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-                    <div style={{ width: '38px', height: '38px', borderRadius: '10px', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b' }}>
-                      📖
-                    </div>
-                    <div>
-                      <span style={{ fontSize: '0.68rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase' }}>SECTION</span>
-                      <div style={{ fontSize: '0.92rem', fontWeight: 900, color: '#0f172a' }}>{profile.section}</div>
-                    </div>
-                  </div>
-
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-                    <div style={{ width: '38px', height: '38px', borderRadius: '10px', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b' }}>
-                      ⏳
-                    </div>
-                    <div>
-                      <span style={{ fontSize: '0.68rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase' }}>YEAR LEVEL</span>
-                      <div style={{ fontSize: '0.92rem', fontWeight: 900, color: '#0f172a' }}>{profile.year_level}</div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* CARD 2: PORTAL ACCOUNT PASSWORD */}
-              <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '20px', padding: '20px 24px', marginBottom: '20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-                  <div style={{ width: '40px', height: '40px', borderRadius: '12px', backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem', color: '#15803d' }}>
-                    🔑
-                  </div>
-                  <div>
-                    <h4 style={{ margin: '0 0 2px 0', fontSize: '0.95rem', fontWeight: 900, color: '#0f172a' }}>
-                      Portal Account Password
-                    </h4>
-                    <p style={{ margin: 0, fontSize: '0.75rem', color: '#64748b' }}>
-                      Keep your account secure by maintaining a strong, confidential password.
-                    </p>
-                  </div>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => setIsChangePasswordOpen(true)}
-                  style={{
-                    backgroundColor: '#ffffff',
-                    border: '1px solid #e2e8f0',
-                    borderRadius: '10px',
-                    padding: '8px 16px',
-                    fontSize: '0.8rem',
-                    fontWeight: 800,
-                    color: '#0f172a',
-                    cursor: 'pointer',
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  🔒 Change Password
-                </button>
-              </div>
-
-              {/* CARD 3: ADMINISTRATOR MANAGED PROFILE FOOTER NOTE */}
-              <div style={{ backgroundColor: '#eff6ff', border: '1px solid #dbeafe', borderRadius: '16px', padding: '16px 20px', display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
-                <span style={{ color: '#2563eb', fontSize: '1.1rem' }}>ℹ️</span>
-                <div>
-                  <span style={{ fontSize: '0.72rem', fontWeight: 900, color: '#1e40af', textTransform: 'uppercase' }}>
-                    ADMINISTRATOR MANAGED PROFILE
-                  </span>
-                  <p style={{ margin: '2px 0 0 0', fontSize: '0.75rem', color: '#3b82f6', lineHeight: 1.45 }}>
-                    Your official student record (Name, Student ID, Email, Course, Section, and Year) is maintained by the organization administrators. If you need any corrections to your details, please contact an organization officer or administrator.
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* TAB 3: ABOUT US (BUONG DETALYE NG ABOUT NASA LOOB NA) */}
-          {activeTab === 'about' && (
-            <div style={{ maxWidth: '980px', margin: '0 auto', width: '100%' }}>
-              <div style={{ textAlign: 'center', marginBottom: '32px' }}>
-                <div style={{ display: 'inline-block', backgroundColor: '#f0fdf4', color: '#15803d', border: '1px solid #bbf7d0', padding: '6px 18px', borderRadius: '9999px', fontSize: '0.75rem', fontWeight: 900, textTransform: 'uppercase', marginBottom: '12px' }}>
-                  ✨ ABOUT CECTRACK
-                </div>
-                <h1 style={{ fontSize: '2.2rem', fontWeight: 900, color: '#0f172a', margin: '0 0 10px 0', letterSpacing: '-0.03em' }}>
-                  Transforming Student Organization Operations
-                </h1>
-                <p style={{ fontSize: '0.92rem', color: '#64748b', maxWidth: '640px', margin: '0 auto', lineHeight: 1.6 }}>
-                  CECTRACK is an all-in-one centralized digital ecosystem engineered specifically for the students, officers, and faculty of <strong>Davao Oriental State University – Cateel Extension Campus (DOrSU-CEC)</strong>.
-                </p>
-              </div>
-
-              <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '22px', padding: '28px', marginBottom: '32px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '14px' }}>
-                  <div style={{ width: '42px', height: '42px', borderRadius: '12px', backgroundColor: '#f0fdf4', color: '#15803d', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.25rem', border: '1px solid #bbf7d0' }}>
-                    📑
-                  </div>
-                  <div>
-                    <h2 style={{ fontSize: '1.25rem', fontWeight: 900, color: '#0f172a', margin: 0 }}>What is CECTRACK?</h2>
-                    <span style={{ fontSize: '0.72rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase' }}>
-                      Institutional Governance &amp; Activity Operating Platform
-                    </span>
-                  </div>
-                </div>
-                <p style={{ fontSize: '0.88rem', color: '#475569', lineHeight: 1.65, margin: '0 0 10px 0' }}>
-                  <strong>CECTRACK</strong> is a purpose-built platform designed to modernize campus administration. It eliminates slow paper sign-in sheets, misplaced tally forms, and disorganized spreadsheets by providing automated, tamper-proof digital attendance and student tracking.
-                </p>
-                <p style={{ fontSize: '0.88rem', color: '#475569', lineHeight: 1.65, margin: 0 }}>
-                  Equipped with live camera QR scanners, real-time duplicate check-in prevention, and instant student profile verification, CECTRACK ensures total transparency, accuracy, and operational ease for both student leaders and faculty advisers.
-                </p>
-              </div>
-
-              {/* Developer Profile Card */}
-              <div
-                style={{
-                  background: 'linear-gradient(145deg, #064e3b 0%, #022c22 100%)',
-                  borderRadius: '26px',
-                  padding: '32px 28px',
-                  color: '#ffffff',
-                  boxShadow: '0 16px 36px rgba(6, 78, 59, 0.25)',
-                  border: '1px solid rgba(52, 211, 153, 0.25)',
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '20px', flexWrap: 'wrap', marginBottom: '20px' }}>
-                  <div
-                    style={{
-                      width: '100px',
-                      height: '100px',
-                      borderRadius: '22px',
-                      backgroundColor: '#065f46',
-                      border: '3px solid #34d399',
-                      overflow: 'hidden',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      flexShrink: 0,
-                    }}
-                  >
-                    <img
-                      src="/beloy.jpg"
-                      alt="Renowee Beloy"
-                      style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center 15%' }}
-                      onError={(e) => {
-                        e.currentTarget.src = 'https://github.com/renoweebeloy.png';
-                      }}
-                    />
-                  </div>
-
-                  <div>
-                    <span style={{ fontSize: '0.7rem', fontWeight: 900, color: '#fbbf24', letterSpacing: '0.08em', textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>
-                      DEVELOPED BY
-                    </span>
-                    <h2 style={{ fontSize: '1.75rem', fontWeight: 900, margin: '0 0 4px 0', color: '#ffffff' }}>
-                      Renowee Beloy
-                    </h2>
-                    <p style={{ fontSize: '0.85rem', color: '#a7f3d0', margin: 0, fontWeight: 700, lineHeight: 1.4 }}>
-                      Lead Creator • BS Information Technology (BSIT)
-                      <br />
-                      Faculty of Computing, Engineering, and Technology (FaCET)
-                    </p>
-                  </div>
-                </div>
-
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '18px' }}>
-                  <span style={{ backgroundColor: 'rgba(52, 211, 153, 0.15)', color: '#6ee7b7', border: '1px solid rgba(52, 211, 153, 0.35)', padding: '5px 12px', borderRadius: '9999px', fontSize: '0.72rem', fontWeight: 800 }}>
-                    Developer
-                  </span>
-                  <span style={{ backgroundColor: 'rgba(56, 189, 248, 0.15)', color: '#7dd3fc', border: '1px solid rgba(56, 189, 248, 0.35)', padding: '5px 12px', borderRadius: '9999px', fontSize: '0.72rem', fontWeight: 800 }}>
-                    💻 Full-Stack Web &amp; Database Systems
-                  </span>
-                  <span style={{ backgroundColor: 'rgba(251, 191, 36, 0.15)', color: '#fde68a', border: '1px solid rgba(251, 191, 36, 0.35)', padding: '5px 12px', borderRadius: '9999px', fontSize: '0.72rem', fontWeight: 800 }}>
-                    📍 Davao Oriental State University Main Campus
-                  </span>
-                </div>
-
-                <p style={{ fontSize: '0.85rem', color: '#d1fae5', lineHeight: 1.65, margin: 0, borderTop: '1px solid rgba(52, 211, 153, 0.2)', paddingTop: '16px' }}>
-                  CECTRACK was conceptualized and developed by <strong>Renowee Beloy</strong> from the <strong>Faculty of Computing, Engineering, and Technology (FaCET)</strong> as a specialized institutional software initiative for Davao Oriental State University. Engineered to resolve manual attendance bottlenecks, it replaces tedious paper logs with reliable digital identification, camera-based QR scanning, and automated attendance reporting.
-                </p>
-              </div>
-            </div>
-          )}
-
-          {/* TAB 4: MY ID */}
+          {/* TAB 1: MY DIGITAL ID */}
           {activeTab === 'my-id' && (
-            <div style={{ maxWidth: '980px', margin: '0 auto' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+            <div style={{ maxWidth: '1000px', margin: '0 auto', width: '100%' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px', flexWrap: 'wrap', gap: '10px' }}>
                 <div>
-                  <h1 style={{ fontSize: '1.75rem', fontWeight: 900, color: '#0f172a', margin: '0 0 6px 0' }}>
-                    My Digital ID
-                  </h1>
-                  <p style={{ fontSize: '0.88rem', color: '#64748b', margin: 0 }}>
-                    Official digital credential badge for attendance scanning.
+                  <h1 className={styles.adminTitle} style={{ fontSize: '1.45rem', margin: 0 }}>My Digital ID</h1>
+                  <p className={styles.adminSubtitle} style={{ fontSize: '0.82rem', margin: '4px 0 0 0' }}>
+                    Your official scannable organization credentials.
                   </p>
                 </div>
                 {profile.avatar_url && (
                   <button
                     onClick={handleDownloadIdCard}
                     disabled={downloadingId}
-                    style={{
-                      padding: '10px 18px',
-                      backgroundColor: '#15803d',
-                      color: '#ffffff',
-                      border: 'none',
-                      borderRadius: '10px',
-                      fontWeight: 800,
-                      fontSize: '0.85rem',
-                      cursor: 'pointer',
-                    }}
+                    className={styles.adminPrimaryBtn}
+                    style={{ minHeight: '44px', fontSize: '0.88rem', padding: '10px 16px' }}
                   >
                     {downloadingId ? 'Generating...' : 'Download Official ID'}
                   </button>
                 )}
               </div>
 
-              <input type="file" ref={fileInputRef} onChange={handlePhotoUpload} accept="image/*" style={{ display: 'none' }} />
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handlePhotoUpload}
+                accept="image/*"
+                style={{ display: 'none' }}
+              />
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '24px' }}>
-                <div style={{ maxWidth: '340px', margin: '0 auto', width: '100%' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))', gap: '20px', alignItems: 'start', width: '100%' }}>
+                <div className={styles.digitalIdCard} style={{ margin: '0 auto', maxWidth: '340px', width: '100%' }}>
                   <div
                     ref={idCardRef}
+                    className={styles.idCardInner}
                     style={{
-                      backgroundColor: '#ffffff',
-                      borderRadius: '26px',
-                      border: '1px solid #e2e8f0',
-                      boxShadow: '0 10px 25px rgba(0,0,0,0.06)',
-                      padding: '70px 20px 24px 20px',
-                      textAlign: 'center',
                       position: 'relative',
                       overflow: 'hidden',
+                      paddingTop: '64px',
+                      backgroundColor: '#ffffff',
                     }}
                   >
                     <div
@@ -1254,18 +713,21 @@ export default function StudentDashboard() {
                         right: 0,
                         height: '110px',
                         backgroundColor: '#15803d',
+                        borderTopLeftRadius: '26px',
+                        borderTopRightRadius: '26px',
                         borderBottomLeftRadius: '36px',
                         borderBottomRightRadius: '36px',
                         display: 'flex',
                         alignItems: 'flex-start',
                         justifyContent: 'center',
-                        paddingTop: '16px',
+                        paddingTop: '14px',
+                        zIndex: 1,
                       }}
                     >
                       <span
                         style={{
                           color: '#ffffff',
-                          fontSize: '0.8rem',
+                          fontSize: '0.82rem',
                           fontWeight: 900,
                           letterSpacing: '0.14em',
                           textTransform: 'uppercase',
@@ -1273,6 +735,7 @@ export default function StudentDashboard() {
                           backdropFilter: 'blur(5px)',
                           padding: '3px 14px',
                           borderRadius: '9999px',
+                          border: '1px solid rgba(255, 255, 255, 0.38)',
                         }}
                       >
                         CEC- TRACK
@@ -1281,6 +744,7 @@ export default function StudentDashboard() {
 
                     <div
                       onClick={() => fileInputRef.current?.click()}
+                      className={styles.idPhotoWrap}
                       style={{
                         cursor: 'pointer',
                         position: 'relative',
@@ -1292,17 +756,25 @@ export default function StudentDashboard() {
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        width: '94px',
-                        height: '94px',
-                        borderRadius: '26px',
+                        width: '90px',
+                        height: '90px',
+                        borderRadius: '24px',
                         margin: '8px auto 0 auto',
-                        boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
                       }}
                     >
                       {profile.avatar_url ? (
-                        <img src={profile.avatar_url} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        <img
+                          src={profile.avatar_url}
+                          alt="Student ID Photo"
+                          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                        />
                       ) : (
-                        <span style={{ fontSize: '2rem' }}>👤</span>
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', color: '#64748b' }}>
+                          <span style={{ fontSize: '1.8rem' }}>👤</span>
+                          <span style={{ fontSize: '0.62rem', fontWeight: 900, color: '#15803d', marginTop: '2px' }}>
+                            + Upload
+                          </span>
+                        </div>
                       )}
                     </div>
 
@@ -1313,10 +785,10 @@ export default function StudentDashboard() {
                         background: 'none',
                         border: 'none',
                         color: '#15803d',
-                        fontSize: '0.75rem',
+                        fontSize: '0.72rem',
                         fontWeight: 800,
                         cursor: 'pointer',
-                        marginTop: '6px',
+                        marginTop: '4px',
                         textDecoration: 'underline',
                         position: 'relative',
                         zIndex: 2,
@@ -1325,78 +797,214 @@ export default function StudentDashboard() {
                       {uploadingPhoto ? 'Uploading...' : profile.avatar_url ? 'Change Photo' : 'Upload 2x2 Photo'}
                     </button>
 
-                    <h2 style={{ fontSize: '1.25rem', fontWeight: 900, color: '#0f172a', margin: '10px 0 2px 0' }}>
+                    <h2 className={styles.idStudentName} style={{ marginTop: '6px', fontSize: '1.25rem', position: 'relative', zIndex: 2 }}>
                       {profile.full_name}
                     </h2>
-                    <div style={{ fontSize: '0.7rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase' }}>STUDENT ID</div>
-                    <div style={{ fontSize: '1.1rem', fontWeight: 900, color: '#15803d', margin: '2px 0 14px 0' }}>{profile.school_id}</div>
+
+                    <div className={styles.idLabel} style={{ position: 'relative', zIndex: 2 }}>STUDENT ID</div>
+                    <div className={styles.idSchoolNumber} style={{ position: 'relative', zIndex: 2, fontSize: '1.1rem' }}>{profile.school_id}</div>
 
                     {profile.avatar_url ? (
-                      <div>
-                        <div style={{ maxWidth: '180px', margin: '0 auto', padding: '10px', border: '1px solid #e2e8f0', borderRadius: '16px' }}>
-                          <img src={qrCodeUrl} alt="QR Code" crossOrigin="anonymous" style={{ width: '100%', height: 'auto', display: 'block' }} />
+                      <div style={{ position: 'relative', zIndex: 2 }}>
+                        <div className={styles.idQrBox} style={{ maxWidth: '190px', margin: '10px auto' }}>
+                          <img src={qrCodeUrl} alt="Student QR Code" crossOrigin="anonymous" style={{ width: '100%', height: 'auto' }} />
                         </div>
-                        <div style={{ fontSize: '0.72rem', fontWeight: 900, color: '#15803d', letterSpacing: '0.08em', marginTop: '10px' }}>
+
+                        <div
+                          style={{
+                            fontSize: '0.75rem',
+                            fontWeight: 900,
+                            color: '#15803d',
+                            letterSpacing: '0.08em',
+                            textTransform: 'uppercase',
+                            marginTop: '8px',
+                          }}
+                        >
                           SCAN FOR ATTENDANCE
                         </div>
                       </div>
                     ) : (
-                      <div style={{ padding: '16px', backgroundColor: '#fef2f2', border: '1px dashed #fca5a5', borderRadius: '16px' }}>
-                        <div style={{ fontSize: '0.8rem', fontWeight: 900, color: '#991b1b' }}>QR Code Locked</div>
-                        <p style={{ fontSize: '0.7rem', color: '#b91c1c', margin: '4px 0 0 0' }}>
-                          Upload your photo above to activate your Attendance QR Code.
+                      <div
+                        style={{
+                          position: 'relative',
+                          zIndex: 2,
+                          margin: '14px 10px',
+                          padding: '16px 12px',
+                          backgroundColor: '#fef2f2',
+                          border: '1px dashed #fca5a5',
+                          borderRadius: '18px',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          gap: '6px',
+                        }}
+                      >
+                        <span style={{ fontSize: '1.6rem' }}>🔒</span>
+                        <div style={{ fontSize: '0.82rem', fontWeight: 900, color: '#991b1b' }}>
+                          QR Code Locked
+                        </div>
+                        <p style={{ fontSize: '0.7rem', color: '#b91c1c', margin: 0, lineHeight: 1.35, maxWidth: '200px' }}>
+                          Please upload your official ID photo above to activate and display your Attendance QR Code.
                         </p>
+                        <button
+                          type="button"
+                          onClick={() => fileInputRef.current?.click()}
+                          style={{
+                            marginTop: '4px',
+                            backgroundColor: '#15803d',
+                            color: '#ffffff',
+                            border: 'none',
+                            borderRadius: '10px',
+                            padding: '6px 12px',
+                            fontSize: '0.72rem',
+                            fontWeight: 800,
+                            cursor: 'pointer',
+                          }}
+                        >
+                          Upload Photo Now
+                        </button>
                       </div>
                     )}
+
+                    <div style={{ borderTop: '1px solid #f1f5f9', marginTop: '14px', paddingTop: '8px', position: 'relative', zIndex: 2 }}>
+                      <span
+                        style={{
+                          fontSize: '0.68rem',
+                          fontWeight: 900,
+                          color: '#94a3b8',
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.06em',
+                        }}
+                      >
+                        CATEEL EXTENSION CAMPUS
+                      </span>
+                    </div>
                   </div>
                 </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                  <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '20px', padding: '24px' }}>
-                    <h3 style={{ fontSize: '1.05rem', fontWeight: 900, color: '#0f172a', margin: '0 0 8px 0' }}>
-                      Universal Cloud Sync
-                    </h3>
-                    <p style={{ fontSize: '0.85rem', color: '#64748b', lineHeight: 1.6, margin: 0 }}>
-                      Your profile and uploaded credentials synchronize in real time. Changes made on desktop instantly appear on your mobile phone upon login.
-                    </p>
+                {/* INFO CARDS */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', width: '100%' }}>
+                  <div className={styles.adminFormCard} style={{ backgroundColor: '#f0fdf4', borderColor: '#bbf7d0', padding: '16px' }}>
+                    <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+                      <span style={{ fontSize: '1.4rem' }}>📱</span>
+                      <div>
+                        <h4 style={{ margin: '0 0 4px 0', fontSize: '0.9rem', fontWeight: 900, color: '#166534' }}>
+                          Universal Device Cloud Sync
+                        </h4>
+                        <p style={{ margin: 0, fontSize: '0.8rem', color: '#15803d', lineHeight: 1.45 }}>
+                          Your uploaded ID picture is saved directly to your account. Open your account on your laptop or phone anytime and your picture is immediately updated.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className={styles.adminFormCard} style={{ padding: '16px' }}>
+                    <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+                      <span style={{ fontSize: '1.4rem' }}>🛡️</span>
+                      <div>
+                        <h4 style={{ margin: '0 0 4px 0', fontSize: '0.9rem', fontWeight: 900, color: '#0f172a' }}>
+                          Official Usage Policy
+                        </h4>
+                        <ul style={{ margin: '4px 0 0 0', paddingLeft: '16px', fontSize: '0.78rem', color: '#64748b', lineHeight: 1.5 }}>
+                          <li>Present this QR code for attendance monitoring at all official assemblies.</li>
+                          <li>This code is non-transferable. Presenting another student&apos;s code is prohibited.</li>
+                        </ul>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
           )}
 
-          {/* TAB 5: ATTENDANCE TABLE */}
+          {/* TAB 2: ATTENDANCE RECORDS (BLANK TIME OUT WHEN TIME IN ONLY) */}
           {activeTab === 'attendance' && (
-            <div style={{ maxWidth: '980px', margin: '0 auto' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+            <div style={{ maxWidth: '1000px', margin: '0 auto', width: '100%' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px', flexWrap: 'wrap', gap: '10px' }}>
                 <div>
-                  <h1 style={{ fontSize: '1.75rem', fontWeight: 900, color: '#0f172a', margin: '0 0 6px 0' }}>
-                    Attendance Records
-                  </h1>
-                  <p style={{ fontSize: '0.88rem', color: '#64748b', margin: 0 }}>
-                    Detailed log of all verified check-in and check-out timestamps.
-                  </p>
+                  <span className={styles.tagBadge}>OFFICIAL ATTENDANCE HISTORY</span>
+                  <h1 className={styles.adminTitle} style={{ marginTop: '4px', fontSize: '1.45rem' }}>My Attendance Record</h1>
+                  <p className={styles.adminSubtitle} style={{ fontSize: '0.82rem' }}>Track your attendance participation and status.</p>
                 </div>
-                <button onClick={fetchStudentData} style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '8px 16px', fontSize: '0.82rem', fontWeight: 700, cursor: 'pointer' }}>
-                  Refresh
+
+                <button onClick={fetchStudentData} className={styles.eventsBtn} style={{ minHeight: '40px', fontSize: '0.85rem' }}>
+                  Refresh Records
                 </button>
               </div>
 
-              <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '16px', overflow: 'hidden' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
+              <div className={styles.attendanceStatsGrid}>
+                <div className={styles.attStatCard} style={{ padding: '16px' }}>
+                  <span className={styles.attStatLabel} style={{ fontSize: '0.75rem' }}>Total Events</span>
+                  <div className={styles.attStatValue} style={{ fontSize: '1.8rem' }}>{totalEventsCount}</div>
+                </div>
+
+                <div className={styles.attStatCard} style={{ padding: '16px' }}>
+                  <span className={styles.attStatLabel} style={{ fontSize: '0.75rem' }}>Total Present</span>
+                  <div className={`${styles.attStatValue} ${styles.attGreenText}`} style={{ fontSize: '1.8rem' }}>{totalPresentCount}</div>
+                </div>
+
+                <div className={styles.attStatCard} style={{ padding: '16px' }}>
+                  <span className={styles.attStatLabel} style={{ fontSize: '0.75rem' }}>Absences</span>
+                  <div className={styles.attStatValue} style={{ color: '#b91c1c', fontSize: '1.8rem' }}>{totalAbsencesCount}</div>
+                </div>
+
+                <div className={styles.attStatCard} style={{ padding: '16px' }}>
+                  <span className={styles.attStatLabel} style={{ fontSize: '0.75rem' }}>Compliance Rate</span>
+                  <div className={`${styles.attStatValue} ${styles.attGreenText}`} style={{ fontSize: '1.8rem' }}>{complianceRate}%</div>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '10px' }}>
+                <div style={{ display: 'flex', gap: '6px' }}>
+                  <button
+                    onClick={() => setAttendanceFilter('all')}
+                    className={attendanceFilter === 'all' ? `${styles.adminTabBtn} ${styles.adminTabBtnActive}` : styles.adminTabBtn}
+                    style={{ fontSize: '0.8rem', padding: '8px 12px' }}
+                  >
+                    All ({attendanceLogs.length})
+                  </button>
+                  <button
+                    onClick={() => setAttendanceFilter('present')}
+                    className={attendanceFilter === 'present' ? `${styles.adminTabBtn} ${styles.adminTabBtnActive}` : styles.adminTabBtn}
+                    style={{ fontSize: '0.8rem', padding: '8px 12px' }}
+                  >
+                    ✓ Present ({totalPresentCount})
+                  </button>
+                  <button
+                    onClick={() => setAttendanceFilter('absent')}
+                    className={attendanceFilter === 'absent' ? `${styles.adminTabBtn} ${styles.adminTabBtnActive}` : styles.adminTabBtn}
+                    style={{ fontSize: '0.8rem', padding: '8px 12px' }}
+                  >
+                    ✕ Absent ({totalAbsencesCount})
+                  </button>
+                </div>
+
+                <input
+                  type="text"
+                  placeholder="Search event..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className={styles.loginInput}
+                  style={{ width: '100%', maxWidth: '200px', padding: '8px 12px', fontSize: '0.85rem' }}
+                />
+              </div>
+
+              <div className={styles.adminTableWrapper}>
+                <table className={styles.adminTable}>
                   <thead>
-                    <tr style={{ backgroundColor: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
-                      <th style={{ padding: '14px 18px', fontWeight: 800, color: '#475569' }}>Event &amp; Venue</th>
-                      <th style={{ padding: '14px 18px', fontWeight: 800, color: '#475569' }}>Date</th>
-                      <th style={{ padding: '14px 18px', fontWeight: 800, color: '#475569' }}>Time In</th>
-                      <th style={{ padding: '14px 18px', fontWeight: 800, color: '#475569' }}>Time Out</th>
-                      <th style={{ padding: '14px 18px', fontWeight: 800, color: '#475569', textAlign: 'center' }}>Status</th>
+                    <tr>
+                      <th>Event &amp; Location</th>
+                      <th>Date</th>
+                      <th>Time In</th>
+                      <th>Time Out</th>
+                      <th>Status</th>
+                      <th style={{ textAlign: 'center' }}>Attendance</th>
                     </tr>
                   </thead>
                   <tbody>
                     {filteredLogs.length === 0 ? (
                       <tr>
-                        <td colSpan={5} style={{ textAlign: 'center', padding: '32px', color: '#94a3b8' }}>
+                        <td colSpan={6} style={{ textAlign: 'center', padding: '24px', color: '#94a3b8' }}>
                           No attendance records found.
                         </td>
                       </tr>
@@ -1404,17 +1012,36 @@ export default function StudentDashboard() {
                       filteredLogs.map((log) => {
                         const isPresent = log.status === 'PRESENT';
                         return (
-                          <tr key={log.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                            <td style={{ padding: '14px 18px' }}>
-                              <div style={{ fontWeight: 800, color: '#0f172a' }}>{log.title}</div>
-                              <div style={{ fontSize: '0.72rem', color: '#15803d', fontWeight: 700 }}>📍 {log.location}</div>
+                          <tr key={log.id}>
+                            <td>
+                              <div style={{ fontWeight: 800 }}>{log.title}</div>
+                              <div style={{ fontSize: '0.72rem', color: '#15803d', fontWeight: 700 }}>
+                                📍 {log.location}
+                              </div>
                             </td>
-                            <td style={{ padding: '14px 18px', color: '#64748b' }}>{log.date}</td>
-                            <td style={{ padding: '14px 18px', fontWeight: 800, color: isPresent ? '#15803d' : '#94a3b8' }}>{log.time_in}</td>
-                            <td style={{ padding: '14px 18px', fontWeight: 800, color: log.time_out !== '--:--' ? '#15803d' : '#94a3b8' }}>{log.time_out}</td>
-                            <td style={{ padding: '14px 18px', textAlign: 'center' }}>
-                              <span style={{ display: 'inline-block', padding: '4px 12px', borderRadius: '9999px', fontSize: '0.72rem', fontWeight: 800, backgroundColor: isPresent ? '#dcfce7' : '#fee2e2', color: isPresent ? '#15803d' : '#b91c1c' }}>
-                                {isPresent ? 'PRESENT' : 'ABSENT'}
+                            <td style={{ fontWeight: 600 }}>{log.date}</td>
+                            <td style={{ fontWeight: 800, color: isPresent ? '#15803d' : '#94a3b8' }}>
+                              {log.time_in}
+                            </td>
+                            <td style={{ fontWeight: 800, color: log.time_out !== '--:--' ? '#15803d' : '#94a3b8' }}>
+                              {log.time_out}
+                            </td>
+                            <td>
+                              <span className={styles.idBadge} style={{ fontSize: '0.68rem' }}>
+                                {log.event_status}
+                              </span>
+                            </td>
+                            <td style={{ textAlign: 'center' }}>
+                              <span
+                                className={styles.idBadge}
+                                style={{
+                                  backgroundColor: isPresent ? '#dcfce7' : '#fef2f2',
+                                  color: isPresent ? '#15803d' : '#b91c1c',
+                                  borderColor: isPresent ? '#bbf7d0' : '#fecaca',
+                                  fontWeight: 900,
+                                }}
+                              >
+                                {isPresent ? '✓ PRESENT' : '✕ ABSENT'}
                               </span>
                             </td>
                           </tr>
@@ -1427,181 +1054,168 @@ export default function StudentDashboard() {
             </div>
           )}
 
-          {/* TAB 6: EVENTS */}
+          {/* TAB 3: EVENTS */}
           {activeTab === 'events' && (
-            <div style={{ maxWidth: '980px', margin: '0 auto' }}>
-              <div style={{ marginBottom: '24px' }}>
-                <h1 style={{ fontSize: '1.75rem', fontWeight: 900, color: '#0f172a', margin: '0 0 6px 0' }}>
-                  Campus Events
-                </h1>
-                <p style={{ fontSize: '0.88rem', color: '#64748b', margin: 0 }}>
-                  Upcoming institutional activities and official assemblies.
-                </p>
-              </div>
+            <div style={{ maxWidth: '1000px', margin: '0 auto', width: '100%' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px', flexWrap: 'wrap', gap: '10px' }}>
+                <div>
+                  <span className={styles.tagBadge}>OFFICIAL ORGANIZATION ACTIVITIES</span>
+                  <h1 className={styles.adminTitle} style={{ marginTop: '4px', fontSize: '1.45rem' }}>Organization Events</h1>
+                  <p className={styles.adminSubtitle} style={{ fontSize: '0.82rem' }}>Explore upcoming assemblies and official activities.</p>
+                </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '18px' }}>
-                {events.length === 0 ? (
-                  <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '40px', backgroundColor: '#ffffff', borderRadius: '16px', border: '1px solid #e2e8f0', color: '#94a3b8' }}>
-                    No events scheduled yet.
-                  </div>
-                ) : (
-                  events.map((ev) => (
-                    <div key={ev.id} style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '20px' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                        <span style={{ fontSize: '0.7rem', fontWeight: 800, color: ev.status === 'active' ? '#15803d' : '#64748b' }}>
-                          {ev.status === 'active' ? '● ACTIVE' : 'CLOSED'}
-                        </span>
-                        <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>{ev.date}</span>
-                      </div>
-                      <h3 style={{ fontSize: '1.1rem', fontWeight: 900, color: '#0f172a', margin: '0 0 6px 0' }}>{ev.title}</h3>
-                      <div style={{ fontSize: '0.8rem', color: '#15803d', fontWeight: 700 }}>📍 {ev.location}</div>
-                      <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '6px' }}>
-                        Time: {formatTime12Hour(ev.time_in)} - {formatTime12Hour(ev.time_out)}
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* TAB 7: OFFICERS */}
-          {activeTab === 'officers' && (
-            <div style={{ maxWidth: '980px', margin: '0 auto' }}>
-              <div style={{ marginBottom: '24px' }}>
-                <h1 style={{ fontSize: '1.75rem', fontWeight: 900, color: '#0f172a', margin: '0 0 6px 0' }}>
-                  Organization Officers
-                </h1>
-                <p style={{ fontSize: '0.88rem', color: '#64748b', margin: 0 }}>
-                  Elected leadership and executive council roster.
-                </p>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '20px' }}>
-                <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '20px', padding: '28px', textAlign: 'center' }}>
-                  <div style={{ width: '56px', height: '56px', borderRadius: '16px', backgroundColor: '#f0fdf4', color: '#15803d', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px auto' }}>
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <circle cx="12" cy="8" r="5" />
-                      <polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88" />
-                    </svg>
-                  </div>
-                  <h3 style={{ margin: '0 0 4px 0', fontSize: '1.1rem', fontWeight: 900, color: '#0f172a' }}>Executive Council</h3>
-                  <p style={{ margin: 0, fontSize: '0.82rem', color: '#64748b' }}>Supreme Student Government &amp; Campus Representatives</p>
+                <div style={{ display: 'flex', gap: '6px' }}>
+                  <span className={styles.idBadge}>Total: {events.length}</span>
+                  <span className={styles.idBadge} style={{ backgroundColor: '#dcfce7', color: '#15803d' }}>
+                    Active: {events.filter((e) => e.status === 'active').length}
+                  </span>
                 </div>
               </div>
+
+              {events.length === 0 ? (
+                <div className={styles.adminFormCard} style={{ textAlign: 'center', padding: '36px 16px' }}>
+                  <h3 style={{ margin: '0 0 4px 0', fontSize: '1.1rem', fontWeight: 900 }}>
+                    No Events Available
+                  </h3>
+                  <p style={{ margin: 0, fontSize: '0.82rem', color: '#64748b' }}>
+                    There are no official events scheduled at this time.
+                  </p>
+                </div>
+              ) : (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
+                  {events.map((ev) => {
+                    const isActive = ev.status === 'active';
+                    return (
+                      <div
+                        key={ev.id}
+                        className={styles.adminFormCard}
+                        style={{
+                          display: 'flex',
+                          flexDirection: 'column',
+                          justifyContent: 'space-between',
+                          padding: '0',
+                          overflow: 'hidden',
+                        }}
+                      >
+                        {ev.image_url ? (
+                          <div style={{ width: '100%', height: '150px', overflow: 'hidden', backgroundColor: '#f1f5f9' }}>
+                            <img src={ev.image_url} alt={ev.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          </div>
+                        ) : (
+                          <div style={{ width: '100%', height: '90px', backgroundColor: '#f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.85rem', fontWeight: 800, color: '#64748b', borderBottom: '1px solid #f1f5f9' }}>
+                            EVENT
+                          </div>
+                        )}
+
+                        <div style={{ padding: '16px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                            <span
+                              className={styles.idBadge}
+                              style={{
+                                backgroundColor: isActive ? '#dcfce7' : '#f1f5f9',
+                                color: isActive ? '#15803d' : '#64748b',
+                                fontSize: '0.68rem',
+                              }}
+                            >
+                              {isActive ? '● ACTIVE (OPEN)' : 'CLOSED'}
+                            </span>
+                            <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#94a3b8' }}>
+                              {ev.date}
+                            </span>
+                          </div>
+
+                          <h3 style={{ margin: '0 0 4px 0', fontSize: '1.05rem', fontWeight: 900, color: '#0f172a' }}>
+                            {ev.title}
+                          </h3>
+                          <div style={{ fontSize: '0.78rem', color: '#15803d', fontWeight: 800, marginBottom: '6px' }}>
+                            📍 {ev.location || 'FaCET Facade'}
+                          </div>
+                          <div style={{ fontSize: '0.78rem', color: '#64748b', display: 'flex', gap: '10px', fontWeight: 700, marginBottom: '10px' }}>
+                            <span>In: {formatTime12Hour(ev.time_in)}</span>
+                            <span>Out: {formatTime12Hour(ev.time_out)}</span>
+                          </div>
+                          <p style={{ margin: 0, fontSize: '0.8rem', color: '#64748b', lineHeight: 1.45 }}>
+                            {ev.description || 'No description provided.'}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
 
-          {/* TAB 8: FINANCE */}
-          {activeTab === 'finance' && (
-            <div style={{ maxWidth: '980px', margin: '0 auto' }}>
-              <div style={{ marginBottom: '24px' }}>
-                <h1 style={{ fontSize: '1.75rem', fontWeight: 900, color: '#0f172a', margin: '0 0 6px 0' }}>
-                  Financial Records
-                </h1>
-                <p style={{ fontSize: '0.88rem', color: '#64748b', margin: 0 }}>
-                  Membership dues and official organization collections.
+          {/* TAB 4: PROFILE */}
+          {activeTab === 'profile' && (
+            <div style={{ maxWidth: '580px', margin: '0 auto', width: '100%' }}>
+              <div style={{ textAlign: 'center', marginBottom: '20px' }}>
+                <div
+                  style={{
+                    width: '76px',
+                    height: '76px',
+                    borderRadius: '22px',
+                    backgroundColor: '#dcfce7',
+                    color: '#15803d',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '1.1rem',
+                    fontWeight: 900,
+                    margin: '0 auto 10px auto',
+                    border: '1px solid #bbf7d0',
+                    overflow: 'hidden',
+                  }}
+                >
+                  {profile.avatar_url ? (
+                    <img src={profile.avatar_url} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  ) : (
+                    'USER'
+                  )}
+                </div>
+                <h1 className={styles.adminTitle} style={{ fontSize: '1.5rem' }}>{profile.full_name}</h1>
+                <p className={styles.adminSubtitle} style={{ fontSize: '0.85rem' }}>
+                  {profile.course} • {profile.section} • {profile.year_level}
                 </p>
               </div>
 
-              <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '20px', padding: '36px', textAlign: 'center' }}>
-                <h3 style={{ fontSize: '1.15rem', fontWeight: 900, color: '#0f172a', margin: '0 0 6px 0' }}>
-                  Account in Good Standing
-                </h3>
-                <p style={{ fontSize: '0.85rem', color: '#64748b', margin: 0 }}>
-                  No pending balances or disciplinary fees assessed.
-                </p>
-              </div>
-            </div>
-          )}
+              <div className={styles.adminFormCard} style={{ padding: '20px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #f1f5f9', paddingBottom: '10px', marginBottom: '14px' }}>
+                  <span style={{ fontSize: '0.75rem', fontWeight: 900, color: '#0f172a', textTransform: 'uppercase' }}>
+                    VERIFIED STUDENT DETAILS
+                  </span>
+                  <span className={styles.idBadge}>OFFICIAL RECORD</span>
+                </div>
 
-          {/* TAB 9: VOTING */}
-          {activeTab === 'voting' && (
-            <div style={{ maxWidth: '980px', margin: '0 auto' }}>
-              <div style={{ marginBottom: '24px' }}>
-                <h1 style={{ fontSize: '1.75rem', fontWeight: 900, color: '#0f172a', margin: '0 0 6px 0' }}>
-                  Student Voting &amp; Elections
-                </h1>
-                <p style={{ fontSize: '0.88rem', color: '#64748b', margin: 0 }}>
-                  Official ballot voting for student body elections.
-                </p>
-              </div>
-
-              <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '20px', padding: '48px', textAlign: 'center' }}>
-                <h3 style={{ fontSize: '1.2rem', fontWeight: 900, color: '#0f172a', margin: '0 0 8px 0' }}>
-                  Elections Closed
-                </h3>
-                <p style={{ fontSize: '0.85rem', color: '#64748b', margin: 0 }}>
-                  There are no active ballots at this time. Upcoming elections will be announced by the COMELEC.
-                </p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', fontSize: '0.88rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: '#94a3b8', fontWeight: 700 }}>Full Name</span>
+                    <span style={{ fontWeight: 800 }}>{profile.full_name}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: '#94a3b8', fontWeight: 700 }}>Student ID</span>
+                    <span style={{ fontWeight: 800, color: '#15803d' }}>{profile.school_id}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: '#94a3b8', fontWeight: 700 }}>Email Address</span>
+                    <span style={{ fontWeight: 800 }}>{profile.email}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: '#94a3b8', fontWeight: 700 }}>Scanner Privilege</span>
+                    <span className={styles.idBadge} style={{ backgroundColor: profile.can_scan ? '#dcfce7' : '#f1f5f9', color: profile.can_scan ? '#15803d' : '#64748b' }}>
+                      {profile.can_scan ? 'AUTHORIZED SCANNER' : 'STANDARD MEMBER'}
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: '#94a3b8', fontWeight: 700 }}>Course &amp; Section</span>
+                    <span className={styles.idBadge}>{profile.course} - {profile.section}</span>
+                  </div>
+                </div>
               </div>
             </div>
           )}
         </main>
       </div>
-
-      {/* CHANGE PASSWORD MODAL */}
-      {isChangePasswordOpen && (
-        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(15, 23, 42, 0.65)', backdropFilter: 'blur(4px)', zIndex: 120, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
-          <div style={{ backgroundColor: '#ffffff', width: '100%', maxWidth: '400px', borderRadius: '22px', padding: '24px', boxShadow: '0 20px 40px rgba(0,0,0,0.2)' }}>
-            <h3 style={{ fontSize: '1.2rem', fontWeight: 900, color: '#0f172a', margin: '0 0 4px 0' }}>
-              Change Password
-            </h3>
-            <p style={{ fontSize: '0.8rem', color: '#64748b', margin: '0 0 16px 0' }}>
-              Create a new secure password for your portal account.
-            </p>
-
-            <form onSubmit={handleChangePassword} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              <div>
-                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: '#334155', marginBottom: '4px' }}>New Password</label>
-                <input
-                  type="password"
-                  placeholder="At least 6 characters"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  style={{ width: '100%', padding: '10px 12px', borderRadius: '10px', border: '1px solid #cbd5e1', fontSize: '0.9rem', boxSizing: 'border-box' }}
-                  required
-                />
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: '#334155', marginBottom: '4px' }}>Confirm New Password</label>
-                <input
-                  type="password"
-                  placeholder="Re-enter new password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  style={{ width: '100%', padding: '10px 12px', borderRadius: '10px', border: '1px solid #cbd5e1', fontSize: '0.9rem', boxSizing: 'border-box' }}
-                  required
-                />
-              </div>
-
-              {passwordMsg.text && (
-                <div style={{ fontSize: '0.8rem', color: passwordMsg.type === 'error' ? '#b91c1c' : '#15803d', backgroundColor: passwordMsg.type === 'error' ? '#fef2f2' : '#f0fdf4', padding: '8px 12px', borderRadius: '8px' }}>
-                  {passwordMsg.text}
-                </div>
-              )}
-
-              <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
-                <button
-                  type="submit"
-                  disabled={passwordLoading}
-                  style={{ flex: 1, padding: '10px', backgroundColor: '#15803d', color: '#ffffff', border: 'none', borderRadius: '10px', fontWeight: 800, fontSize: '0.88rem', cursor: 'pointer' }}
-                >
-                  {passwordLoading ? 'Saving...' : 'Save Password'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setIsChangePasswordOpen(false)}
-                  style={{ padding: '10px 16px', backgroundColor: '#f1f5f9', color: '#475569', border: 'none', borderRadius: '10px', fontWeight: 800, fontSize: '0.88rem', cursor: 'pointer' }}
-                >
-                  Cancel
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
