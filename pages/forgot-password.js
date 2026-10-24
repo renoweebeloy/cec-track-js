@@ -18,26 +18,29 @@ export default function ForgotPassword() {
   const [otpCode, setOtpCode] = useState('');
   const [resetRecordId, setResetRecordId] = useState(null);
 
-  // Password States for Step 3
+  // Password States para sa Step 3
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
 
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState({ type: '', text: '' });
+  const [statusMessage, setStatusMessage] = useState('');
+  const [isErrorMessage, setIsErrorMessage] = useState(false);
 
   // ========================================================
   // STEP 1: SEND 6-DIGIT CODE TO GMAIL
   // ========================================================
   const handleSendOtp = async (e) => {
     e.preventDefault();
-    setMessage({ type: '', text: '' });
+    setStatusMessage('');
+    setIsErrorMessage(false);
 
-    const cleanSchoolId = schoolId.trim();
-    const cleanEmail = email.trim().toLowerCase();
+    const cleanSchoolId = (schoolId || '').trim();
+    const cleanEmail = (email || '').trim().toLowerCase();
 
     if (!cleanSchoolId || !cleanEmail) {
-      setMessage({ type: 'error', text: 'Please enter both your School ID and registered email address.' });
+      setIsErrorMessage(true);
+      setStatusMessage('Please enter both your School ID and registered email address.');
       return;
     }
 
@@ -46,23 +49,27 @@ export default function ForgotPassword() {
     try {
       if (!supabase) throw new Error('Database connection failed.');
 
-      // Check if School ID and Email match an existing profile
-      const { data: profile, error: profileErr } = await supabase
+      // Paggamit sa limit(1) sa baylo nga maybeSingle aron dili mag-crash sa iOS
+      const { data: profiles, error: profileErr } = await supabase
         .from('profiles')
         .select('full_name, email, school_id')
         .eq('school_id', cleanSchoolId)
         .eq('email', cleanEmail)
-        .maybeSingle();
+        .limit(1);
 
-      if (profileErr || !profile) {
-        throw new Error('Account not found. Please verify that your School ID and email address are correct.');
+      if (profileErr) throw new Error(profileErr.message);
+
+      const profile = profiles && profiles.length > 0 ? profiles[0] : null;
+
+      if (!profile) {
+        throw new Error('Account match not found. Please verify your School ID and Email address.');
       }
 
-      // Generate random 6-digit verification code
+      // Paghimo og 6-digit random code
       const generatedCode = Math.floor(100000 + Math.random() * 900000).toString();
-      const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString(); // 10 minutes validity
+      const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString(); // 10 minutos validity
 
-      // Save OTP record to Supabase
+      // Pag-save sa OTP ngadto sa Supabase
       const { error: resetErr } = await supabase.from('password_resets').insert([
         {
           email: cleanEmail,
@@ -74,81 +81,93 @@ export default function ForgotPassword() {
 
       if (resetErr) throw new Error(resetErr.message);
 
-      // Trigger Google Apps Script Web App
+      // Pagpadala sa Google Apps Script para sa Gmail
       if (APPS_SCRIPT_URL) {
-        await fetch(APPS_SCRIPT_URL, {
-          method: 'POST',
-          mode: 'no-cors',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            email: cleanEmail,
-            code: generatedCode,
-            name: profile.full_name || 'CEC Member',
-          }),
-        });
+        try {
+          await fetch(APPS_SCRIPT_URL, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              email: cleanEmail,
+              code: generatedCode,
+              name: profile.full_name || 'CEC Member',
+            }),
+          });
+        } catch (fetchErr) {
+          console.warn('Apps script notification note:', fetchErr);
+        }
       }
 
-      setMessage({
-        type: 'success',
-        text: `Verification code sent to ${cleanEmail}! Please check your email inbox or spam folder.`,
-      });
+      setIsErrorMessage(false);
+      setStatusMessage(`Verification code sent to ${cleanEmail}! Please check your email inbox or spam folder.`);
       setOtpCode('');
       setStep(2);
     } catch (err) {
-      setMessage({ type: 'error', text: err.message || 'Failed to send verification code.' });
+      setIsErrorMessage(true);
+      setStatusMessage(err.message || 'Failed to send verification code.');
     } finally {
       setLoading(false);
     }
   };
 
   // ========================================================
-  // STEP 2: VERIFY 6-DIGIT CODE ONLY
+  // STEP 2: VERIFY 6-DIGIT CODE ONLY (CRASH-PROOF)
   // ========================================================
   const handleVerifyOtpOnly = async (e) => {
     e.preventDefault();
-    setMessage({ type: '', text: '' });
+    setStatusMessage('');
+    setIsErrorMessage(false);
 
-    const cleanEmail = email.trim().toLowerCase();
-    const cleanOtp = otpCode.trim();
+    const cleanEmail = (email || '').trim().toLowerCase();
+    const cleanOtp = (otpCode || '').trim();
 
     if (cleanOtp.length !== 6) {
-      setMessage({ type: 'error', text: 'Please enter the complete 6-digit verification code.' });
+      setIsErrorMessage(true);
+      setStatusMessage('Please enter the complete 6-digit verification code.');
       return;
     }
 
     setLoading(true);
 
     try {
-      // Find latest valid OTP for this email
-      const { data: record, error: checkErr } = await supabase
+      if (!supabase) throw new Error('Database connection failed.');
+
+      // Pagkuha sa kinabag-ohang OTP gamit ang limit(1)
+      const { data: records, error: checkErr } = await supabase
         .from('password_resets')
-        .select('*')
+        .select('id, expires_at')
         .eq('email', cleanEmail)
         .eq('otp_code', cleanOtp)
         .eq('used', false)
         .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
+        .limit(1);
 
-      if (checkErr || !record) {
+      if (checkErr) throw new Error(checkErr.message);
+
+      const record = records && records.length > 0 ? records[0] : null;
+
+      if (!record) {
         throw new Error('Invalid verification code. Please check your email and try again.');
       }
 
-      // Check if code has expired
-      if (new Date() > new Date(record.expires_at)) {
-        throw new Error('This verification code has expired. Please request a new one.');
+      // Luwas nga pagsusi sa expiration date
+      if (record.expires_at) {
+        const expiryTime = new Date(record.expires_at).getTime();
+        if (Date.now() > expiryTime) {
+          throw new Error('This verification code has expired. Please request a new one.');
+        }
       }
 
       setResetRecordId(record.id);
       setNewPassword('');
       setConfirmPassword('');
-      setMessage({
-        type: 'success',
-        text: 'Code verified successfully! You may now create your new password.',
-      });
+      setIsErrorMessage(false);
+      setStatusMessage('Code verified successfully! You may now create your new password.');
       setStep(3);
     } catch (err) {
-      setMessage({ type: 'error', text: err.message || 'Verification failed.' });
+      setIsErrorMessage(true);
+      setStatusMessage(err.message || 'Verification failed. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -159,24 +178,29 @@ export default function ForgotPassword() {
   // ========================================================
   const handleSaveNewPassword = async (e) => {
     e.preventDefault();
-    setMessage({ type: '', text: '' });
+    setStatusMessage('');
+    setIsErrorMessage(false);
 
     if (newPassword.length < 6) {
-      setMessage({ type: 'error', text: 'Password must be at least 6 characters long.' });
+      setIsErrorMessage(true);
+      setStatusMessage('Password must be at least 6 characters long.');
       return;
     }
 
     if (newPassword !== confirmPassword) {
-      setMessage({ type: 'error', text: 'Passwords do not match. Please verify.' });
+      setIsErrorMessage(true);
+      setStatusMessage('Passwords do not match. Please verify.');
       return;
     }
 
     setLoading(true);
-    const cleanSchoolId = schoolId.trim();
-    const cleanEmail = email.trim().toLowerCase();
+    const cleanSchoolId = (schoolId || '').trim();
+    const cleanEmail = (email || '').trim().toLowerCase();
 
     try {
-      // 1. Mark OTP record as used
+      if (!supabase) throw new Error('Database connection failed.');
+
+      // 1. Markahan ang OTP isip used
       if (resetRecordId) {
         await supabase
           .from('password_resets')
@@ -184,7 +208,7 @@ export default function ForgotPassword() {
           .eq('id', resetRecordId);
       }
 
-      // 2. Update password in profiles table (hashed automatically by database trigger)
+      // 2. I-update ang password sa profiles table
       const { error: updateErr } = await supabase
         .from('profiles')
         .update({
@@ -196,16 +220,15 @@ export default function ForgotPassword() {
 
       if (updateErr) throw new Error(updateErr.message);
 
-      setMessage({
-        type: 'success',
-        text: 'Password updated successfully! Redirecting you to login...',
-      });
+      setIsErrorMessage(false);
+      setStatusMessage('Password updated successfully! Redirecting you to login...');
 
       setTimeout(() => {
         router.push('/login');
       }, 2000);
     } catch (err) {
-      setMessage({ type: 'error', text: err.message || 'Error updating password.' });
+      setIsErrorMessage(true);
+      setStatusMessage(err.message || 'Error updating password.');
     } finally {
       setLoading(false);
     }
@@ -256,7 +279,7 @@ export default function ForgotPassword() {
           </h1>
           <p className={styles.loginSubtitle}>
             {step === 1 && 'Enter your School ID and registered email address to receive a verification code.'}
-            {step === 2 && `Enter the 6-digit verification code sent to ${email}.`}
+            {step === 2 && 'Enter the 6-digit verification code sent to your email.'}
             {step === 3 && 'Your identity has been verified. Set your new password below.'}
           </p>
         </div>
@@ -340,7 +363,8 @@ export default function ForgotPassword() {
               type="button"
               onClick={() => {
                 setStep(1);
-                setMessage({ type: '', text: '' });
+                setStatusMessage('');
+                setIsErrorMessage(false);
               }}
               style={{
                 background: 'none',
@@ -404,18 +428,18 @@ export default function ForgotPassword() {
           </form>
         )}
 
-        {/* Status Notification Message */}
-        {message.text && (
+        {/* STATUS NOTIFICATION MESSAGE */}
+        {statusMessage && (
           <div
             className={styles.alertMessage}
             style={{
               marginTop: '16px',
-              color: message.type === 'error' ? '#b91c1c' : '#15803d',
-              backgroundColor: message.type === 'error' ? '#fef2f2' : '#f0fdf4',
-              borderColor: message.type === 'error' ? '#fee2e2' : '#bbf7d0',
+              color: isErrorMessage ? '#b91c1c' : '#15803d',
+              backgroundColor: isErrorMessage ? '#fef2f2' : '#f0fdf4',
+              borderColor: isErrorMessage ? '#fee2e2' : '#bbf7d0',
             }}
           >
-            {message.text}
+            {statusMessage}
           </div>
         )}
 
