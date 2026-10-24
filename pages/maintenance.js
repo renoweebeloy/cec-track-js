@@ -31,7 +31,7 @@ export default function Maintenance() {
           boxShadow: '0 20px 40px rgba(0,0,0,0.04)',
         }}
       >
-        {/* Logo / Maintenance Icon */}
+        {/* Maintenance Icon */}
         <div
           style={{
             width: '74px',
@@ -88,7 +88,7 @@ export default function Maintenance() {
             margin: '0 0 24px 0',
           }}
         >
-          Gipahigayon karon ang gikinahanglang system maintenance ug database optimization sa <strong>CECTRACK</strong> aron mapanindot pa ang serbisyo sa atong campus.
+          We are currently performing scheduled system maintenance and database optimization on <strong>CECTRACK</strong> to improve performance and enhance our campus services.
         </p>
 
         <div
@@ -102,7 +102,7 @@ export default function Maintenance() {
             lineHeight: 1.5,
           }}
         >
-          ⏳ Mobalik kami sa labing dali nga panahon. Palihug bisitaha kini pag-usab unya. Daghang salamat sa imong pagsabot!
+          ⏳ We will be back online shortly. Please check back soon. Thank you for your patience and understanding!
         </div>
 
         <div style={{ marginTop: '28px', borderTop: '1px solid #f1f5f9', paddingTop: '16px' }}>
