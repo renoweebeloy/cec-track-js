@@ -9,7 +9,7 @@ export default function Home() {
   const [currentTime, setCurrentTime] = useState('');
   const [currentDate, setCurrentDate] = useState('');
 
-  // Course Counts mula sa Database
+  // Course counts gikan sa database
   const [counts, setCounts] = useState({
     BSBA: 0,
     BSCRIM: 0,
@@ -19,11 +19,11 @@ export default function Home() {
     total: 0,
   });
 
-  // Events mula sa Database
+  // Events gikan sa database
   const [events, setEvents] = useState([]);
   const [eventsLoading, setEventsLoading] = useState(true);
 
-  // Search ID States
+  // Search ID states
   const [searchId, setSearchId] = useState('');
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchResult, setSearchResult] = useState(null);
@@ -56,7 +56,7 @@ export default function Home() {
     return () => clearInterval(timer);
   }, []);
 
-  // Kumuha ng datos mula sa Supabase
+  // Fetch data gikan sa database
   const fetchData = async () => {
     if (!supabase) return;
     try {
@@ -97,7 +97,7 @@ export default function Home() {
     fetchData();
   }, []);
 
-  // Pag-check ng Student Record
+  // Check Record logic
   const handleCheckRecord = async (e) => {
     if (e) e.preventDefault();
     const cleanId = searchId.trim();
@@ -107,7 +107,6 @@ export default function Home() {
     setSearchResult(null);
 
     try {
-      // 1. Hanapin ang detalye ng estudyante
       const { data: student, error: studentErr } = await supabase
         .from('profiles')
         .select('school_id, full_name, course, year_level, section, status, avatar_url')
@@ -123,13 +122,11 @@ export default function Home() {
         return;
       }
 
-      // 2. Kumuha ng attendance logs
       const { data: studentLogs } = await supabase
         .from('attendance')
         .select('*')
         .eq('student_id', cleanId);
 
-      // 3. Kabuuang bilang ng events
       const { data: allEvents } = await supabase
         .from('events')
         .select('id');
@@ -150,7 +147,7 @@ export default function Home() {
     } catch (err) {
       setSearchResult({
         success: false,
-        msg: `Unable to verify "${cleanId}". Please check your Student ID format.`,
+        msg: `Unable to verify "${cleanId}". Please check your ID format.`,
       });
     } finally {
       setSearchLoading(false);
@@ -170,121 +167,99 @@ export default function Home() {
   };
 
   return (
-    <div className={styles.container} style={{ paddingBottom: 0, overflowX: 'hidden' }}>
+    <div className={styles.container} style={{ paddingBottom: 0 }}>
       <Head>
         <title>CECTRACK • Cateel Extension Campus</title>
         <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
       </Head>
 
-      {/* MOBILE RESPONSIVE STYLES */}
       <style jsx>{`
-        .search-card-box {
+        .search-container {
           background-color: #ffffff;
           border: 1.5px solid #e2e8f0;
-          border-radius: 20px;
-          padding: 14px;
-          box-shadow: 0 4px 15px rgba(0, 0, 0, 0.04);
-          width: 100%;
-          box-sizing: border-box;
-          display: flex;
-          flex-direction: column;
-          gap: 10px;
-        }
-        .input-row {
+          border-radius: 9999px;
+          padding: 4px 5px 4px 14px;
           display: flex;
           align-items: center;
-          gap: 10px;
-          padding: 4px 6px;
-        }
-        .check-record-btn {
+          gap: 6px;
+          box-shadow: 0 4px 14px rgba(0, 0, 0, 0.04);
           width: 100%;
+          box-sizing: border-box;
+          transition: border-color 0.2s;
+        }
+        .search-btn-green {
           background-color: #15803d;
           color: #ffffff;
           border: none;
-          border-radius: 14px;
-          padding: 12px;
-          font-size: 0.92rem;
+          border-radius: 9999px;
+          padding: 8px 16px;
+          font-size: 0.8rem;
           font-weight: 800;
           cursor: pointer;
           display: flex;
           align-items: center;
-          justifyContent: center;
-          gap: 8px;
-          box-shadow: 0 4px 12px rgba(21, 128, 61, 0.2);
-          transition: background-color 0.15s ease;
-          touch-action: manipulation;
-        }
-        .check-record-btn:active {
-          background-color: #166534;
-        }
-        .btn-portal-main {
-          width: 100%;
-          background-color: #15803d;
-          color: #ffffff;
-          border: none;
-          border-radius: 16px;
-          padding: 14px;
-          font-size: 0.95rem;
-          font-weight: 900;
-          cursor: pointer;
-          display: flex;
-          align-items: center;
-          justifyContent: center;
-          gap: 10px;
-          box-shadow: 0 6px 18px rgba(21, 128, 61, 0.25);
-          touch-action: manipulation;
-        }
-        .btn-events-outline {
-          width: 100%;
-          background-color: #ffffff;
-          color: #334155;
-          border: 1.5px solid #cbd5e1;
-          border-radius: 16px;
-          padding: 13px;
-          font-size: 0.95rem;
-          font-weight: 900;
-          cursor: pointer;
-          display: flex;
-          align-items: center;
-          justifyContent: center;
-          gap: 8px;
-          touch-action: manipulation;
+          gap: 6px;
+          box-shadow: 0 3px 8px rgba(21, 128, 61, 0.2);
+          white-space: nowrap;
+          flex-shrink: 0;
         }
         .verified-card {
           background-color: #f0fdf4;
           border: 1.5px solid #a7f3d0;
           border-radius: 20px;
-          padding: 18px;
+          padding: 18px 16px;
           position: relative;
-          box-shadow: 0 8px 24px rgba(21, 128, 61, 0.06);
+          box-shadow: 0 10px 25px rgba(21, 128, 61, 0.06);
           display: flex;
           align-items: flex-start;
-          gap: 14px;
+          gap: 12px;
           box-sizing: border-box;
           text-align: left;
           width: 100%;
         }
         @media (max-width: 600px) {
-          .search-card-box {
-            padding: 12px;
-            border-radius: 18px;
+          .search-container {
+            padding: 4px 4px 4px 10px;
+            gap: 4px;
+          }
+          .search-btn-green {
+            padding: 7px 11px;
+            font-size: 0.74rem;
+            gap: 4px;
           }
           .verified-card {
-            padding: 14px;
+            padding: 14px 12px;
             gap: 10px;
             border-radius: 16px;
+          }
+          .icon-box {
+            width: 36px !important;
+            height: 36px !important;
+            border-radius: 10px !important;
+          }
+          .title-text {
+            font-size: 1rem !important;
+          }
+          .desc-text {
+            font-size: 0.78rem !important;
+          }
+          .stats-grid {
+            padding: 8px 10px !important;
+          }
+          .stat-value {
+            font-size: 1.15rem !important;
           }
         }
       `}</style>
 
-      {/* Top Header */}
+      {/* Header */}
       <header className={styles.header}>
         <div className={styles.headerContent} style={{ justifyContent: 'space-between' }}>
           <button onClick={() => router.push('/')} className={styles.logoText}>
             CECTRACK
           </button>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
             <button
               onClick={() => router.push('/about')}
               style={{
@@ -294,7 +269,7 @@ export default function Home() {
                 fontSize: '0.88rem',
                 fontWeight: 800,
                 cursor: 'pointer',
-                padding: '6px 8px',
+                padding: '6px 10px',
               }}
             >
               About
@@ -303,7 +278,7 @@ export default function Home() {
             <button
               onClick={() => router.push('/login')}
               className={styles.loginBtn}
-              style={{ padding: '8px 16px', fontSize: '0.85rem' }}
+              style={{ padding: '8px 18px', fontSize: '0.85rem' }}
             >
               <span>➔</span> Login
             </button>
@@ -311,18 +286,20 @@ export default function Home() {
         </div>
       </header>
 
-      <main className={styles.main} style={{ padding: '16px 12px', width: '100%', maxWidth: '100vw', boxSizing: 'border-box' }}>
+      <main className={styles.main}>
         {/* Status Badge Row */}
         <div
           style={{
             width: '100%',
-            maxWidth: '600px',
+            maxWidth: '900px',
             display: 'flex',
             justifyContent: 'center',
             alignItems: 'center',
-            gap: '8px',
+            gap: '12px',
             flexWrap: 'wrap',
-            margin: '0 auto 18px auto',
+            margin: '0 auto 20px auto',
+            padding: '0 8px',
+            boxSizing: 'border-box',
           }}
         >
           <div
@@ -355,6 +332,7 @@ export default function Home() {
             style={{
               display: 'inline-flex',
               alignItems: 'center',
+              gap: '6px',
               backgroundColor: '#ffffff',
               border: '1px solid #bbf7d0',
               borderRadius: '9999px',
@@ -362,6 +340,7 @@ export default function Home() {
               fontSize: '0.68rem',
               fontWeight: 800,
               color: '#15803d',
+              boxShadow: '0 1px 2px rgba(21, 128, 61, 0.05)',
               whiteSpace: 'nowrap',
             }}
           >
@@ -369,15 +348,15 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Hero Section */}
-        <section className={styles.heroSection} style={{ marginBottom: '20px' }}>
-          <div className={styles.logoContainer} style={{ marginBottom: '12px' }}>
+        {/* Hero Area */}
+        <section className={styles.heroSection}>
+          <div className={styles.logoContainer} style={{ marginBottom: '14px' }}>
             <img
               src="/logo.png"
               alt="Cateel Extension Campus Logo"
               style={{
-                width: '100px',
-                height: '100px',
+                width: '105px',
+                height: '105px',
                 objectFit: 'contain',
                 display: 'block',
                 margin: '0 auto',
@@ -390,79 +369,72 @@ export default function Home() {
           </div>
 
           <div className={styles.tagBadge}>EMPOWERING FUTURE LEADERS</div>
-          <h1 className={styles.heroTitle} style={{ fontSize: 'clamp(2.1rem, 6vw, 2.8rem)', marginBottom: '2px' }}>
+          <h1 className={styles.heroTitle} style={{ fontSize: 'clamp(2.2rem, 6vw, 3rem)', marginBottom: '2px' }}>
             CEC
           </h1>
-          <h2 className={styles.heroSubtitle} style={{ fontSize: '1.1rem', marginBottom: '8px' }}>
+          <h2 className={styles.heroSubtitle} style={{ fontSize: '1.15rem', marginBottom: '8px' }}>
             Cateel Extension Campus
           </h2>
-          <p className={styles.heroDescription} style={{ fontSize: '0.86rem', margin: '0 auto 16px auto', maxWidth: '420px', lineHeight: 1.5 }}>
+          <p className={styles.heroDescription} style={{ fontSize: '0.86rem', margin: '0 auto 20px auto' }}>
             Uniting students across CEC Dorsu disciplines.<br />
             Innovate, collaborate, and excel together.
           </p>
         </section>
 
-        {/* ======================================================== */}
-        {/* STACKED SEARCH CARD + TWO FULL-WIDTH ACTION BUTTONS */}
-        {/* ======================================================== */}
-        <section style={{ maxWidth: '440px', margin: '0 auto 36px auto', width: '100%', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '14px' }}>
-          {/* SEARCH CARD CONTAINER */}
-          <form onSubmit={handleCheckRecord} className="search-card-box">
-            {/* INPUT ROW */}
-            <div className="input-row">
-              <div style={{ display: 'flex', alignItems: 'center', color: '#94a3b8', flexShrink: 0 }}>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="3" y="4" width="18" height="16" rx="3" />
-                  <line x1="7" y1="8" x2="11" y2="8" />
-                  <line x1="7" y1="12" x2="11" y2="12" />
-                  <rect x="14" y="8" width="4" height="4" />
-                </svg>
-              </div>
-
-              <input
-                type="text"
-                placeholder="Search Student ID..."
-                value={searchId}
-                onChange={(e) => setSearchId(e.target.value)}
-                style={{
-                  flex: 1,
-                  border: 'none',
-                  outline: 'none',
-                  fontSize: '0.92rem',
-                  fontWeight: 700,
-                  color: '#0f172a',
-                  backgroundColor: 'transparent',
-                  minWidth: 0,
-                }}
-              />
-
-              {searchId && (
-                <button
-                  type="button"
-                  onClick={handleClearSearch}
-                  style={{
-                    background: 'none',
-                    border: 'none',
-                    color: '#94a3b8',
-                    fontSize: '0.95rem',
-                    fontWeight: 900,
-                    cursor: 'pointer',
-                    padding: '2px 4px',
-                    lineHeight: 1,
-                  }}
-                >
-                  ✕
-                </button>
-              )}
+        {/* Compact Search Bar & Result */}
+        <section className={styles.actionArea} style={{ maxWidth: '580px', margin: '0 auto 28px auto', width: '100%', padding: '0 8px', boxSizing: 'border-box' }}>
+          <form onSubmit={handleCheckRecord} className="search-container">
+            <div style={{ display: 'flex', alignItems: 'center', color: '#94a3b8', flexShrink: 0 }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="4" width="18" height="16" rx="3" />
+                <line x1="7" y1="8" x2="11" y2="8" />
+                <line x1="7" y1="12" x2="11" y2="12" />
+                <rect x="14" y="8" width="4" height="4" />
+              </svg>
             </div>
 
-            {/* FULL WIDTH GREEN CHECK RECORD BUTTON */}
+            <input
+              type="text"
+              placeholder="Search Student ID..."
+              value={searchId}
+              onChange={(e) => setSearchId(e.target.value)}
+              style={{
+                flex: 1,
+                border: 'none',
+                outline: 'none',
+                fontSize: '0.88rem',
+                fontWeight: 700,
+                color: '#0f172a',
+                backgroundColor: 'transparent',
+                minWidth: 0,
+              }}
+            />
+
+            {searchId && (
+              <button
+                type="button"
+                onClick={handleClearSearch}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: '#94a3b8',
+                  fontSize: '0.9rem',
+                  fontWeight: 900,
+                  cursor: 'pointer',
+                  padding: '2px 4px',
+                  lineHeight: 1,
+                }}
+              >
+                ✕
+              </button>
+            )}
+
             <button
               type="submit"
               disabled={searchLoading}
-              className="check-record-btn"
+              className="search-btn-green"
             >
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="11" cy="11" r="8" />
                 <line x1="21" y1="21" x2="16.65" y2="16.65" />
               </svg>
@@ -470,12 +442,11 @@ export default function Home() {
             </button>
           </form>
 
-          {/* VERIFIED STUDENT RESULT CARD */}
+          {/* Result Card */}
           {searchResult && (
-            <div style={{ width: '100%', boxSizing: 'border-box' }}>
+            <div style={{ marginTop: '14px', width: '100%', boxSizing: 'border-box' }}>
               {searchResult.success && searchResult.student ? (
                 <div className="verified-card">
-                  {/* CLOSE BUTTON */}
                   <button
                     onClick={() => setSearchResult(null)}
                     style={{
@@ -488,15 +459,15 @@ export default function Home() {
                       fontSize: '1rem',
                       fontWeight: 800,
                       cursor: 'pointer',
-                      padding: '4px',
+                      padding: '2px',
                       lineHeight: 1,
                     }}
                   >
                     ✕
                   </button>
 
-                  {/* LEFT GREEN ICON */}
                   <div
+                    className="icon-box"
                     style={{
                       width: '40px',
                       height: '40px',
@@ -506,19 +477,17 @@ export default function Home() {
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      fontSize: '1.2rem',
                       flexShrink: 0,
                       boxShadow: '0 4px 10px rgba(0, 168, 107, 0.2)',
                     }}
                   >
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
                       <circle cx="12" cy="12" r="10" />
                       <polyline points="9 12 11.5 14.5 15.5 9.5" />
                     </svg>
                   </div>
 
                   <div style={{ flex: 1, minWidth: 0, paddingRight: '10px' }}>
-                    {/* BADGE: RECORDED & VERIFIED */}
                     <div style={{ marginBottom: '6px' }}>
                       <span
                         style={{
@@ -544,9 +513,10 @@ export default function Home() {
                     </div>
 
                     <h3
+                      className="title-text"
                       style={{
                         margin: '0 0 4px 0',
-                        fontSize: '1.05rem',
+                        fontSize: '1.08rem',
                         fontWeight: 900,
                         color: '#0f172a',
                         lineHeight: 1.25,
@@ -556,6 +526,7 @@ export default function Home() {
                     </h3>
 
                     <p
+                      className="desc-text"
                       style={{
                         margin: '0 0 12px 0',
                         fontSize: '0.8rem',
@@ -570,14 +541,15 @@ export default function Home() {
                       )! Your account is officially registered in the CECTRACK system.
                     </p>
 
-                    {/* ATTENDANCE STATS SUMMARY TABLE */}
+                    {/* Stats Table */}
                     <div
+                      className="stats-grid"
                       style={{
                         backgroundColor: '#ffffff',
                         border: '1px solid #bbf7d0',
-                        borderRadius: '14px',
+                        borderRadius: '12px',
                         padding: '10px 12px',
-                        marginBottom: '14px',
+                        marginBottom: '12px',
                         display: 'grid',
                         gridTemplateColumns: 'repeat(3, 1fr)',
                         gap: '6px',
@@ -586,25 +558,25 @@ export default function Home() {
                     >
                       <div>
                         <span style={{ fontSize: '0.6rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase' }}>TOTAL EVENTS</span>
-                        <div style={{ fontSize: '1.15rem', fontWeight: 900, color: '#0f172a' }}>
+                        <div className="stat-value" style={{ fontSize: '1.15rem', fontWeight: 900, color: '#0f172a' }}>
                           {searchResult.stats.totalEvents}
                         </div>
                       </div>
                       <div>
                         <span style={{ fontSize: '0.6rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase' }}>ATTENDED</span>
-                        <div style={{ fontSize: '1.15rem', fontWeight: 900, color: '#059669' }}>
+                        <div className="stat-value" style={{ fontSize: '1.15rem', fontWeight: 900, color: '#059669' }}>
                           {searchResult.stats.attended}
                         </div>
                       </div>
                       <div>
                         <span style={{ fontSize: '0.6rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase' }}>ABSENCES</span>
-                        <div style={{ fontSize: '1.15rem', fontWeight: 900, color: searchResult.stats.absences > 0 ? '#dc2626' : '#059669' }}>
+                        <div className="stat-value" style={{ fontSize: '1.15rem', fontWeight: 900, color: searchResult.stats.absences > 0 ? '#dc2626' : '#059669' }}>
                           {searchResult.stats.absences}
                         </div>
                       </div>
                     </div>
 
-                    {/* ACTION BUTTONS WITH OFFICIAL USER-ADD LOGO */}
+                    {/* Button Row nga may logo na sa Sign In Now */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
                       <button
                         type="button"
@@ -613,8 +585,8 @@ export default function Home() {
                           backgroundColor: '#00875a',
                           color: '#ffffff',
                           border: 'none',
-                          borderRadius: '12px',
-                          padding: '9px 18px',
+                          borderRadius: '10px',
+                          padding: '8px 16px',
                           fontSize: '0.82rem',
                           fontWeight: 800,
                           cursor: 'pointer',
@@ -622,9 +594,9 @@ export default function Home() {
                           alignItems: 'center',
                           gap: '6px',
                           boxShadow: '0 3px 8px rgba(0, 135, 90, 0.2)',
-                          touchAction: 'manipulation',
                         }}
                       >
+                        {/* OPISYAL NGA USER-CHECK LOGO */}
                         <svg
                           width="16"
                           height="16"
@@ -634,6 +606,7 @@ export default function Home() {
                           strokeWidth="2.5"
                           strokeLinecap="round"
                           strokeLinejoin="round"
+                          style={{ flexShrink: 0 }}
                         >
                           <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
                           <circle cx="9" cy="7" r="4" />
@@ -662,7 +635,6 @@ export default function Home() {
                   </div>
                 </div>
               ) : (
-                /* ERROR CARD KUNG HINDI NAKITA ANG RECORD */
                 <div
                   style={{
                     backgroundColor: '#fff1f2',
@@ -722,74 +694,30 @@ export default function Home() {
             </div>
           )}
 
-          {/* TWO MAIN FULL-WIDTH ACTION BUTTONS WITH EXACT DOOR LOGIN SVG LOGO */}
-          <button
-            onClick={() => router.push('/login')}
-            className="btn-portal-main"
-          >
-            {/* EXACT LOGIN DOOR LOGO [->] MULA SA LARAWAN */}
-            <svg
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              style={{ flexShrink: 0 }}
+          {/* Quick Buttons */}
+          <div style={{ display: 'flex', justifyContent: 'center', gap: '10px', marginTop: '16px', width: '100%', flexWrap: 'wrap' }}>
+            <button
+              onClick={() => router.push('/login')}
+              className={styles.portalBtn}
+              style={{ padding: '11px 18px', fontSize: '0.84rem' }}
             >
-              <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
-              <polyline points="10 17 15 12 10 7" />
-              <line x1="15" y1="12" x2="3" y2="12" />
-            </svg>
-            <span>Access Member Portal</span>
-          </button>
-
-          <button
-            onClick={scrollToEvents}
-            className="btn-events-outline"
-          >
-            <span>Explore Events</span>
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              style={{ flexShrink: 0 }}
+              ➔ Access Member Portal
+            </button>
+            <button
+              onClick={scrollToEvents}
+              className={styles.eventsBtn}
+              style={{ padding: '11px 18px', fontSize: '0.84rem' }}
             >
-              <line x1="5" y1="12" x2="19" y2="12" />
-              <polyline points="12 5 19 12 12 19" />
-            </svg>
-          </button>
+              Explore Events ➔
+            </button>
+          </div>
         </section>
 
-        {/* Live Course Analytics Grid (KASAMA ANG EKSATONG DALAWA-KATAO LOGO) */}
+        {/* Live Course Analytics Grid */}
         <section className={styles.analyticsSection}>
           <div className={styles.analyticsHeader}>
-            <div className={styles.analyticsTitle} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              {/* EKSATONG USERS / DEPARTMENT LOGO MULA SA LARAWAN */}
-              <svg
-                width="22"
-                height="22"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="#15803d"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                style={{ flexShrink: 0 }}
-              >
-                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-                <circle cx="9" cy="7" r="4" />
-                <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-                <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-              </svg>
-              <span>DEPARTMENT MEMBERS BY COURSE</span>
+            <div className={styles.analyticsTitle}>
+              👥 DEPARTMENT MEMBERS BY COURSE
             </div>
             <div className={styles.analyticsStats}>
               <span>Total Members: <strong>{counts.total}</strong></span>
