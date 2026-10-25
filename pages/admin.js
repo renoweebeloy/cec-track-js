@@ -11,6 +11,8 @@ export default function AdminDashboard() {
   const eventImageInputRef = useRef(null);
   const officerAvatarInputRef = useRef(null);
   const formRef = useRef(null);
+  const studentFormRef = useRef(null);
+  const officerFormRef = useRef(null);
 
   // Scan Processing Lock
   const isProcessingScanRef = useRef(false);
@@ -28,11 +30,21 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(false);
   const [notification, setNotification] = useState({ type: '', message: '' });
 
-  // Mobile In-App Confirmation Modal States
+  // Confirmation Modals
   const [deleteModal, setDeleteModal] = useState({ isOpen: false, type: '', id: null, title: '' });
   const [deletingRecord, setDeletingRecord] = useState(false);
 
+  // Edit Confirmation Modal ("Are you sure you want to change? Yes / No")
+  const [confirmEditModal, setConfirmEditModal] = useState({
+    isOpen: false,
+    type: '', // 'student' | 'officer'
+    payload: null,
+    title: '',
+  });
+  const [savingEdit, setSavingEdit] = useState(false);
+
   // 1. Student States
+  const [editingStudentId, setEditingStudentId] = useState(null);
   const [studentId, setStudentId] = useState('');
   const [studentName, setStudentName] = useState('');
   const [studentEmail, setStudentEmail] = useState('');
@@ -58,6 +70,7 @@ export default function AdminDashboard() {
   const [compressingImage, setCompressingImage] = useState(false);
 
   // 4. Officer Management States
+  const [editingOfficerId, setEditingOfficerId] = useState(null);
   const [officerName, setOfficerName] = useState('');
   const [officerPosition, setOfficerPosition] = useState('');
   const [officerDepartment, setOfficerDepartment] = useState('Supreme Student Government (SSG)');
@@ -66,8 +79,8 @@ export default function AdminDashboard() {
   const [compressingOfficerAvatar, setCompressingOfficerAvatar] = useState(false);
   const [officersList, setOfficersList] = useState([]);
 
-  // 5. Scanner Controls & Synchronized Gate State
-  const [scanMode, setScanMode] = useState('time_in'); // 'time_in' | 'time_out'
+  // 5. Scanner Controls & Gate State
+  const [scanMode, setScanMode] = useState('time_in');
   const [isScannerGateOpen, setIsScannerGateOpen] = useState(true);
   const [selectedEventId, setSelectedEventId] = useState('');
   const [manualStudentId, setManualStudentId] = useState('');
@@ -104,7 +117,6 @@ export default function AdminDashboard() {
     'Section F', 'Section G', 'Section H', 'Section I', 'Section J', 'Section K',
   ];
 
-  // Helper: Convert 24h to 12h (e.g. 5:00 PM)
   const formatTime12Hour = (time24) => {
     if (!time24 || time24 === '--:--') return '--:--';
     if (time24.includes('AM') || time24.includes('PM')) return time24;
@@ -215,7 +227,7 @@ export default function AdminDashboard() {
     }
   }, []);
 
-  // Live Sync para sa Scanner Gate sa pagitan ng Admin at Staff
+  // Live Sync para sa Scanner Gate
   useEffect(() => {
     if (!supabase) return;
 
@@ -230,9 +242,7 @@ export default function AdminDashboard() {
         if (!error && data) {
           setIsScannerGateOpen(data.value === 'open');
         }
-      } catch (err) {
-        // Fallback silently if table is not yet created
-      }
+      } catch (err) {}
     };
 
     syncScannerGate();
@@ -322,7 +332,6 @@ export default function AdminDashboard() {
 
       if (eventsData) {
         const now = new Date();
-
         const validatedEvents = await Promise.all(
           eventsData.map(async (ev) => {
             try {
@@ -330,7 +339,6 @@ export default function AdminDashboard() {
                 const timeParts = (ev.time_out || '23:59').split(':');
                 const hours = parseInt(timeParts[0], 10) || 0;
                 const minutes = parseInt(timeParts[1], 10) || 0;
-
                 const eventEndDateTime = new Date(ev.date);
                 eventEndDateTime.setHours(hours, minutes, 0, 0);
 
@@ -343,9 +351,7 @@ export default function AdminDashboard() {
                   return { ...ev, status: 'inactive' };
                 }
               }
-            } catch (checkErr) {
-              console.warn('Error checking event expiration:', checkErr);
-            }
+            } catch (checkErr) {}
             return ev;
           })
         );
@@ -380,7 +386,6 @@ export default function AdminDashboard() {
     router.replace('/');
   };
 
-  // Switch para sa Scanner Gate ng Admin (Naka-sync sa Database)
   const handleToggleScannerGate = async () => {
     if (userRole !== 'admin') return;
     const nextState = !isScannerGateOpen;
@@ -391,7 +396,6 @@ export default function AdminDashboard() {
         .from('system_settings')
         .upsert({ key: 'scanner_gate', value: nextState ? 'open' : 'closed' }, { onConflict: 'key' });
 
-      // Fallback update sa staff scan privileges
       await supabase
         .from('profiles')
         .update({ can_scan: nextState })
@@ -403,6 +407,97 @@ export default function AdminDashboard() {
     }
   };
 
+  // ========================================================
+  // STUDENT: ADD & EDIT HANDLERS
+  // ========================================================
+  const handleStartEditStudent = (st) => {
+    setEditingStudentId(st.id);
+    setStudentId(st.school_id || '');
+    setStudentName(st.full_name || '');
+    setStudentEmail(st.email || '');
+    setStudentCourse(st.course || 'BSCRIM');
+    setStudentYear(st.year_level || '1st Year');
+    setStudentSection(st.section || 'Section A');
+
+    if (studentFormRef.current) {
+      studentFormRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
+  const handleCancelEditStudent = () => {
+    setEditingStudentId(null);
+    setStudentId('');
+    setStudentName('');
+    setStudentEmail('');
+    setStudentCourse('BSCRIM');
+    setStudentYear('1st Year');
+    setStudentSection('Section A');
+  };
+
+  const handleSaveStudent = async (e) => {
+    e.preventDefault();
+
+    const idRegex = /^\d{4}-\d{4,5}$/;
+    if (!idRegex.test(studentId.trim())) {
+      showNotify('error', 'Invalid School ID format. Please use format: 2024-0616.');
+      return;
+    }
+
+    const cleanEmail = studentEmail.trim().toLowerCase();
+
+    // Kung nag-e-edit, ipakita ang confirmation modal ("Are you sure you want to change? Yes / No")
+    if (editingStudentId) {
+      setConfirmEditModal({
+        isOpen: true,
+        type: 'student',
+        payload: {
+          school_id: studentId.trim(),
+          full_name: studentName.trim(),
+          email: cleanEmail,
+          course: studentCourse,
+          year_level: studentYear,
+          section: studentSection,
+        },
+        title: studentName.trim(),
+      });
+      return;
+    }
+
+    // Kung bag-ong student (Insert)
+    setLoading(true);
+    try {
+      const defaultPassword = studentId.trim();
+      const { error: profileError } = await supabase.from('profiles').insert([
+        {
+          school_id: studentId.trim(),
+          full_name: studentName.trim(),
+          email: cleanEmail,
+          password: defaultPassword,
+          course: studentCourse,
+          year_level: studentYear,
+          section: studentSection,
+          role: 'student',
+          can_scan: false,
+          status: 'Active',
+          must_change_password: true,
+        },
+      ]);
+
+      if (profileError) throw new Error(profileError.message);
+
+      showNotify('success', `Successfully added ${studentName.trim()} (${studentSection})! Default password: ${defaultPassword}`);
+      handleCancelEditStudent();
+      fetchAllData();
+    } catch (err) {
+      showNotify('error', err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ========================================================
+  // OFFICER: ADD & EDIT HANDLERS
+  // ========================================================
   const handleOfficerAvatarUpload = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -450,6 +545,28 @@ export default function AdminDashboard() {
     reader.readAsDataURL(file);
   };
 
+  const handleStartEditOfficer = (off) => {
+    setEditingOfficerId(off.id);
+    setOfficerName(off.name || '');
+    setOfficerPosition(off.position || '');
+    setOfficerDepartment(off.department || 'Supreme Student Government (SSG)');
+    setOfficerTerm(off.term || '2026 - 2027');
+    setOfficerAvatar(off.avatar_url || '');
+
+    if (officerFormRef.current) {
+      officerFormRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
+  const handleCancelEditOfficer = () => {
+    setEditingOfficerId(null);
+    setOfficerName('');
+    setOfficerPosition('');
+    setOfficerDepartment('Supreme Student Government (SSG)');
+    setOfficerTerm('2026 - 2027');
+    setOfficerAvatar('');
+  };
+
   const handleSaveOfficer = async (e) => {
     e.preventDefault();
 
@@ -458,8 +575,25 @@ export default function AdminDashboard() {
       return;
     }
 
-    setLoading(true);
+    // Kung nag-e-edit, ipakita ang confirmation modal
+    if (editingOfficerId) {
+      setConfirmEditModal({
+        isOpen: true,
+        type: 'officer',
+        payload: {
+          name: officerName.trim(),
+          position: officerPosition.trim(),
+          department: officerDepartment.trim(),
+          term: officerTerm.trim(),
+          avatar_url: officerAvatar || null,
+        },
+        title: officerName.trim(),
+      });
+      return;
+    }
 
+    // Kung bag-ong opisyal (Insert)
+    setLoading(true);
     try {
       const { error } = await supabase.from('officers').insert([
         {
@@ -474,9 +608,7 @@ export default function AdminDashboard() {
       if (error) throw new Error(error.message);
 
       showNotify('success', `Officer ${officerName.trim()} successfully registered as ${officerPosition.trim()}!`);
-      setOfficerName('');
-      setOfficerPosition('');
-      setOfficerAvatar('');
+      handleCancelEditOfficer();
       fetchAllData();
     } catch (err) {
       showNotify('error', `Error saving officer: ${err.message}`);
@@ -485,6 +617,48 @@ export default function AdminDashboard() {
     }
   };
 
+  // ========================================================
+  // CONFIRMATION SAVE HANDLER PARA SA EDIT (YES / NO)
+  // ========================================================
+  const handleExecuteEditSave = async () => {
+    if (!confirmEditModal.payload) return;
+    setSavingEdit(true);
+
+    try {
+      if (confirmEditModal.type === 'student' && editingStudentId) {
+        const { error } = await supabase
+          .from('profiles')
+          .update(confirmEditModal.payload)
+          .eq('id', editingStudentId);
+
+        if (error) throw new Error(error.message);
+
+        showNotify('success', `Student "${confirmEditModal.title}" updated successfully!`);
+        handleCancelEditStudent();
+      } else if (confirmEditModal.type === 'officer' && editingOfficerId) {
+        const { error } = await supabase
+          .from('officers')
+          .update(confirmEditModal.payload)
+          .eq('id', editingOfficerId);
+
+        if (error) throw new Error(error.message);
+
+        showNotify('success', `Officer "${confirmEditModal.title}" updated successfully!`);
+        handleCancelEditOfficer();
+      }
+
+      setConfirmEditModal({ isOpen: false, type: '', payload: null, title: '' });
+      fetchAllData();
+    } catch (err) {
+      showNotify('error', `Update error: ${err.message}`);
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
+  // ========================================================
+  // EVENT HANDLERS
+  // ========================================================
   const handleEventImageUpload = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -659,10 +833,7 @@ export default function AdminDashboard() {
 
         if (updateError) throw new Error(updateError.message);
 
-        showNotify(
-          'success',
-          `Scanner access revoked for ${deleteModal.title}. Successfully returned to Student status.`
-        );
+        showNotify('success', `Scanner access revoked for ${deleteModal.title}. Successfully returned to Student status.`);
       }
 
       setDeleteModal({ isOpen: false, type: '', id: null, title: '' });
@@ -970,56 +1141,6 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleAddStudent = async (e) => {
-    e.preventDefault();
-
-    const idRegex = /^\d{4}-\d{4,5}$/;
-    if (!idRegex.test(studentId.trim())) {
-      showNotify('error', 'Invalid School ID format. Please use format: 2024-0616.');
-      return;
-    }
-
-    setLoading(true);
-
-    try {
-      const cleanEmail = studentEmail.trim().toLowerCase();
-      const defaultPassword = studentId.trim();
-
-      const { error: profileError } = await supabase.from('profiles').insert([
-        {
-          school_id: studentId.trim(),
-          full_name: studentName.trim(),
-          email: cleanEmail,
-          password: defaultPassword,
-          course: studentCourse,
-          year_level: studentYear,
-          section: studentSection,
-          role: 'student',
-          can_scan: false,
-          status: 'Active',
-          must_change_password: true,
-        },
-      ]);
-
-      if (profileError) {
-        throw new Error(`Database Error: ${profileError.message}`);
-      }
-
-      showNotify(
-        'success',
-        `Successfully added ${studentName.trim()} (${studentSection})! Default password: ${defaultPassword}`
-      );
-      setStudentId('');
-      setStudentName('');
-      setStudentEmail('');
-      fetchAllData();
-    } catch (err) {
-      showNotify('error', err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleAddStaff = async (e) => {
     e.preventDefault();
     if (userRole !== 'admin') {
@@ -1046,14 +1167,9 @@ export default function AdminDashboard() {
           })
           .eq('email', cleanEmail);
 
-        if (updateError) {
-          throw new Error(updateError.message);
-        }
+        if (updateError) throw new Error(updateError.message);
 
-        showNotify(
-          'success',
-          `Account upgraded. Scanner clearance granted to ${existingUser.full_name}.`
-        );
+        showNotify('success', `Account upgraded. Scanner clearance granted to ${existingUser.full_name}.`);
       } else {
         const generatedStaffId = `STAFF-${Math.floor(1000 + Math.random() * 9000)}`;
         const { error: insertError } = await supabase.from('profiles').insert([
@@ -1069,14 +1185,9 @@ export default function AdminDashboard() {
           },
         ]);
 
-        if (insertError) {
-          throw new Error(insertError.message);
-        }
+        if (insertError) throw new Error(insertError.message);
 
-        showNotify(
-          'success',
-          `Staff member ${staffName} successfully registered! Default password: ${generatedStaffId}`
-        );
+        showNotify('success', `Staff member ${staffName} successfully registered! Default password: ${generatedStaffId}`);
       }
 
       setStaffName('');
@@ -1358,7 +1469,7 @@ export default function AdminDashboard() {
       )}
 
       <div className={styles.portalWrapper}>
-        {/* SIDEBAR NAVIGATION - UNIFORM ANG DESIGN SA LAHAT NG BUTTONS */}
+        {/* SIDEBAR NAVIGATION */}
         <aside
           style={{
             position: 'fixed',
@@ -1446,7 +1557,6 @@ export default function AdminDashboard() {
                 </button>
               )}
 
-              {/* TAB: MANAGE OFFICERS (STANDARD CLEAN BUTTON - WALANG PERMANENTENG BORDER O KULAY) */}
               {isAdmin && (
                 <button
                   onClick={() => { setActiveTab('manage-officers'); setIsSidebarOpen(false); }}
@@ -1457,7 +1567,6 @@ export default function AdminDashboard() {
                 </button>
               )}
 
-              {/* TAB: SCAN QR & QUICK LOG */}
               <button
                 onClick={() => { setActiveTab('scan-qr'); setIsSidebarOpen(false); }}
                 className={activeTab === 'scan-qr' ? `${styles.portalNavLink} ${styles.portalNavLinkActive}` : styles.portalNavLink}
@@ -1466,7 +1575,6 @@ export default function AdminDashboard() {
                 <span>Scan QR &amp; Quick Log</span>
               </button>
 
-              {/* TAB: STUDENT RECORDS & LOGS (STANDARD CLEAN BUTTON - WALANG PERMANENTENG BORDER O KULAY) */}
               <button
                 onClick={() => { setActiveTab('search-student'); setIsSidebarOpen(false); }}
                 className={activeTab === 'search-student' ? `${styles.portalNavLink} ${styles.portalNavLinkActive}` : styles.portalNavLink}
@@ -1566,13 +1674,302 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          {/* TAB: MANAGE OFFICERS */}
+          {/* TAB 2: ADD & EDIT STUDENT (WITH EDIT BUTTON IN LIST) */}
+          {activeTab === 'add-student' && isAdmin && (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))', gap: '20px' }}>
+              <div className={styles.adminFormCard} ref={studentFormRef}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+                  <h3 className={styles.analyticsTitle} style={{ fontSize: '0.9rem', margin: 0 }}>
+                    {editingStudentId ? 'Edit Student Details' : 'Add Student'}
+                  </h3>
+                  {editingStudentId && (
+                    <button
+                      type="button"
+                      onClick={handleCancelEditStudent}
+                      style={{
+                        background: 'none',
+                        border: '1px solid #cbd5e1',
+                        borderRadius: '6px',
+                        padding: '3px 8px',
+                        fontSize: '0.72rem',
+                        fontWeight: 800,
+                        color: '#64748b',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      ✕ Cancel Edit
+                    </button>
+                  )}
+                </div>
+
+                <form onSubmit={handleSaveStudent} className={styles.loginForm}>
+                  <div className={styles.inputGroup}>
+                    <label className={styles.inputLabel} style={{ fontSize: '0.75rem' }}>School ID (Format: 2024-0616) *</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. 2024-0616"
+                      value={studentId}
+                      onChange={(e) => setStudentId(e.target.value)}
+                      pattern="\d{4}-\d{4,5}"
+                      className={styles.loginInput}
+                      style={{ padding: '10px 12px', fontSize: '0.9rem' }}
+                      required
+                    />
+                  </div>
+
+                  <div className={styles.inputGroup}>
+                    <label className={styles.inputLabel} style={{ fontSize: '0.75rem' }}>Full Name *</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Juan Dela Cruz"
+                      value={studentName}
+                      onChange={(e) => setStudentName(e.target.value)}
+                      className={styles.loginInput}
+                      style={{ padding: '10px 12px', fontSize: '0.9rem' }}
+                      required
+                    />
+                  </div>
+
+                  <div className={styles.inputGroup}>
+                    <label className={styles.inputLabel} style={{ fontSize: '0.75rem' }}>Student Email Address *</label>
+                    <input
+                      type="email"
+                      placeholder="e.g. student@dorsu.edu.ph"
+                      value={studentEmail}
+                      onChange={(e) => setStudentEmail(e.target.value)}
+                      className={styles.loginInput}
+                      style={{ padding: '10px 12px', fontSize: '0.9rem' }}
+                      required
+                    />
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                    <div className={styles.inputGroup}>
+                      <label className={styles.inputLabel} style={{ fontSize: '0.75rem' }}>Course</label>
+                      <select
+                        value={studentCourse}
+                        onChange={(e) => setStudentCourse(e.target.value)}
+                        className={styles.loginInput}
+                        style={{ padding: '10px 12px', fontSize: '0.9rem' }}
+                      >
+                        {courses.map((c) => (
+                          <option key={c.code} value={c.code}>{c.code}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className={styles.inputGroup}>
+                      <label className={styles.inputLabel} style={{ fontSize: '0.75rem' }}>Year Level</label>
+                      <select
+                        value={studentYear}
+                        onChange={(e) => setStudentYear(e.target.value)}
+                        className={styles.loginInput}
+                        style={{ padding: '10px 12px', fontSize: '0.9rem' }}
+                      >
+                        <option value="1st Year">1st Year</option>
+                        <option value="2nd Year">2nd Year</option>
+                        <option value="3rd Year">3rd Year</option>
+                        <option value="4th Year">4th Year</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className={styles.inputGroup}>
+                    <label className={styles.inputLabel} style={{ fontSize: '0.75rem' }}>Section (A - K) *</label>
+                    <select
+                      value={studentSection}
+                      onChange={(e) => setStudentSection(e.target.value)}
+                      className={styles.loginInput}
+                      style={{ padding: '10px 12px', fontSize: '0.9rem' }}
+                    >
+                      {sectionsList.map((sec) => (
+                        <option key={sec} value={sec}>{sec}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button
+                      type="submit"
+                      disabled={loading}
+                      className={styles.adminPrimaryBtn}
+                      style={{ flex: 1, minHeight: '44px', fontSize: '0.9rem' }}
+                    >
+                      {loading
+                        ? 'Saving...'
+                        : editingStudentId
+                        ? 'Save Changes ➔'
+                        : 'Add Student ➔'}
+                    </button>
+                    {editingStudentId && (
+                      <button
+                        type="button"
+                        onClick={handleCancelEditStudent}
+                        style={{
+                          backgroundColor: '#f1f5f9',
+                          color: '#475569',
+                          border: '1px solid #cbd5e1',
+                          borderRadius: '12px',
+                          padding: '0 14px',
+                          fontWeight: 800,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        Cancel
+                      </button>
+                    )}
+                  </div>
+                </form>
+              </div>
+
+              {/* ENROLLED STUDENTS LIST (MAY EDIT BUTTON NA SA ACTION COLUMN) */}
+              <div className={styles.adminFormCard}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '8px' }}>
+                  <div>
+                    <h3 className={styles.analyticsTitle} style={{ fontSize: '0.9rem', margin: 0 }}>
+                      Enrolled Students ({filteredStudents.length})
+                    </h3>
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <input
+                      type="text"
+                      placeholder="Search..."
+                      value={searchStudentQuery}
+                      onChange={(e) => setSearchStudentQuery(e.target.value)}
+                      className={styles.loginInput}
+                      style={{ width: '130px', padding: '6px 10px', fontSize: '0.8rem' }}
+                    />
+
+                    {students.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => triggerDeletePrompt('all_students', 'ALL', 'ALL enrolled students')}
+                        style={{
+                          border: '1px solid #fecaca',
+                          backgroundColor: '#fef2f2',
+                          color: '#b91c1c',
+                          fontWeight: 900,
+                          cursor: 'pointer',
+                          padding: '6px 12px',
+                          borderRadius: '8px',
+                          fontSize: '0.78rem',
+                          whiteSpace: 'nowrap',
+                          touchAction: 'manipulation',
+                        }}
+                      >
+                        Remove All
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                <div className={styles.adminTableWrapper}>
+                  <table className={styles.adminTable}>
+                    <thead>
+                      <tr>
+                        <th>School ID</th>
+                        <th>Student Details</th>
+                        <th>Course &amp; Section</th>
+                        <th style={{ textAlign: 'right' }}>Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredStudents.length === 0 ? (
+                        <tr>
+                          <td colSpan={4} style={{ textAlign: 'center', padding: '20px', color: '#94a3b8' }}>
+                            No student records found.
+                          </td>
+                        </tr>
+                      ) : (
+                        filteredStudents.map((st) => (
+                          <tr key={st.id}>
+                            <td style={{ fontWeight: 800 }}>{st.school_id}</td>
+                            <td>
+                              <div style={{ fontWeight: 700 }}>{st.full_name}</div>
+                              <div style={{ fontSize: '0.7rem', color: '#64748b' }}>{st.email}</div>
+                            </td>
+                            <td>
+                              <span className={styles.idBadge}>{st.course}</span>
+                              <div style={{ fontSize: '0.7rem', color: '#15803d', fontWeight: 800, marginTop: '2px' }}>
+                                {st.section || 'Section A'} • {st.year_level || '1st Year'}
+                              </div>
+                            </td>
+                            <td style={{ textAlign: 'right' }}>
+                              <div style={{ display: 'inline-flex', gap: '6px' }}>
+                                <button
+                                  type="button"
+                                  onClick={() => handleStartEditStudent(st)}
+                                  style={{
+                                    border: '1px solid #bbf7d0',
+                                    backgroundColor: '#f0fdf4',
+                                    color: '#15803d',
+                                    fontWeight: 800,
+                                    cursor: 'pointer',
+                                    padding: '5px 10px',
+                                    borderRadius: '8px',
+                                    fontSize: '0.75rem',
+                                    touchAction: 'manipulation',
+                                  }}
+                                >
+                                  Edit
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => triggerDeletePrompt('student', st.id, st.school_id)}
+                                  style={{
+                                    border: '1px solid #fecaca',
+                                    backgroundColor: '#fef2f2',
+                                    color: '#b91c1c',
+                                    fontWeight: 800,
+                                    cursor: 'pointer',
+                                    padding: '5px 10px',
+                                    borderRadius: '8px',
+                                    fontSize: '0.75rem',
+                                    touchAction: 'manipulation',
+                                  }}
+                                >
+                                  Remove
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* TAB: MANAGE OFFICERS (WITH EDIT PHOTO & DETAILS) */}
           {activeTab === 'manage-officers' && isAdmin && (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))', gap: '20px' }}>
-              <div className={styles.adminFormCard}>
-                <h3 className={styles.analyticsTitle} style={{ fontSize: '0.95rem', marginBottom: '14px' }}>
-                  Add Student Leader / Officer
-                </h3>
+              <div className={styles.adminFormCard} ref={officerFormRef}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+                  <h3 className={styles.analyticsTitle} style={{ fontSize: '0.95rem', margin: 0 }}>
+                    {editingOfficerId ? 'Edit Student Leader / Officer' : 'Add Student Leader / Officer'}
+                  </h3>
+                  {editingOfficerId && (
+                    <button
+                      type="button"
+                      onClick={handleCancelEditOfficer}
+                      style={{
+                        background: 'none',
+                        border: '1px solid #cbd5e1',
+                        borderRadius: '6px',
+                        padding: '3px 8px',
+                        fontSize: '0.72rem',
+                        fontWeight: 800,
+                        color: '#64748b',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      ✕ Cancel Edit
+                    </button>
+                  )}
+                </div>
 
                 <form onSubmit={handleSaveOfficer} className={styles.loginForm}>
                   <input
@@ -1583,6 +1980,7 @@ export default function AdminDashboard() {
                     style={{ display: 'none' }}
                   />
 
+                  {/* Upload / Change Photo */}
                   <div className={styles.inputGroup}>
                     <label className={styles.inputLabel} style={{ fontSize: '0.75rem' }}>Officer 2x2 / Formal Photo</label>
                     <div
@@ -1677,18 +2075,41 @@ export default function AdminDashboard() {
                     />
                   </div>
 
-                  <button
-                    type="submit"
-                    disabled={loading || compressingOfficerAvatar}
-                    className={styles.adminPrimaryBtn}
-                    style={{ minHeight: '44px', fontSize: '0.9rem' }}
-                  >
-                    {loading ? 'Saving...' : 'Publish Officer ➔'}
-                  </button>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button
+                      type="submit"
+                      disabled={loading || compressingOfficerAvatar}
+                      className={styles.adminPrimaryBtn}
+                      style={{ flex: 1, minHeight: '44px', fontSize: '0.9rem' }}
+                    >
+                      {loading
+                        ? 'Saving...'
+                        : editingOfficerId
+                        ? 'Save Changes ➔'
+                        : 'Publish Officer ➔'}
+                    </button>
+                    {editingOfficerId && (
+                      <button
+                        type="button"
+                        onClick={handleCancelEditOfficer}
+                        style={{
+                          backgroundColor: '#f1f5f9',
+                          color: '#475569',
+                          border: '1px solid #cbd5e1',
+                          borderRadius: '12px',
+                          padding: '0 14px',
+                          fontWeight: 800,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        Cancel
+                      </button>
+                    )}
+                  </div>
                 </form>
               </div>
 
-              {/* Published Officers Roster */}
+              {/* Published Officers Roster (WITH EDIT BUTTON) */}
               <div className={styles.adminFormCard}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
                   <h3 className={styles.analyticsTitle} style={{ fontSize: '0.95rem', margin: 0 }}>
@@ -1751,230 +2172,46 @@ export default function AdminDashboard() {
                           </div>
                         </div>
 
-                        <button
-                          type="button"
-                          onClick={() => triggerDeletePrompt('officer', off.id, off.name)}
-                          style={{
-                            border: '1px solid #fecaca',
-                            backgroundColor: '#fef2f2',
-                            color: '#b91c1c',
-                            fontWeight: 900,
-                            padding: '6px 12px',
-                            borderRadius: '8px',
-                            fontSize: '0.75rem',
-                            cursor: 'pointer',
-                            flexShrink: 0,
-                            touchAction: 'manipulation',
-                          }}
-                        >
-                          Remove
-                        </button>
+                        <div style={{ display: 'inline-flex', gap: '6px', flexShrink: 0 }}>
+                          <button
+                            type="button"
+                            onClick={() => handleStartEditOfficer(off)}
+                            style={{
+                              border: '1px solid #bbf7d0',
+                              backgroundColor: '#f0fdf4',
+                              color: '#15803d',
+                              fontWeight: 800,
+                              cursor: 'pointer',
+                              padding: '6px 12px',
+                              borderRadius: '8px',
+                              fontSize: '0.75rem',
+                              touchAction: 'manipulation',
+                            }}
+                          >
+                            Edit
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => triggerDeletePrompt('officer', off.id, off.name)}
+                            style={{
+                              border: '1px solid #fecaca',
+                              backgroundColor: '#fef2f2',
+                              color: '#b91c1c',
+                              fontWeight: 900,
+                              padding: '6px 12px',
+                              borderRadius: '8px',
+                              fontSize: '0.75rem',
+                              cursor: 'pointer',
+                              touchAction: 'manipulation',
+                            }}
+                          >
+                            Remove
+                          </button>
+                        </div>
                       </div>
                     ))}
                   </div>
                 )}
-              </div>
-            </div>
-          )}
-
-          {/* TAB 2: ADD STUDENT */}
-          {activeTab === 'add-student' && isAdmin && (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))', gap: '20px' }}>
-              <div className={styles.adminFormCard}>
-                <h3 className={styles.analyticsTitle} style={{ fontSize: '0.9rem', marginBottom: '14px' }}>
-                  Add Student
-                </h3>
-
-                <form onSubmit={handleAddStudent} className={styles.loginForm}>
-                  <div className={styles.inputGroup}>
-                    <label className={styles.inputLabel} style={{ fontSize: '0.75rem' }}>School ID (Format: 2024-0616) *</label>
-                    <input
-                      type="text"
-                      placeholder="e.g. 2024-0616"
-                      value={studentId}
-                      onChange={(e) => setStudentId(e.target.value)}
-                      pattern="\d{4}-\d{4,5}"
-                      className={styles.loginInput}
-                      style={{ padding: '10px 12px', fontSize: '0.9rem' }}
-                      required
-                    />
-                  </div>
-
-                  <div className={styles.inputGroup}>
-                    <label className={styles.inputLabel} style={{ fontSize: '0.75rem' }}>Full Name *</label>
-                    <input
-                      type="text"
-                      placeholder="e.g. Juan Dela Cruz"
-                      value={studentName}
-                      onChange={(e) => setStudentName(e.target.value)}
-                      className={styles.loginInput}
-                      style={{ padding: '10px 12px', fontSize: '0.9rem' }}
-                      required
-                    />
-                  </div>
-
-                  <div className={styles.inputGroup}>
-                    <label className={styles.inputLabel} style={{ fontSize: '0.75rem' }}>Student Email Address *</label>
-                    <input
-                      type="email"
-                      placeholder="e.g. student@dorsu.edu.ph"
-                      value={studentEmail}
-                      onChange={(e) => setStudentEmail(e.target.value)}
-                      className={styles.loginInput}
-                      style={{ padding: '10px 12px', fontSize: '0.9rem' }}
-                      required
-                    />
-                  </div>
-
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                    <div className={styles.inputGroup}>
-                      <label className={styles.inputLabel} style={{ fontSize: '0.75rem' }}>Course</label>
-                      <select
-                        value={studentCourse}
-                        onChange={(e) => setStudentCourse(e.target.value)}
-                        className={styles.loginInput}
-                        style={{ padding: '10px 12px', fontSize: '0.9rem' }}
-                      >
-                        {courses.map((c) => (
-                          <option key={c.code} value={c.code}>{c.code}</option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div className={styles.inputGroup}>
-                      <label className={styles.inputLabel} style={{ fontSize: '0.75rem' }}>Year Level</label>
-                      <select
-                        value={studentYear}
-                        onChange={(e) => setStudentYear(e.target.value)}
-                        className={styles.loginInput}
-                        style={{ padding: '10px 12px', fontSize: '0.9rem' }}
-                      >
-                        <option value="1st Year">1st Year</option>
-                        <option value="2nd Year">2nd Year</option>
-                        <option value="3rd Year">3rd Year</option>
-                        <option value="4th Year">4th Year</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <div className={styles.inputGroup}>
-                    <label className={styles.inputLabel} style={{ fontSize: '0.75rem' }}>Section (A - K) *</label>
-                    <select
-                      value={studentSection}
-                      onChange={(e) => setStudentSection(e.target.value)}
-                      className={styles.loginInput}
-                      style={{ padding: '10px 12px', fontSize: '0.9rem' }}
-                    >
-                      {sectionsList.map((sec) => (
-                        <option key={sec} value={sec}>{sec}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <button type="submit" disabled={loading} className={styles.adminPrimaryBtn} style={{ minHeight: '44px', fontSize: '0.9rem' }}>
-                    {loading ? 'Saving...' : 'Add Student ➔'}
-                  </button>
-                </form>
-              </div>
-
-              {/* ENROLLED STUDENTS LIST */}
-              <div className={styles.adminFormCard}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '8px' }}>
-                  <div>
-                    <h3 className={styles.analyticsTitle} style={{ fontSize: '0.9rem', margin: 0 }}>
-                      Enrolled Students ({filteredStudents.length})
-                    </h3>
-                  </div>
-
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <input
-                      type="text"
-                      placeholder="Search..."
-                      value={searchStudentQuery}
-                      onChange={(e) => setSearchStudentQuery(e.target.value)}
-                      className={styles.loginInput}
-                      style={{ width: '130px', padding: '6px 10px', fontSize: '0.8rem' }}
-                    />
-
-                    {students.length > 0 && (
-                      <button
-                        type="button"
-                        onClick={() => triggerDeletePrompt('all_students', 'ALL', 'ALL enrolled students')}
-                        style={{
-                          border: '1px solid #fecaca',
-                          backgroundColor: '#fef2f2',
-                          color: '#b91c1c',
-                          fontWeight: 900,
-                          cursor: 'pointer',
-                          padding: '6px 12px',
-                          borderRadius: '8px',
-                          fontSize: '0.78rem',
-                          whiteSpace: 'nowrap',
-                          touchAction: 'manipulation',
-                        }}
-                      >
-                        Remove All
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                <div className={styles.adminTableWrapper}>
-                  <table className={styles.adminTable}>
-                    <thead>
-                      <tr>
-                        <th>School ID</th>
-                        <th>Student Details</th>
-                        <th>Course &amp; Section</th>
-                        <th style={{ textAlign: 'right' }}>Action</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredStudents.length === 0 ? (
-                        <tr>
-                          <td colSpan={4} style={{ textAlign: 'center', padding: '20px', color: '#94a3b8' }}>
-                            No student records found.
-                          </td>
-                        </tr>
-                      ) : (
-                        filteredStudents.map((st) => (
-                          <tr key={st.id}>
-                            <td style={{ fontWeight: 800 }}>{st.school_id}</td>
-                            <td>
-                              <div style={{ fontWeight: 700 }}>{st.full_name}</div>
-                              <div style={{ fontSize: '0.7rem', color: '#64748b' }}>{st.email}</div>
-                            </td>
-                            <td>
-                              <span className={styles.idBadge}>{st.course}</span>
-                              <div style={{ fontSize: '0.7rem', color: '#15803d', fontWeight: 800, marginTop: '2px' }}>
-                                {st.section || 'Section A'} • {st.year_level || '1st Year'}
-                              </div>
-                            </td>
-                            <td style={{ textAlign: 'right' }}>
-                              <button
-                                type="button"
-                                onClick={() => triggerDeletePrompt('student', st.id, st.school_id)}
-                                style={{
-                                  border: '1px solid #fecaca',
-                                  backgroundColor: '#fef2f2',
-                                  color: '#b91c1c',
-                                  fontWeight: 800,
-                                  cursor: 'pointer',
-                                  padding: '5px 10px',
-                                  borderRadius: '8px',
-                                  fontSize: '0.75rem',
-                                  touchAction: 'manipulation',
-                                }}
-                              >
-                                Remove
-                              </button>
-                            </td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
-                </div>
               </div>
             </div>
           )}
@@ -2148,7 +2385,7 @@ export default function AdminDashboard() {
                         cursor: 'pointer',
                       }}
                     >
-                      ✕ Cancel
+                      ✕ Cancel Edit
                     </button>
                   )}
                 </div>
@@ -2463,7 +2700,7 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          {/* TAB 5: SCAN QR & QUICK LOG (SYNCHRONIZED SA LAHAT NG DEVICES) */}
+          {/* TAB 5: SCAN QR & QUICK LOG */}
           {activeTab === 'scan-qr' && (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))', gap: '20px' }}>
               <div className={styles.adminFormCard} style={{ padding: '24px 18px', textAlign: 'center' }}>
@@ -2617,7 +2854,6 @@ export default function AdminDashboard() {
                   )}
                 </div>
 
-                {/* LAUNCH SCANNER BUTTON */}
                 <button
                   type="button"
                   onClick={startCameraScanner}
@@ -3143,7 +3379,104 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      {/* MOBILE IN-APP CONFIRMATION MODAL */}
+      {/* CONFIRM EDIT MODAL ("Are you sure you want to change? Yes / No") */}
+      {confirmEditModal.isOpen && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(15, 23, 42, 0.75)',
+            backdropFilter: 'blur(5px)',
+            zIndex: 160,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '16px',
+          }}
+        >
+          <div
+            style={{
+              backgroundColor: '#ffffff',
+              width: '100%',
+              maxWidth: '380px',
+              borderRadius: '24px',
+              padding: '24px 20px',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.3)',
+              textAlign: 'center',
+              boxSizing: 'border-box',
+            }}
+          >
+            <div
+              style={{
+                width: '52px',
+                height: '52px',
+                borderRadius: '16px',
+                backgroundColor: '#dcfce7',
+                color: '#15803d',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '1.5rem',
+                margin: '0 auto 12px auto',
+              }}
+            >
+              ✏️
+            </div>
+
+            <h3 style={{ fontSize: '1.2rem', fontWeight: 900, color: '#0f172a', margin: '0 0 6px 0' }}>
+              Confirm Changes
+            </h3>
+            <p style={{ fontSize: '0.85rem', color: '#64748b', margin: '0 0 18px 0', lineHeight: 1.45 }}>
+              Are you sure you want to save the changes made to{' '}
+              <strong style={{ color: '#15803d' }}>&quot;{confirmEditModal.title}&quot;</strong>?
+            </p>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <button
+                type="button"
+                onClick={handleExecuteEditSave}
+                disabled={savingEdit}
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  backgroundColor: '#15803d',
+                  color: '#ffffff',
+                  border: 'none',
+                  borderRadius: '14px',
+                  fontSize: '0.9rem',
+                  fontWeight: 900,
+                  cursor: 'pointer',
+                  touchAction: 'manipulation',
+                }}
+              >
+                {savingEdit ? 'Saving Changes...' : 'Yes, Save Changes'}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setConfirmEditModal({ isOpen: false, type: '', payload: null, title: '' })}
+                disabled={savingEdit}
+                style={{
+                  width: '100%',
+                  padding: '10px',
+                  backgroundColor: '#f1f5f9',
+                  color: '#475569',
+                  border: 'none',
+                  borderRadius: '12px',
+                  fontSize: '0.85rem',
+                  fontWeight: 800,
+                  cursor: 'pointer',
+                  touchAction: 'manipulation',
+                }}
+              >
+                No, Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MOBILE IN-APP DELETE / REVOKE CONFIRMATION MODAL */}
       {deleteModal.isOpen && (
         <div
           style={{
