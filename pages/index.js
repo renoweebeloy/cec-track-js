@@ -174,6 +174,32 @@ export default function Home() {
       </Head>
 
       <style jsx>{`
+        /* PULSING LIVE DOT ANIMATION */
+        @keyframes liveDotGlow {
+          0% {
+            transform: scale(0.92);
+            box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.75);
+          }
+          65% {
+            transform: scale(1.08);
+            box-shadow: 0 0 0 6px rgba(34, 197, 94, 0);
+          }
+          100% {
+            transform: scale(0.92);
+            box-shadow: 0 0 0 0 rgba(34, 197, 94, 0);
+          }
+        }
+        .live-dot-pulse {
+          width: 7px;
+          height: 7px;
+          background-color: #16a34a;
+          border-radius: 50%;
+          display: inline-block;
+          margin-right: 5px;
+          animation: liveDotGlow 1.8s infinite cubic-bezier(0.4, 0, 0.6, 1);
+          flex-shrink: 0;
+        }
+
         .search-container {
           background-color: #ffffff;
           border: 1.5px solid #e2e8f0;
@@ -319,7 +345,8 @@ export default function Home() {
             }}
           >
             <span style={{ display: 'inline-flex', alignItems: 'center', color: '#15803d' }}>
-              <span className={styles.liveDot} style={{ width: '6px', height: '6px', marginRight: '4px' }}></span>
+              {/* ANIMATED PULSING LIVE DOT */}
+              <span className="live-dot-pulse" />
               LIVE PHT
             </span>
             <span style={{ color: '#cbd5e1' }}>|</span>
@@ -739,7 +766,7 @@ export default function Home() {
         <section className={styles.analyticsSection}>
           <div className={styles.analyticsHeader}>
             <div className={styles.analyticsTitle} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              {/* EXACT ORANGE DUAL-USER ICON FROM IMAGE */}
+              {/* EXACT ORANGE DUAL-USER ICON */}
               <svg
                 width="22"
                 height="22"
