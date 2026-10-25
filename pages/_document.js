@@ -4,16 +4,31 @@ export default function Document() {
   return (
     <Html lang="en">
       <Head>
-        {/* 1. Para sa iPhone Chrome at Safari Shortcuts / Home Screen */}
-        <link rel="apple-touch-icon" sizes="180x180" href="/logo.png" />
-        <link rel="apple-touch-icon" href="/logo.png" />
-
-        {/* 2. Standard Favicon para sa Chrome, Edge, at Firefox */}
-        <link rel="icon" type="image/png" sizes="32x32" href="/logo.png" />
+        {/* Standard Favicons */}
+        <link rel="icon" type="image/png" href="/logo.png" />
         <link rel="icon" type="image/png" sizes="16x16" href="/logo.png" />
-        <link rel="shortcut icon" href="/logo.png" />
+        <link rel="icon" type="image/png" sizes="32x32" href="/logo.png" />
+        <link rel="icon" type="image/png" sizes="48x48" href="/logo.png" />
+        <link rel="icon" type="image/png" sizes="192x192" href="/logo.png" />
+        <link rel="shortcut icon" type="image/png" href="/logo.png" />
 
-        {/* 3. PWA at iOS Web App Settings */}
+        {/* Apple iOS Touch Icons */}
+        <link rel="apple-touch-icon" href="/logo.png" />
+        <link rel="apple-touch-icon" sizes="76x76" href="/logo.png" />
+        <link rel="apple-touch-icon" sizes="120x120" href="/logo.png" />
+        <link rel="apple-touch-icon" sizes="152x152" href="/logo.png" />
+        <link rel="apple-touch-icon" sizes="180x180" href="/logo.png" />
+        <link rel="apple-touch-icon-precomposed" href="/logo.png" />
+
+        {/* Web App Manifest */}
+        <link rel="manifest" href="/site.webmanifest" />
+
+        {/* Mobile & Web App Metadata */}
+        <meta name="application-name" content="CECTRACK" />
+        <meta name="theme-color" content="#15803d" />
+        <meta name="mobile-web-app-capable" content="yes" />
+
+        {/* iOS Web App Settings */}
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
         <meta name="apple-mobile-web-app-title" content="CECTRACK" />
