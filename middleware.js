@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 
 // 1. I-SET NGA 'true' ARON MA-UNDER MAINTENANCE ANG SITE
-const IS_MAINTENANCE_MODE = false;
+const IS_MAINTENANCE_MODE = true;
 
 // 2. KINI IMONG SECRET CODE NGA IKAW RAY NASAYOD ARON MAKASULOD KA
 const BYPASS_SECRET_CODE = 'renowee2026';
