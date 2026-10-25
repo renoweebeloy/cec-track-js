@@ -150,7 +150,7 @@ export default function Home() {
     } catch (err) {
       setSearchResult({
         success: false,
-        msg: `Unable to verify "${cleanId}". Please check your ID format (e.g. 2024-0616).`,
+        msg: `Unable to verify "${cleanId}". Please check your ID format.`,
       });
     } finally {
       setSearchLoading(false);
@@ -175,6 +175,96 @@ export default function Home() {
         <title>CECTRACK • Cateel Extension Campus</title>
         <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
       </Head>
+
+      {/* MOBILE RESPONSIVE STYLES PARA PLASTAR SA CELLPHONE */}
+      <style jsx>{`
+        .search-form-wrapper {
+          background-color: #ffffff;
+          border: 1.5px solid #e2e8f0;
+          border-radius: 9999px;
+          padding: 5px 6px 5px 16px;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          box-shadow: 0 4px 14px rgba(0, 0, 0, 0.04);
+          width: 100%;
+          box-sizing: border-box;
+          transition: border-color 0.2s;
+        }
+        .search-btn-green {
+          background-color: #15803d;
+          color: #ffffff;
+          border: none;
+          border-radius: 9999px;
+          padding: 10px 20px;
+          font-size: 0.85rem;
+          font-weight: 800;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          box-shadow: 0 3px 10px rgba(21, 128, 61, 0.25);
+          white-space: nowrap;
+          flex-shrink: 0;
+          transition: all 0.15s ease;
+        }
+        .verified-card {
+          background-color: #f0fdf4;
+          border: 1.5px solid #a7f3d0;
+          border-radius: 22px;
+          padding: 20px 18px;
+          position: relative;
+          box-shadow: 0 10px 25px rgba(21, 128, 61, 0.07);
+          display: flex;
+          align-items: flex-start;
+          gap: 14px;
+          box-sizing: border-box;
+          text-align: left;
+          width: 100%;
+        }
+        @media (max-width: 600px) {
+          .search-form-wrapper {
+            padding: 4px 5px 4px 12px;
+          }
+          .search-btn-green {
+            padding: 9px 15px;
+            font-size: 0.78rem;
+          }
+          .verified-card {
+            padding: 16px 14px;
+            gap: 12px;
+            border-radius: 18px;
+          }
+          .verified-icon-box {
+            width: 38px !important;
+            height: 38px !important;
+            border-radius: 12px !important;
+          }
+          .verified-title {
+            font-size: 1.05rem !important;
+          }
+          .verified-desc {
+            font-size: 0.8rem !important;
+          }
+          .stats-row-box {
+            padding: 10px 12px !important;
+            gap: 6px !important;
+          }
+          .stats-number {
+            font-size: 1.15rem !important;
+          }
+          .mobile-btn-stack {
+            flex-direction: column !important;
+            align-items: stretch !important;
+            gap: 10px !important;
+          }
+          .mobile-btn-stack button {
+            width: 100% !important;
+            justify-content: center !important;
+            text-align: center !important;
+          }
+        }
+      `}</style>
 
       {/* Header na may About Link at Login Button */}
       <header className={styles.header}>
@@ -221,7 +311,7 @@ export default function Home() {
             alignItems: 'center',
             gap: '12px',
             flexWrap: 'wrap',
-            margin: '0 auto 24px auto',
+            margin: '0 auto 20px auto',
             padding: '0 8px',
             boxSizing: 'border-box',
           }}
@@ -275,13 +365,13 @@ export default function Home() {
 
         {/* Hero Section */}
         <section className={styles.heroSection}>
-          <div className={styles.logoContainer} style={{ marginBottom: '16px' }}>
+          <div className={styles.logoContainer} style={{ marginBottom: '14px' }}>
             <img
               src="/logo.png"
               alt="Cateel Extension Campus Logo"
               style={{
-                width: '125px',
-                height: '125px',
+                width: '110px',
+                height: '110px',
                 objectFit: 'contain',
                 display: 'block',
                 margin: '0 auto',
@@ -294,42 +384,26 @@ export default function Home() {
           </div>
 
           <div className={styles.tagBadge}>EMPOWERING FUTURE LEADERS</div>
-          <h1 className={styles.heroTitle} style={{ fontSize: '3rem', marginBottom: '2px' }}>
+          <h1 className={styles.heroTitle} style={{ fontSize: 'clamp(2.2rem, 6vw, 3rem)', marginBottom: '2px' }}>
             CEC
           </h1>
-          <h2 className={styles.heroSubtitle} style={{ fontSize: '1.2rem', marginBottom: '10px' }}>
+          <h2 className={styles.heroSubtitle} style={{ fontSize: '1.15rem', marginBottom: '8px' }}>
             Cateel Extension Campus
           </h2>
-          <p className={styles.heroDescription}>
+          <p className={styles.heroDescription} style={{ fontSize: '0.88rem', margin: '0 auto 20px auto' }}>
             Uniting students across CEC Dorsu disciplines.<br />
             Innovate, collaborate, and excel together.
           </p>
         </section>
 
         {/* ======================================================== */}
-        {/* EXACT SEARCH BAR & RECORD VERIFIED CARD (MATCHING IMAGE) */}
+        {/* SEARCH BAR (GREEN BUTTON, CLEAN PLACEHOLDER, COMPACT) */}
         {/* ======================================================== */}
-        <section className={styles.actionArea} style={{ maxWidth: '640px', margin: '0 auto 36px auto', width: '100%', padding: '0 12px', boxSizing: 'border-box' }}>
-          {/* SEARCH BOX WITH ID LOGO, CLEAR 'X', AND ORANGE PILL BUTTON */}
-          <form
-            onSubmit={handleCheckRecord}
-            style={{
-              backgroundColor: '#ffffff',
-              border: '1.5px solid #e2e8f0',
-              borderRadius: '24px',
-              padding: '6px 8px 6px 18px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '12px',
-              boxShadow: '0 4px 15px rgba(0, 0, 0, 0.04)',
-              transition: 'border-color 0.2s',
-              width: '100%',
-              boxSizing: 'border-box',
-            }}
-          >
-            {/* ID CARD LOGO */}
+        <section className={styles.actionArea} style={{ maxWidth: '600px', margin: '0 auto 30px auto', width: '100%', padding: '0 10px', boxSizing: 'border-box' }}>
+          <form onSubmit={handleCheckRecord} className="search-form-wrapper">
+            {/* ID CARD ICON */}
             <div style={{ display: 'flex', alignItems: 'center', color: '#94a3b8', flexShrink: 0 }}>
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <rect x="3" y="4" width="18" height="16" rx="3" />
                 <line x1="7" y1="8" x2="11" y2="8" />
                 <line x1="7" y1="12" x2="11" y2="12" />
@@ -337,17 +411,17 @@ export default function Home() {
               </svg>
             </div>
 
-            {/* INPUT FIELD */}
+            {/* INPUT FIELD (TINANGGAL ANG E.G. 2024-0616) */}
             <input
               type="text"
-              placeholder="Search Student ID (e.g. 2024-0616)..."
+              placeholder="Search Student ID..."
               value={searchId}
               onChange={(e) => setSearchId(e.target.value)}
               style={{
                 flex: 1,
                 border: 'none',
                 outline: 'none',
-                fontSize: '0.98rem',
+                fontSize: '0.92rem',
                 fontWeight: 700,
                 color: '#0f172a',
                 backgroundColor: 'transparent',
@@ -364,10 +438,10 @@ export default function Home() {
                   background: 'none',
                   border: 'none',
                   color: '#94a3b8',
-                  fontSize: '1rem',
+                  fontSize: '0.95rem',
                   fontWeight: 900,
                   cursor: 'pointer',
-                  padding: '4px 6px',
+                  padding: '2px 4px',
                   lineHeight: 1,
                 }}
               >
@@ -375,29 +449,13 @@ export default function Home() {
               </button>
             )}
 
-            {/* ORANGE CHECK RECORD PILL BUTTON */}
+            {/* GREEN CHECK RECORD BUTTON */}
             <button
               type="submit"
               disabled={searchLoading}
-              style={{
-                backgroundColor: '#f95700',
-                color: '#ffffff',
-                border: 'none',
-                borderRadius: '18px',
-                padding: '12px 22px',
-                fontSize: '0.88rem',
-                fontWeight: 800,
-                cursor: searchLoading ? 'not-allowed' : 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                boxShadow: '0 4px 12px rgba(249, 87, 0, 0.25)',
-                whiteSpace: 'nowrap',
-                flexShrink: 0,
-                transition: 'transform 0.15s ease',
-              }}
+              className="search-btn-green"
             >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="11" cy="11" r="8" />
                 <line x1="21" y1="21" x2="16.65" y2="16.65" />
               </svg>
@@ -406,33 +464,19 @@ export default function Home() {
           </form>
 
           {/* ======================================================== */}
-          {/* SEARCH RESULT: EXACT LAYOUT OF IMAGE_EDA840.PNG */}
+          {/* SEARCH RESULT: PLASTAR SA CELLPHONE & MATCHING DESIGN */}
           {/* ======================================================== */}
           {searchResult && (
-            <div style={{ marginTop: '16px', width: '100%', boxSizing: 'border-box' }}>
+            <div style={{ marginTop: '14px', width: '100%', boxSizing: 'border-box' }}>
               {searchResult.success && searchResult.student ? (
-                <div
-                  style={{
-                    backgroundColor: '#f0fdf4',
-                    border: '1.5px solid #a7f3d0',
-                    borderRadius: '24px',
-                    padding: '24px',
-                    position: 'relative',
-                    boxShadow: '0 10px 25px rgba(21, 128, 61, 0.08)',
-                    display: 'flex',
-                    alignItems: 'flex-start',
-                    gap: '18px',
-                    boxSizing: 'border-box',
-                    textAlign: 'left',
-                  }}
-                >
-                  {/* CLOSE 'X' ICON AT TOP RIGHT */}
+                <div className="verified-card">
+                  {/* CLOSE BUTTON */}
                   <button
                     onClick={() => setSearchResult(null)}
                     style={{
                       position: 'absolute',
-                      top: '16px',
-                      right: '18px',
+                      top: '12px',
+                      right: '14px',
                       background: 'none',
                       border: 'none',
                       color: '#059669',
@@ -446,48 +490,49 @@ export default function Home() {
                     ✕
                   </button>
 
-                  {/* LEFT GREEN ICON (CHECKMARK CIRCLE IN ROUNDED SQUARE) */}
+                  {/* LEFT GREEN ICON */}
                   <div
+                    className="verified-icon-box"
                     style={{
-                      width: '46px',
-                      height: '46px',
-                      borderRadius: '14px',
+                      width: '42px',
+                      height: '42px',
+                      borderRadius: '12px',
                       backgroundColor: '#00a86b',
                       color: '#ffffff',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      fontSize: '1.3rem',
+                      fontSize: '1.2rem',
                       flexShrink: 0,
-                      boxShadow: '0 4px 10px rgba(0, 168, 107, 0.25)',
+                      boxShadow: '0 4px 10px rgba(0, 168, 107, 0.2)',
                     }}
                   >
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
                       <circle cx="12" cy="12" r="10" />
                       <polyline points="9 12 11.5 14.5 15.5 9.5" />
                     </svg>
                   </div>
 
-                  {/* MAIN DETAILS */}
-                  <div style={{ flex: 1, minWidth: 0, paddingRight: '18px' }}>
+                  {/* DETAILS */}
+                  <div style={{ flex: 1, minWidth: 0, paddingRight: '14px' }}>
                     {/* BADGE: RECORDED & VERIFIED */}
-                    <div style={{ marginBottom: '8px' }}>
+                    <div style={{ marginBottom: '6px' }}>
                       <span
                         style={{
                           display: 'inline-flex',
                           alignItems: 'center',
-                          gap: '6px',
+                          gap: '5px',
                           backgroundColor: '#dcfce7',
                           color: '#047857',
-                          padding: '4px 12px',
+                          padding: '3px 10px',
                           borderRadius: '9999px',
-                          fontSize: '0.72rem',
+                          fontSize: '0.68rem',
                           fontWeight: 900,
                           letterSpacing: '0.04em',
                           textTransform: 'uppercase',
                         }}
                       >
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                           <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
                           <path d="m9 12 2 2 4-4" />
                         </svg>
@@ -497,24 +542,26 @@ export default function Home() {
 
                     {/* TITLE */}
                     <h3
+                      className="verified-title"
                       style={{
-                        margin: '0 0 6px 0',
-                        fontSize: '1.18rem',
+                        margin: '0 0 4px 0',
+                        fontSize: '1.1rem',
                         fontWeight: 900,
                         color: '#0f172a',
-                        lineHeight: 1.3,
+                        lineHeight: 1.25,
                       }}
                     >
                       You are already recorded! Please sign in now.
                     </h3>
 
-                    {/* WELCOME DESCRIPTION */}
+                    {/* WELCOME TEXT */}
                     <p
+                      className="verified-desc"
                       style={{
-                        margin: '0 0 16px 0',
-                        fontSize: '0.85rem',
+                        margin: '0 0 12px 0',
+                        fontSize: '0.82rem',
                         color: '#475569',
-                        lineHeight: 1.55,
+                        lineHeight: 1.5,
                       }}
                     >
                       Welcome, <strong>{searchResult.student.full_name}</strong> (
@@ -524,38 +571,43 @@ export default function Home() {
                       )! Your account is officially registered in the CECTRACK system.
                     </p>
 
-                    {/* ATTENDANCE RECORD OVERVIEW (KUNG ANO ANG RECORD SA ATTENDANCE) */}
+                    {/* COMPACT ATTENDANCE SUMMARY */}
                     <div
+                      className="stats-row-box"
                       style={{
                         backgroundColor: '#ffffff',
                         border: '1px solid #bbf7d0',
-                        borderRadius: '16px',
-                        padding: '12px 16px',
-                        marginBottom: '18px',
+                        borderRadius: '14px',
+                        padding: '10px 14px',
+                        marginBottom: '14px',
                         display: 'grid',
                         gridTemplateColumns: 'repeat(3, 1fr)',
-                        gap: '10px',
+                        gap: '8px',
                         textAlign: 'center',
                       }}
                     >
                       <div>
-                        <span style={{ fontSize: '0.65rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase' }}>Total Events</span>
-                        <div style={{ fontSize: '1.25rem', fontWeight: 900, color: '#0f172a' }}>{searchResult.stats.totalEvents}</div>
+                        <span style={{ fontSize: '0.62rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase' }}>TOTAL EVENTS</span>
+                        <div className="stats-number" style={{ fontSize: '1.2rem', fontWeight: 900, color: '#0f172a' }}>
+                          {searchResult.stats.totalEvents}
+                        </div>
                       </div>
                       <div>
-                        <span style={{ fontSize: '0.65rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase' }}>Attended</span>
-                        <div style={{ fontSize: '1.25rem', fontWeight: 900, color: '#059669' }}>{searchResult.stats.attended}</div>
+                        <span style={{ fontSize: '0.62rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase' }}>ATTENDED</span>
+                        <div className="stats-number" style={{ fontSize: '1.2rem', fontWeight: 900, color: '#059669' }}>
+                          {searchResult.stats.attended}
+                        </div>
                       </div>
                       <div>
-                        <span style={{ fontSize: '0.65rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase' }}>Absences</span>
-                        <div style={{ fontSize: '1.25rem', fontWeight: 900, color: searchResult.stats.absences > 0 ? '#dc2626' : '#059669' }}>
+                        <span style={{ fontSize: '0.62rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase' }}>ABSENCES</span>
+                        <div className="stats-number" style={{ fontSize: '1.2rem', fontWeight: 900, color: searchResult.stats.absences > 0 ? '#dc2626' : '#059669' }}>
                           {searchResult.stats.absences}
                         </div>
                       </div>
                     </div>
 
-                    {/* BUTTON ROW: SIGN IN NOW & CHECK ANOTHER ID */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+                    {/* ACTION BUTTONS */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
                       <button
                         type="button"
                         onClick={() => router.push('/login')}
@@ -563,24 +615,17 @@ export default function Home() {
                           backgroundColor: '#00875a',
                           color: '#ffffff',
                           border: 'none',
-                          borderRadius: '14px',
-                          padding: '11px 22px',
-                          fontSize: '0.88rem',
+                          borderRadius: '12px',
+                          padding: '10px 18px',
+                          fontSize: '0.85rem',
                           fontWeight: 800,
                           cursor: 'pointer',
                           display: 'inline-flex',
                           alignItems: 'center',
-                          gap: '8px',
-                          boxShadow: '0 4px 12px rgba(0, 135, 90, 0.25)',
-                          transition: 'background-color 0.15s ease',
+                          gap: '6px',
+                          boxShadow: '0 3px 10px rgba(0, 135, 90, 0.22)',
                         }}
                       >
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-                          <circle cx="9" cy="7" r="4" />
-                          <path d="M19 8v6" />
-                          <path d="M22 11h-6" />
-                        </svg>
                         <span>Sign In Now ➔</span>
                       </button>
 
@@ -591,11 +636,10 @@ export default function Home() {
                           background: 'none',
                           border: 'none',
                           color: '#64748b',
-                          fontSize: '0.85rem',
+                          fontSize: '0.82rem',
                           fontWeight: 700,
                           cursor: 'pointer',
-                          padding: '6px 4px',
-                          textDecoration: 'none',
+                          padding: '4px',
                         }}
                       >
                         Check another ID
@@ -609,28 +653,28 @@ export default function Home() {
                   style={{
                     backgroundColor: '#fff1f2',
                     border: '1.5px solid #fecdd3',
-                    borderRadius: '24px',
-                    padding: '20px 24px',
+                    borderRadius: '18px',
+                    padding: '16px 20px',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
-                    boxShadow: '0 10px 25px rgba(225, 29, 72, 0.06)',
+                    boxShadow: '0 8px 20px rgba(225, 29, 72, 0.05)',
                     textAlign: 'left',
-                    gap: '14px',
+                    gap: '12px',
                   }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                     <div
                       style={{
-                        width: '42px',
-                        height: '42px',
-                        borderRadius: '12px',
+                        width: '38px',
+                        height: '38px',
+                        borderRadius: '10px',
                         backgroundColor: '#fee2e2',
                         color: '#be123c',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        fontSize: '1.2rem',
+                        fontSize: '1.1rem',
                         fontWeight: 900,
                         flexShrink: 0,
                       }}
@@ -638,10 +682,10 @@ export default function Home() {
                       ✕
                     </div>
                     <div>
-                      <h4 style={{ margin: '0 0 2px 0', fontSize: '0.95rem', fontWeight: 900, color: '#9f1239' }}>
+                      <h4 style={{ margin: '0 0 2px 0', fontSize: '0.9rem', fontWeight: 900, color: '#9f1239' }}>
                         Record Not Found
                       </h4>
-                      <p style={{ margin: 0, fontSize: '0.8rem', color: '#be123c' }}>
+                      <p style={{ margin: 0, fontSize: '0.78rem', color: '#be123c' }}>
                         {searchResult.msg}
                       </p>
                     </div>
@@ -653,7 +697,7 @@ export default function Home() {
                       background: 'none',
                       border: 'none',
                       color: '#be123c',
-                      fontSize: '1.1rem',
+                      fontSize: '1rem',
                       fontWeight: 800,
                       cursor: 'pointer',
                     }}
@@ -666,11 +710,19 @@ export default function Home() {
           )}
 
           {/* PORTAL ACCESS & EXPLORE BUTTONS */}
-          <div className={styles.buttonRow} style={{ marginTop: '20px' }}>
-            <button onClick={() => router.push('/login')} className={styles.portalBtn}>
+          <div className="mobile-btn-stack" style={{ display: 'flex', justifyContent: 'center', gap: '12px', marginTop: '16px', width: '100%' }}>
+            <button
+              onClick={() => router.push('/login')}
+              className={styles.portalBtn}
+              style={{ padding: '12px 20px', fontSize: '0.88rem' }}
+            >
               ➔ Access Member Portal
             </button>
-            <button onClick={scrollToEvents} className={styles.eventsBtn}>
+            <button
+              onClick={scrollToEvents}
+              className={styles.eventsBtn}
+              style={{ padding: '12px 20px', fontSize: '0.88rem' }}
+            >
               Explore Events ➔
             </button>
           </div>
