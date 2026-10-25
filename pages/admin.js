@@ -66,8 +66,8 @@ export default function AdminDashboard() {
   const [compressingOfficerAvatar, setCompressingOfficerAvatar] = useState(false);
   const [officersList, setOfficersList] = useState([]);
 
-  // 5. Scanner Controls & Gate State
-  const [scanMode, setScanMode] = useState('time_in');
+  // 5. Scanner Controls & Synchronized Gate State
+  const [scanMode, setScanMode] = useState('time_in'); // 'time_in' | 'time_out'
   const [isScannerGateOpen, setIsScannerGateOpen] = useState(true);
   const [selectedEventId, setSelectedEventId] = useState('');
   const [manualStudentId, setManualStudentId] = useState('');
@@ -104,6 +104,7 @@ export default function AdminDashboard() {
     'Section F', 'Section G', 'Section H', 'Section I', 'Section J', 'Section K',
   ];
 
+  // Helper: Convert 24h to 12h (e.g. 5:00 PM)
   const formatTime12Hour = (time24) => {
     if (!time24 || time24 === '--:--') return '--:--';
     if (time24.includes('AM') || time24.includes('PM')) return time24;
@@ -212,6 +213,32 @@ export default function AdminDashboard() {
       script.async = true;
       document.body.appendChild(script);
     }
+  }, []);
+
+  // Live Sync para sa Scanner Gate sa pagitan ng Admin at Staff
+  useEffect(() => {
+    if (!supabase) return;
+
+    const syncScannerGate = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('system_settings')
+          .select('value')
+          .eq('key', 'scanner_gate')
+          .maybeSingle();
+
+        if (!error && data) {
+          setIsScannerGateOpen(data.value === 'open');
+        }
+      } catch (err) {
+        // Fallback silently if table is not yet created
+      }
+    };
+
+    syncScannerGate();
+    const gatePollInterval = setInterval(syncScannerGate, 4000);
+
+    return () => clearInterval(gatePollInterval);
   }, []);
 
   // Verification Access Clearance
@@ -353,12 +380,35 @@ export default function AdminDashboard() {
     router.replace('/');
   };
 
+  // Switch para sa Scanner Gate ng Admin (Naka-sync sa Database)
+  const handleToggleScannerGate = async () => {
+    if (userRole !== 'admin') return;
+    const nextState = !isScannerGateOpen;
+    setIsScannerGateOpen(nextState);
+
+    try {
+      await supabase
+        .from('system_settings')
+        .upsert({ key: 'scanner_gate', value: nextState ? 'open' : 'closed' }, { onConflict: 'key' });
+
+      // Fallback update sa staff scan privileges
+      await supabase
+        .from('profiles')
+        .update({ can_scan: nextState })
+        .eq('role', 'staff');
+
+      showNotify('success', `Scanner Gate is now ${nextState ? 'OPEN (Active)' : 'CLOSED (Disabled for Staff)'}.`);
+    } catch (err) {
+      console.warn('Sync error:', err);
+    }
+  };
+
   const handleOfficerAvatarUpload = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     if (!file.type.startsWith('image/')) {
-      showNotify('error', 'Pumili ng tamang file ng larawan (PNG, JPG, o JPEG).');
+      showNotify('error', 'Please select a valid image file (PNG, JPG, or JPEG).');
       return;
     }
 
@@ -393,7 +443,7 @@ export default function AdminDashboard() {
         const compressedBase64 = canvas.toDataURL('image/jpeg', 0.8);
         setOfficerAvatar(compressedBase64);
         setCompressingOfficerAvatar(false);
-        showNotify('success', 'Nai-attach na ang larawan ng opisyal!');
+        showNotify('success', 'Officer photo attached successfully!');
       };
       img.src = event.target.result;
     };
@@ -404,7 +454,7 @@ export default function AdminDashboard() {
     e.preventDefault();
 
     if (!officerName.trim() || !officerPosition.trim()) {
-      showNotify('error', 'Punan ang Pangalan at Posisyon ng Opisyal.');
+      showNotify('error', 'Please provide both the Officer Name and Position.');
       return;
     }
 
@@ -423,7 +473,7 @@ export default function AdminDashboard() {
 
       if (error) throw new Error(error.message);
 
-      showNotify('success', `Opisyal na nairehistro si ${officerName.trim()} bilang ${officerPosition.trim()}!`);
+      showNotify('success', `Officer ${officerName.trim()} successfully registered as ${officerPosition.trim()}!`);
       setOfficerName('');
       setOfficerPosition('');
       setOfficerAvatar('');
@@ -574,7 +624,7 @@ export default function AdminDashboard() {
       if (deleteModal.type === 'officer') {
         const { error } = await supabase.from('officers').delete().eq('id', deleteModal.id);
         if (error) throw new Error(error.message);
-        showNotify('success', `Natanggal na si "${deleteModal.title}" sa listahan ng mga opisyal.`);
+        showNotify('success', `Officer "${deleteModal.title}" removed successfully from the roster.`);
       } else if (deleteModal.type === 'event') {
         await supabase.from('attendance').delete().eq('event_id', deleteModal.id);
         const { error } = await supabase.from('events').delete().eq('id', deleteModal.id);
@@ -991,7 +1041,7 @@ export default function AdminDashboard() {
         const { error: updateError } = await supabase
           .from('profiles')
           .update({
-            can_scan: true,
+            can_scan: isScannerGateOpen,
             role: 'staff',
           })
           .eq('email', cleanEmail);
@@ -1013,7 +1063,7 @@ export default function AdminDashboard() {
             email: cleanEmail,
             password: generatedStaffId,
             role: 'staff',
-            can_scan: true,
+            can_scan: isScannerGateOpen,
             status: 'Active',
             must_change_password: true,
           },
@@ -1308,7 +1358,7 @@ export default function AdminDashboard() {
       )}
 
       <div className={styles.portalWrapper}>
-        {/* SIDEBAR NAVIGATION (PANTAY-PANTAY ANG STYLING NANG WALANG SOBRANG KULAY) */}
+        {/* SIDEBAR NAVIGATION - UNIFORM ANG DESIGN SA LAHAT NG BUTTONS */}
         <aside
           style={{
             position: 'fixed',
@@ -1396,7 +1446,7 @@ export default function AdminDashboard() {
                 </button>
               )}
 
-              {/* TAB: MANAGE OFFICERS (STANDARD BUTTON STYLING) */}
+              {/* TAB: MANAGE OFFICERS (STANDARD CLEAN BUTTON - WALANG PERMANENTENG BORDER O KULAY) */}
               {isAdmin && (
                 <button
                   onClick={() => { setActiveTab('manage-officers'); setIsSidebarOpen(false); }}
@@ -1416,7 +1466,7 @@ export default function AdminDashboard() {
                 <span>Scan QR &amp; Quick Log</span>
               </button>
 
-              {/* TAB: STUDENT RECORDS & LOGS (STANDARD BUTTON STYLING) */}
+              {/* TAB: STUDENT RECORDS & LOGS (STANDARD CLEAN BUTTON - WALANG PERMANENTENG BORDER O KULAY) */}
               <button
                 onClick={() => { setActiveTab('search-student'); setIsSidebarOpen(false); }}
                 className={activeTab === 'search-student' ? `${styles.portalNavLink} ${styles.portalNavLinkActive}` : styles.portalNavLink}
@@ -1648,7 +1698,7 @@ export default function AdminDashboard() {
 
                 {officersList.length === 0 ? (
                   <div style={{ textAlign: 'center', padding: '30px', color: '#94a3b8', fontSize: '0.85rem' }}>
-                    Wala pa&apos;y narehistro nga mga opisyales.
+                    No officers registered yet.
                   </div>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', width: '100%' }}>
@@ -2413,7 +2463,7 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          {/* TAB 5: SCAN QR & QUICK LOG */}
+          {/* TAB 5: SCAN QR & QUICK LOG (SYNCHRONIZED SA LAHAT NG DEVICES) */}
           {activeTab === 'scan-qr' && (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))', gap: '20px' }}>
               <div className={styles.adminFormCard} style={{ padding: '24px 18px', textAlign: 'center' }}>
@@ -2443,7 +2493,7 @@ export default function AdminDashboard() {
                     </div>
                     <span style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: 700 }}>
                       {isScannerGateOpen
-                        ? 'Students can scan right now'
+                        ? 'Students and staff can scan right now'
                         : 'Attendance logging is stopped by Administrator'}
                     </span>
                   </div>
@@ -2451,7 +2501,7 @@ export default function AdminDashboard() {
                   {isAdmin ? (
                     <button
                       type="button"
-                      onClick={() => setIsScannerGateOpen(!isScannerGateOpen)}
+                      onClick={handleToggleScannerGate}
                       style={{
                         backgroundColor: isScannerGateOpen ? '#15803d' : '#ef4444',
                         color: '#ffffff',
@@ -2567,6 +2617,7 @@ export default function AdminDashboard() {
                   )}
                 </div>
 
+                {/* LAUNCH SCANNER BUTTON */}
                 <button
                   type="button"
                   onClick={startCameraScanner}
@@ -2582,7 +2633,7 @@ export default function AdminDashboard() {
                   }}
                 >
                   {!isScannerGateOpen
-                    ? 'Scanner Gate is Closed'
+                    ? 'Scanner Gate is Closed by Admin'
                     : `Launch ${scanMode === 'time_in' ? 'Time In' : 'Time Out'} Scanner ➔`}
                 </button>
               </div>
@@ -3147,8 +3198,8 @@ export default function AdminDashboard() {
                 </>
               ) : deleteModal.type === 'officer' ? (
                 <>
-                  Sigurado ka ba nga gusto nimong tangtangon si{' '}
-                  <strong style={{ color: '#b91c1c' }}>&quot;{deleteModal.title}&quot;</strong> gikan sa opisyal nga talaan sa mga opisyales?
+                  Are you sure you want to remove{' '}
+                  <strong style={{ color: '#b91c1c' }}>&quot;{deleteModal.title}&quot;</strong> from the official roster of officers?
                 </>
               ) : (
                 <>
