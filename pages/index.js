@@ -9,7 +9,7 @@ export default function Home() {
   const [currentTime, setCurrentTime] = useState('');
   const [currentDate, setCurrentDate] = useState('');
 
-  // Dynamic Course Counts mula sa Database
+  // Course counts mula sa database
   const [counts, setCounts] = useState({
     BSBA: 0,
     BSCRIM: 0,
@@ -19,16 +19,16 @@ export default function Home() {
     total: 0,
   });
 
-  // Dynamic Events mula sa Admin
+  // Events mula sa database
   const [events, setEvents] = useState([]);
   const [eventsLoading, setEventsLoading] = useState(true);
 
-  // Search ID Check States
+  // Search ID states
   const [searchId, setSearchId] = useState('');
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchResult, setSearchResult] = useState(null);
 
-  // Live Philippine Standard Time (PHT) Clock
+  // Philippine Standard Time Clock
   useEffect(() => {
     const updateClock = () => {
       const now = new Date();
@@ -56,7 +56,7 @@ export default function Home() {
     return () => clearInterval(timer);
   }, []);
 
-  // Fetch Student Analytics at Events mula sa Supabase
+  // Fetch data
   const fetchData = async () => {
     if (!supabase) return;
     try {
@@ -97,7 +97,7 @@ export default function Home() {
     fetchData();
   }, []);
 
-  // Pag-check ng Student ID at pagkuha ng kanyang Attendance Record
+  // Check Record logic
   const handleCheckRecord = async (e) => {
     if (e) e.preventDefault();
     const cleanId = searchId.trim();
@@ -107,7 +107,6 @@ export default function Home() {
     setSearchResult(null);
 
     try {
-      // 1. Hanapin ang profile ng estudyante
       const { data: student, error: studentErr } = await supabase
         .from('profiles')
         .select('school_id, full_name, course, year_level, section, status, avatar_url')
@@ -123,13 +122,11 @@ export default function Home() {
         return;
       }
 
-      // 2. Kumuha ng attendance record ng naturang estudyante
       const { data: studentLogs } = await supabase
         .from('attendance')
         .select('*')
         .eq('student_id', cleanId);
 
-      // 3. Kumuha ng kabuuang bilang ng mga events
       const { data: allEvents } = await supabase
         .from('events')
         .select('id');
@@ -176,16 +173,15 @@ export default function Home() {
         <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
       </Head>
 
-      {/* MOBILE RESPONSIVE STYLES PARA PLASTAR SA CELLPHONE */}
       <style jsx>{`
-        .search-form-wrapper {
+        .search-container {
           background-color: #ffffff;
           border: 1.5px solid #e2e8f0;
           border-radius: 9999px;
-          padding: 5px 6px 5px 16px;
+          padding: 4px 5px 4px 14px;
           display: flex;
           align-items: center;
-          gap: 8px;
+          gap: 6px;
           box-shadow: 0 4px 14px rgba(0, 0, 0, 0.04);
           width: 100%;
           box-sizing: border-box;
@@ -196,77 +192,67 @@ export default function Home() {
           color: #ffffff;
           border: none;
           border-radius: 9999px;
-          padding: 10px 20px;
-          font-size: 0.85rem;
+          padding: 8px 16px;
+          font-size: 0.8rem;
           font-weight: 800;
           cursor: pointer;
           display: flex;
           align-items: center;
           gap: 6px;
-          box-shadow: 0 3px 10px rgba(21, 128, 61, 0.25);
+          box-shadow: 0 3px 8px rgba(21, 128, 61, 0.2);
           white-space: nowrap;
           flex-shrink: 0;
-          transition: all 0.15s ease;
         }
         .verified-card {
           background-color: #f0fdf4;
           border: 1.5px solid #a7f3d0;
-          border-radius: 22px;
-          padding: 20px 18px;
+          border-radius: 20px;
+          padding: 18px 16px;
           position: relative;
-          box-shadow: 0 10px 25px rgba(21, 128, 61, 0.07);
+          box-shadow: 0 10px 25px rgba(21, 128, 61, 0.06);
           display: flex;
           align-items: flex-start;
-          gap: 14px;
+          gap: 12px;
           box-sizing: border-box;
           text-align: left;
           width: 100%;
         }
         @media (max-width: 600px) {
-          .search-form-wrapper {
-            padding: 4px 5px 4px 12px;
+          .search-container {
+            padding: 4px 4px 4px 10px;
+            gap: 4px;
           }
           .search-btn-green {
-            padding: 9px 15px;
-            font-size: 0.78rem;
+            padding: 7px 11px;
+            font-size: 0.74rem;
+            gap: 4px;
           }
           .verified-card {
-            padding: 16px 14px;
-            gap: 12px;
-            border-radius: 18px;
+            padding: 14px 12px;
+            gap: 10px;
+            border-radius: 16px;
           }
-          .verified-icon-box {
-            width: 38px !important;
-            height: 38px !important;
-            border-radius: 12px !important;
+          .icon-box {
+            width: 36px !important;
+            height: 36px !important;
+            border-radius: 10px !important;
           }
-          .verified-title {
-            font-size: 1.05rem !important;
+          .title-text {
+            font-size: 1rem !important;
           }
-          .verified-desc {
-            font-size: 0.8rem !important;
+          .desc-text {
+            font-size: 0.78rem !important;
           }
-          .stats-row-box {
-            padding: 10px 12px !important;
-            gap: 6px !important;
+          .stats-grid {
+            padding: 8px 10px !important;
           }
-          .stats-number {
+          .stat-value {
             font-size: 1.15rem !important;
-          }
-          .mobile-btn-stack {
-            flex-direction: column !important;
-            align-items: stretch !important;
-            gap: 10px !important;
-          }
-          .mobile-btn-stack button {
-            width: 100% !important;
-            justify-content: center !important;
-            text-align: center !important;
           }
         }
       `}</style>
 
-      {/* Header na may About Link at Login Button */}
+      {/* Header */}
       <header className={styles.header}>
         <div className={styles.headerContent} style={{ justifyContent: 'space-between' }}>
           <button onClick={() => router.push('/')} className={styles.logoText}>
@@ -301,7 +287,7 @@ export default function Home() {
       </header>
 
       <main className={styles.main}>
-        {/* Status Row */}
+        {/* Status Badge Row */}
         <div
           style={{
             width: '100%',
@@ -329,7 +315,6 @@ export default function Home() {
               fontWeight: 800,
               color: '#334155',
               boxShadow: '0 1px 2px rgba(0, 0, 0, 0.04)',
-              letterSpacing: '0.01em',
               whiteSpace: 'nowrap',
             }}
           >
@@ -363,15 +348,15 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Hero Section */}
+        {/* Hero Area */}
         <section className={styles.heroSection}>
           <div className={styles.logoContainer} style={{ marginBottom: '14px' }}>
             <img
               src="/logo.png"
               alt="Cateel Extension Campus Logo"
               style={{
-                width: '110px',
-                height: '110px',
+                width: '105px',
+                height: '105px',
                 objectFit: 'contain',
                 display: 'block',
                 margin: '0 auto',
@@ -390,20 +375,17 @@ export default function Home() {
           <h2 className={styles.heroSubtitle} style={{ fontSize: '1.15rem', marginBottom: '8px' }}>
             Cateel Extension Campus
           </h2>
-          <p className={styles.heroDescription} style={{ fontSize: '0.88rem', margin: '0 auto 20px auto' }}>
+          <p className={styles.heroDescription} style={{ fontSize: '0.86rem', margin: '0 auto 20px auto' }}>
             Uniting students across CEC Dorsu disciplines.<br />
             Innovate, collaborate, and excel together.
           </p>
         </section>
 
-        {/* ======================================================== */}
-        {/* SEARCH BAR (GREEN BUTTON, CLEAN PLACEHOLDER, COMPACT) */}
-        {/* ======================================================== */}
-        <section className={styles.actionArea} style={{ maxWidth: '600px', margin: '0 auto 30px auto', width: '100%', padding: '0 10px', boxSizing: 'border-box' }}>
-          <form onSubmit={handleCheckRecord} className="search-form-wrapper">
-            {/* ID CARD ICON */}
+        {/* Compact Search Bar & Result */}
+        <section className={styles.actionArea} style={{ maxWidth: '580px', margin: '0 auto 28px auto', width: '100%', padding: '0 8px', boxSizing: 'border-box' }}>
+          <form onSubmit={handleCheckRecord} className="search-container">
             <div style={{ display: 'flex', alignItems: 'center', color: '#94a3b8', flexShrink: 0 }}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <rect x="3" y="4" width="18" height="16" rx="3" />
                 <line x1="7" y1="8" x2="11" y2="8" />
                 <line x1="7" y1="12" x2="11" y2="12" />
@@ -411,7 +393,6 @@ export default function Home() {
               </svg>
             </div>
 
-            {/* INPUT FIELD (TINANGGAL ANG E.G. 2024-0616) */}
             <input
               type="text"
               placeholder="Search Student ID..."
@@ -421,7 +402,7 @@ export default function Home() {
                 flex: 1,
                 border: 'none',
                 outline: 'none',
-                fontSize: '0.92rem',
+                fontSize: '0.88rem',
                 fontWeight: 700,
                 color: '#0f172a',
                 backgroundColor: 'transparent',
@@ -429,7 +410,6 @@ export default function Home() {
               }}
             />
 
-            {/* CLEAR 'X' BUTTON */}
             {searchId && (
               <button
                 type="button"
@@ -438,7 +418,7 @@ export default function Home() {
                   background: 'none',
                   border: 'none',
                   color: '#94a3b8',
-                  fontSize: '0.95rem',
+                  fontSize: '0.9rem',
                   fontWeight: 900,
                   cursor: 'pointer',
                   padding: '2px 4px',
@@ -449,13 +429,12 @@ export default function Home() {
               </button>
             )}
 
-            {/* GREEN CHECK RECORD BUTTON */}
             <button
               type="submit"
               disabled={searchLoading}
               className="search-btn-green"
             >
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="11" cy="11" r="8" />
                 <line x1="21" y1="21" x2="16.65" y2="16.65" />
               </svg>
@@ -463,59 +442,52 @@ export default function Home() {
             </button>
           </form>
 
-          {/* ======================================================== */}
-          {/* SEARCH RESULT: PLASTAR SA CELLPHONE & MATCHING DESIGN */}
-          {/* ======================================================== */}
+          {/* Result Card */}
           {searchResult && (
             <div style={{ marginTop: '14px', width: '100%', boxSizing: 'border-box' }}>
               {searchResult.success && searchResult.student ? (
                 <div className="verified-card">
-                  {/* CLOSE BUTTON */}
                   <button
                     onClick={() => setSearchResult(null)}
                     style={{
                       position: 'absolute',
                       top: '12px',
-                      right: '14px',
+                      right: '12px',
                       background: 'none',
                       border: 'none',
                       color: '#059669',
-                      fontSize: '1.1rem',
+                      fontSize: '1rem',
                       fontWeight: 800,
                       cursor: 'pointer',
-                      padding: '4px',
+                      padding: '2px',
                       lineHeight: 1,
                     }}
                   >
                     ✕
                   </button>
 
-                  {/* LEFT GREEN ICON */}
                   <div
-                    className="verified-icon-box"
+                    className="icon-box"
                     style={{
-                      width: '42px',
-                      height: '42px',
+                      width: '40px',
+                      height: '40px',
                       borderRadius: '12px',
                       backgroundColor: '#00a86b',
                       color: '#ffffff',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      fontSize: '1.2rem',
                       flexShrink: 0,
                       boxShadow: '0 4px 10px rgba(0, 168, 107, 0.2)',
                     }}
                   >
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
                       <circle cx="12" cy="12" r="10" />
                       <polyline points="9 12 11.5 14.5 15.5 9.5" />
                     </svg>
                   </div>
 
-                  {/* DETAILS */}
-                  <div style={{ flex: 1, minWidth: 0, paddingRight: '14px' }}>
-                    {/* BADGE: RECORDED & VERIFIED */}
+                  <div style={{ flex: 1, minWidth: 0, paddingRight: '10px' }}>
                     <div style={{ marginBottom: '6px' }}>
                       <span
                         style={{
@@ -524,15 +496,15 @@ export default function Home() {
                           gap: '5px',
                           backgroundColor: '#dcfce7',
                           color: '#047857',
-                          padding: '3px 10px',
+                          padding: '3px 8px',
                           borderRadius: '9999px',
-                          fontSize: '0.68rem',
+                          fontSize: '0.64rem',
                           fontWeight: 900,
                           letterSpacing: '0.04em',
                           textTransform: 'uppercase',
                         }}
                       >
-                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                           <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
                           <path d="m9 12 2 2 4-4" />
                         </svg>
@@ -540,12 +512,11 @@ export default function Home() {
                       </span>
                     </div>
 
-                    {/* TITLE */}
                     <h3
-                      className="verified-title"
+                      className="title-text"
                       style={{
                         margin: '0 0 4px 0',
-                        fontSize: '1.1rem',
+                        fontSize: '1.08rem',
                         fontWeight: 900,
                         color: '#0f172a',
                         lineHeight: 1.25,
@@ -554,14 +525,13 @@ export default function Home() {
                       You are already recorded! Please sign in now.
                     </h3>
 
-                    {/* WELCOME TEXT */}
                     <p
-                      className="verified-desc"
+                      className="desc-text"
                       style={{
                         margin: '0 0 12px 0',
-                        fontSize: '0.82rem',
+                        fontSize: '0.8rem',
                         color: '#475569',
-                        lineHeight: 1.5,
+                        lineHeight: 1.45,
                       }}
                     >
                       Welcome, <strong>{searchResult.student.full_name}</strong> (
@@ -571,43 +541,43 @@ export default function Home() {
                       )! Your account is officially registered in the CECTRACK system.
                     </p>
 
-                    {/* COMPACT ATTENDANCE SUMMARY */}
+                    {/* Stats Table */}
                     <div
-                      className="stats-row-box"
+                      className="stats-grid"
                       style={{
                         backgroundColor: '#ffffff',
                         border: '1px solid #bbf7d0',
-                        borderRadius: '14px',
-                        padding: '10px 14px',
-                        marginBottom: '14px',
+                        borderRadius: '12px',
+                        padding: '10px 12px',
+                        marginBottom: '12px',
                         display: 'grid',
                         gridTemplateColumns: 'repeat(3, 1fr)',
-                        gap: '8px',
+                        gap: '6px',
                         textAlign: 'center',
                       }}
                     >
                       <div>
-                        <span style={{ fontSize: '0.62rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase' }}>TOTAL EVENTS</span>
-                        <div className="stats-number" style={{ fontSize: '1.2rem', fontWeight: 900, color: '#0f172a' }}>
+                        <span style={{ fontSize: '0.6rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase' }}>TOTAL EVENTS</span>
+                        <div className="stat-value" style={{ fontSize: '1.15rem', fontWeight: 900, color: '#0f172a' }}>
                           {searchResult.stats.totalEvents}
                         </div>
                       </div>
                       <div>
-                        <span style={{ fontSize: '0.62rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase' }}>ATTENDED</span>
-                        <div className="stats-number" style={{ fontSize: '1.2rem', fontWeight: 900, color: '#059669' }}>
+                        <span style={{ fontSize: '0.6rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase' }}>ATTENDED</span>
+                        <div className="stat-value" style={{ fontSize: '1.15rem', fontWeight: 900, color: '#059669' }}>
                           {searchResult.stats.attended}
                         </div>
                       </div>
                       <div>
-                        <span style={{ fontSize: '0.62rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase' }}>ABSENCES</span>
-                        <div className="stats-number" style={{ fontSize: '1.2rem', fontWeight: 900, color: searchResult.stats.absences > 0 ? '#dc2626' : '#059669' }}>
+                        <span style={{ fontSize: '0.6rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase' }}>ABSENCES</span>
+                        <div className="stat-value" style={{ fontSize: '1.15rem', fontWeight: 900, color: searchResult.stats.absences > 0 ? '#dc2626' : '#059669' }}>
                           {searchResult.stats.absences}
                         </div>
                       </div>
                     </div>
 
-                    {/* ACTION BUTTONS */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
+                    {/* Button row */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
                       <button
                         type="button"
                         onClick={() => router.push('/login')}
@@ -615,15 +585,15 @@ export default function Home() {
                           backgroundColor: '#00875a',
                           color: '#ffffff',
                           border: 'none',
-                          borderRadius: '12px',
-                          padding: '10px 18px',
-                          fontSize: '0.85rem',
+                          borderRadius: '10px',
+                          padding: '8px 16px',
+                          fontSize: '0.8rem',
                           fontWeight: 800,
                           cursor: 'pointer',
                           display: 'inline-flex',
                           alignItems: 'center',
                           gap: '6px',
-                          boxShadow: '0 3px 10px rgba(0, 135, 90, 0.22)',
+                          boxShadow: '0 3px 8px rgba(0, 135, 90, 0.2)',
                         }}
                       >
                         <span>Sign In Now ➔</span>
@@ -636,10 +606,10 @@ export default function Home() {
                           background: 'none',
                           border: 'none',
                           color: '#64748b',
-                          fontSize: '0.82rem',
+                          fontSize: '0.78rem',
                           fontWeight: 700,
                           cursor: 'pointer',
-                          padding: '4px',
+                          padding: '2px',
                         }}
                       >
                         Check another ID
@@ -648,33 +618,31 @@ export default function Home() {
                   </div>
                 </div>
               ) : (
-                /* ERROR CARD KUNG HINDI NAKITA ANG RECORD */
                 <div
                   style={{
                     backgroundColor: '#fff1f2',
                     border: '1.5px solid #fecdd3',
-                    borderRadius: '18px',
-                    padding: '16px 20px',
+                    borderRadius: '16px',
+                    padding: '14px 16px',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
-                    boxShadow: '0 8px 20px rgba(225, 29, 72, 0.05)',
                     textAlign: 'left',
-                    gap: '12px',
+                    gap: '10px',
                   }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                     <div
                       style={{
-                        width: '38px',
-                        height: '38px',
-                        borderRadius: '10px',
+                        width: '32px',
+                        height: '32px',
+                        borderRadius: '8px',
                         backgroundColor: '#fee2e2',
                         color: '#be123c',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        fontSize: '1.1rem',
+                        fontSize: '0.95rem',
                         fontWeight: 900,
                         flexShrink: 0,
                       }}
@@ -682,10 +650,10 @@ export default function Home() {
                       ✕
                     </div>
                     <div>
-                      <h4 style={{ margin: '0 0 2px 0', fontSize: '0.9rem', fontWeight: 900, color: '#9f1239' }}>
+                      <h4 style={{ margin: '0 0 2px 0', fontSize: '0.85rem', fontWeight: 900, color: '#9f1239' }}>
                         Record Not Found
                       </h4>
-                      <p style={{ margin: 0, fontSize: '0.78rem', color: '#be123c' }}>
+                      <p style={{ margin: 0, fontSize: '0.75rem', color: '#be123c' }}>
                         {searchResult.msg}
                       </p>
                     </div>
@@ -697,7 +665,7 @@ export default function Home() {
                       background: 'none',
                       border: 'none',
                       color: '#be123c',
-                      fontSize: '1rem',
+                      fontSize: '0.95rem',
                       fontWeight: 800,
                       cursor: 'pointer',
                     }}
@@ -709,19 +677,19 @@ export default function Home() {
             </div>
           )}
 
-          {/* PORTAL ACCESS & EXPLORE BUTTONS */}
-          <div className="mobile-btn-stack" style={{ display: 'flex', justifyContent: 'center', gap: '12px', marginTop: '16px', width: '100%' }}>
+          {/* Quick Buttons */}
+          <div style={{ display: 'flex', justifyContent: 'center', gap: '10px', marginTop: '16px', width: '100%', flexWrap: 'wrap' }}>
             <button
               onClick={() => router.push('/login')}
               className={styles.portalBtn}
-              style={{ padding: '12px 20px', fontSize: '0.88rem' }}
+              style={{ padding: '11px 18px', fontSize: '0.84rem' }}
             >
               ➔ Access Member Portal
             </button>
             <button
               onClick={scrollToEvents}
               className={styles.eventsBtn}
-              style={{ padding: '12px 20px', fontSize: '0.88rem' }}
+              style={{ padding: '11px 18px', fontSize: '0.84rem' }}
             >
               Explore Events ➔
             </button>
@@ -744,7 +712,7 @@ export default function Home() {
           </div>
 
           <div className={styles.courseGrid}>
-            {/* 1. BSBA */}
+            {/* BSBA */}
             <div className={styles.courseCard}>
               <div className={styles.cardTop}>
                 <span className={`${styles.badge} ${styles.bsbaBadge}`}>BSBA</span>
@@ -759,7 +727,7 @@ export default function Home() {
               </div>
             </div>
 
-            {/* 2. BSCRIM */}
+            {/* BSCRIM */}
             <div className={styles.courseCard}>
               <div className={styles.cardTop}>
                 <span className={`${styles.badge} ${styles.bscrimBadge}`}>BSCRIM</span>
@@ -774,7 +742,7 @@ export default function Home() {
               </div>
             </div>
 
-            {/* 3. BSA */}
+            {/* BSA */}
             <div className={styles.courseCard}>
               <div className={styles.cardTop}>
                 <span className={`${styles.badge} ${styles.bsaBadge}`}>BSA</span>
@@ -789,7 +757,7 @@ export default function Home() {
               </div>
             </div>
 
-            {/* 4. BEED */}
+            {/* BEED */}
             <div className={styles.courseCard}>
               <div className={styles.cardTop}>
                 <span className={`${styles.badge} ${styles.beedBadge}`}>BEED</span>
@@ -804,7 +772,7 @@ export default function Home() {
               </div>
             </div>
 
-            {/* 5. BSAM */}
+            {/* BSAM */}
             <div className={styles.courseCard}>
               <div className={styles.cardTop}>
                 <span className={`${styles.badge} ${styles.bsamBadge}`}>BSAM</span>
@@ -821,8 +789,8 @@ export default function Home() {
           </div>
         </section>
 
-        {/* OFFICIAL EVENTS SECTION */}
-        <section className={styles.analyticsSection} id="events-section" style={{ marginTop: '40px' }}>
+        {/* Events Section */}
+        <section className={styles.analyticsSection} id="events-section" style={{ marginTop: '36px' }}>
           <div className={styles.analyticsHeader}>
             <div className={styles.analyticsTitle}>
               📅 UPCOMING &amp; OFFICIAL CAMPUS EVENTS
@@ -844,23 +812,23 @@ export default function Home() {
             <div
               style={{
                 textAlign: 'center',
-                padding: '40px 20px',
+                padding: '36px 18px',
                 backgroundColor: '#ffffff',
                 border: '1px solid #e2e8f0',
-                borderRadius: '20px',
+                borderRadius: '18px',
                 color: '#64748b',
               }}
             >
-              <div style={{ fontSize: '2.5rem', marginBottom: '8px' }}>📅</div>
-              <h4 style={{ margin: '0 0 4px 0', fontSize: '1rem', fontWeight: 900, color: '#0f172a' }}>
+              <div style={{ fontSize: '2.2rem', marginBottom: '6px' }}>📅</div>
+              <h4 style={{ margin: '0 0 4px 0', fontSize: '0.95rem', fontWeight: 900, color: '#0f172a' }}>
                 No Published Events Yet
               </h4>
-              <p style={{ margin: 0, fontSize: '0.82rem' }}>
+              <p style={{ margin: 0, fontSize: '0.8rem' }}>
                 Check back soon for upcoming assemblies and college activities published by administrators.
               </p>
             </div>
           ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '22px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px' }}>
               {events.map((ev) => {
                 const isActive = ev.status === 'active';
                 return (
@@ -869,7 +837,7 @@ export default function Home() {
                     style={{
                       backgroundColor: '#ffffff',
                       border: '1px solid #e2e8f0',
-                      borderRadius: '20px',
+                      borderRadius: '18px',
                       overflow: 'hidden',
                       boxShadow: '0 4px 12px rgba(0,0,0,0.03)',
                       display: 'flex',
@@ -878,7 +846,7 @@ export default function Home() {
                     }}
                   >
                     {ev.image_url ? (
-                      <div style={{ width: '100%', height: '160px', overflow: 'hidden', backgroundColor: '#f1f5f9' }}>
+                      <div style={{ width: '100%', height: '150px', overflow: 'hidden', backgroundColor: '#f1f5f9' }}>
                         <img
                           src={ev.image_url}
                           alt={ev.title}
@@ -889,12 +857,12 @@ export default function Home() {
                       <div
                         style={{
                           width: '100%',
-                          height: '90px',
+                          height: '80px',
                           backgroundColor: '#f8fafc',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
-                          fontSize: '2rem',
+                          fontSize: '1.8rem',
                           borderBottom: '1px solid #f1f5f9',
                         }}
                       >
@@ -902,55 +870,55 @@ export default function Home() {
                       </div>
                     )}
 
-                    <div style={{ padding: '20px', flexGrow: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                    <div style={{ padding: '16px', flexGrow: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
                       <div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                           <span
                             className={styles.idBadge}
                             style={{
                               backgroundColor: isActive ? '#dcfce7' : '#f1f5f9',
                               color: isActive ? '#15803d' : '#64748b',
-                              fontSize: '0.68rem',
+                              fontSize: '0.64rem',
                             }}
                           >
                             {isActive ? '● ACTIVE (OPEN)' : 'CLOSED'}
                           </span>
-                          <span style={{ fontSize: '0.78rem', fontWeight: 800, color: '#94a3b8' }}>
+                          <span style={{ fontSize: '0.74rem', fontWeight: 800, color: '#94a3b8' }}>
                             {ev.date}
                           </span>
                         </div>
 
-                        <h3 style={{ margin: '0 0 6px 0', fontSize: '1.15rem', fontWeight: 900, color: '#0f172a', lineHeight: 1.3 }}>
+                        <h3 style={{ margin: '0 0 4px 0', fontSize: '1.1rem', fontWeight: 900, color: '#0f172a', lineHeight: 1.3 }}>
                           {ev.title}
                         </h3>
 
                         {ev.location && (
-                          <div style={{ fontSize: '0.8rem', color: '#15803d', fontWeight: 800, marginBottom: '8px' }}>
+                          <div style={{ fontSize: '0.78rem', color: '#15803d', fontWeight: 800, marginBottom: '6px' }}>
                             📍 {ev.location}
                           </div>
                         )}
 
-                        <div style={{ fontSize: '0.78rem', color: '#64748b', display: 'flex', gap: '12px', fontWeight: 700, marginBottom: '10px' }}>
+                        <div style={{ fontSize: '0.74rem', color: '#64748b', display: 'flex', gap: '10px', fontWeight: 700, marginBottom: '8px' }}>
                           <span>In: {ev.time_in || '08:00'}</span>
                           <span>Out: {ev.time_out || '17:00'}</span>
                         </div>
 
-                        <p style={{ margin: 0, fontSize: '0.82rem', color: '#64748b', lineHeight: 1.5 }}>
+                        <p style={{ margin: 0, fontSize: '0.78rem', color: '#64748b', lineHeight: 1.45 }}>
                           {ev.description || 'No description provided.'}
                         </p>
                       </div>
 
-                      <div style={{ marginTop: '16px', paddingTop: '14px', borderTop: '1px solid #f1f5f9' }}>
+                      <div style={{ marginTop: '14px', paddingTop: '12px', borderTop: '1px solid #f1f5f9' }}>
                         <button
                           onClick={() => router.push('/login')}
                           style={{
                             width: '100%',
-                            padding: '10px',
+                            padding: '9px',
                             backgroundColor: '#f8fafc',
                             border: '1px solid #e2e8f0',
-                            borderRadius: '12px',
+                            borderRadius: '10px',
                             color: '#15803d',
-                            fontSize: '0.82rem',
+                            fontSize: '0.78rem',
                             fontWeight: 900,
                             cursor: 'pointer',
                           }}
@@ -967,14 +935,14 @@ export default function Home() {
         </section>
       </main>
 
-      {/* Puti na Footer */}
+      {/* Footer */}
       <footer
         style={{
           backgroundColor: '#ffffff',
           color: '#64748b',
           borderTop: '1px solid #e2e8f0',
-          padding: '24px 20px',
-          marginTop: '70px',
+          padding: '20px 16px',
+          marginTop: '60px',
           width: '100%',
           boxSizing: 'border-box',
         }}
@@ -987,12 +955,12 @@ export default function Home() {
             justifyContent: 'space-between',
             alignItems: 'center',
             flexWrap: 'wrap',
-            gap: '16px',
+            gap: '14px',
           }}
         >
           <div
             style={{
-              fontSize: '0.8rem',
+              fontSize: '0.75rem',
               fontWeight: 800,
               color: '#64748b',
               letterSpacing: '0.04em',
@@ -1005,9 +973,9 @@ export default function Home() {
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: '18px',
+              gap: '16px',
               flexWrap: 'wrap',
-              fontSize: '0.75rem',
+              fontSize: '0.72rem',
               fontWeight: 800,
               letterSpacing: '0.05em',
             }}
@@ -1025,11 +993,10 @@ export default function Home() {
                 border: '1px solid #bbf7d0',
                 color: '#15803d',
                 backgroundColor: '#f0fdf4',
-                padding: '4px 12px',
+                padding: '3px 10px',
                 borderRadius: '9999px',
-                fontSize: '0.7rem',
+                fontSize: '0.68rem',
                 fontWeight: 900,
-                letterSpacing: '0.06em',
                 boxShadow: '0 1px 3px rgba(21, 128, 61, 0.08)',
               }}
             >
