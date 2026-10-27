@@ -8,14 +8,14 @@ export default function StudentDashboard() {
   const fileInputRef = useRef(null);
   const idCardRef = useRef(null);
 
-  // Active Tab: 'my-id' | 'attendance' | 'events' | 'officers' | 'sanctions' | 'profile' | 'about'
+  // Active Tab Navigation
   const [activeTab, setActiveTab] = useState('my-id');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [downloadingId, setDownloadingId] = useState(false);
 
-  // Password Change Modal
+  // Password Change Modal States
   const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -24,8 +24,8 @@ export default function StudentDashboard() {
 
   // Student Profile Data
   const [profile, setProfile] = useState({
-    full_name: 'Renowee Beloy',
-    school_id: '2024-0616',
+    full_name: 'Renowee beloy',
+    school_id: '2024-0516',
     email: 'renowee.beloy@dorsu.edu.ph',
     course: 'BSCRIM',
     section: 'Section A',
@@ -34,7 +34,7 @@ export default function StudentDashboard() {
     can_scan: false,
   });
 
-  // Events, Attendance, & Officers Data
+  // Events, Attendance, & Officers States
   const [events, setEvents] = useState([]);
   const [attendanceLogs, setAttendanceLogs] = useState([]);
   const [officersList, setOfficersList] = useState([]);
@@ -127,7 +127,6 @@ export default function StudentDashboard() {
     fetchStudentData();
   }, []);
 
-  // Fetch student records, events, and officers roster
   const fetchStudentData = async () => {
     setLoading(true);
     try {
@@ -171,7 +170,7 @@ export default function StudentDashboard() {
         }
       }
 
-      // 1. Events list
+      // 1. Events
       const { data: eventsData } = await supabase
         .from('events')
         .select('*')
@@ -181,7 +180,7 @@ export default function StudentDashboard() {
         setEvents(eventsData);
       }
 
-      // 2. Attendance history
+      // 2. Attendance
       const { data: studentLogs } = await supabase
         .from('attendance')
         .select('*')
@@ -219,7 +218,7 @@ export default function StudentDashboard() {
         setAttendanceLogs([]);
       }
 
-      // 3. Officers roster
+      // 3. Officers
       const { data: officersData } = await supabase
         .from('officers')
         .select('*')
@@ -235,13 +234,13 @@ export default function StudentDashboard() {
     }
   };
 
-  // Upload photo and sync to Supabase
+  // Upload photo at i-sync sa Supabase
   const handlePhotoUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     if (!file.type.startsWith('image/')) {
-      alert('Palihug pagpili og saktong litrato (PNG, JPG, o JPEG).');
+      alert('Pumili ng tamang litrato (PNG, JPG, o JPEG).');
       return;
     }
 
@@ -283,7 +282,7 @@ export default function StudentDashboard() {
             .eq('school_id', profile.school_id);
 
           if (dbError) {
-            alert('Wala ma-sync ang litrato sa database: ' + dbError.message);
+            alert('Hindi na-sync ang litrato sa database: ' + dbError.message);
           } else {
             showNotify('success', 'Profile photo updated and synced across all devices!');
           }
@@ -299,7 +298,6 @@ export default function StudentDashboard() {
     reader.readAsDataURL(file);
   };
 
-  // Download ID as PNG
   const handleDownloadIdCard = async () => {
     if (!idCardRef.current) return;
     setDownloadingId(true);
@@ -319,8 +317,8 @@ export default function StudentDashboard() {
         scale: 3,
         useCORS: true,
         allowTaint: true,
-        backgroundColor: '#ffffff',
-        borderRadius: 28,
+        backgroundColor: null,
+        borderRadius: 32,
       });
 
       const imageUri = canvas.toDataURL('image/png');
@@ -338,18 +336,17 @@ export default function StudentDashboard() {
     }
   };
 
-  // Change Password
   const handleChangePassword = async (e) => {
     e.preventDefault();
     setPasswordMsg({ type: '', text: '' });
 
     if (newPassword.length < 6) {
-      setPasswordMsg({ type: 'error', text: 'Ang password kinahanglang labing menos 6 ka letra/numero.' });
+      setPasswordMsg({ type: 'error', text: 'Ang password ay dapat hindi bababa sa 6 na karakter.' });
       return;
     }
 
     if (newPassword !== confirmPassword) {
-      setPasswordMsg({ type: 'error', text: 'Wala magkatugma ang bag-ong password.' });
+      setPasswordMsg({ type: 'error', text: 'Hindi nagtutugma ang bagong password.' });
       return;
     }
 
@@ -366,7 +363,7 @@ export default function StudentDashboard() {
 
       if (error) throw new Error(error.message);
 
-      setPasswordMsg({ type: 'success', text: 'Malampusong nabag-o ang imong password!' });
+      setPasswordMsg({ type: 'success', text: 'Matagumpay na nabago ang iyong password!' });
       setTimeout(() => {
         setIsChangePasswordOpen(false);
         setNewPassword('');
@@ -389,7 +386,6 @@ export default function StudentDashboard() {
     router.replace('/');
   };
 
-  // Stats Calculations
   const totalEventsCount = attendanceLogs.length;
   const totalPresentCount = attendanceLogs.filter((l) => l.status === 'PRESENT').length;
   const totalAbsencesCount = attendanceLogs.filter((l) => l.status === 'ABSENT').length;
@@ -824,15 +820,17 @@ export default function StudentDashboard() {
               <input type="file" ref={fileInputRef} onChange={handlePhotoUpload} accept="image/*" style={{ display: 'none' }} />
 
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))', gap: '24px', alignItems: 'start', width: '100%' }}>
-                <div style={{ maxWidth: '340px', margin: '0 auto', width: '100%' }}>
+                <div style={{ maxWidth: '330px', margin: '0 auto', width: '100%' }}>
+                  
+                  {/* DIGITAL ID CARD (DESIGN FROM REFERENCE) */}
                   <div
                     ref={idCardRef}
                     style={{
-                      backgroundColor: '#ffffff',
-                      borderRadius: '28px',
-                      border: '2px solid #22c55e',
-                      boxShadow: '0 12px 30px rgba(34, 197, 94, 0.15)',
-                      padding: '60px 18px 24px 18px',
+                      background: 'linear-gradient(180deg, #15803d 0%, #16a34a 36%, #bbf7d0 72%, #ffffff 94%)',
+                      borderRadius: '32px',
+                      border: '1.5px solid rgba(255, 255, 255, 0.4)',
+                      boxShadow: '0 16px 36px -6px rgba(22, 101, 52, 0.28), 0 8px 16px rgba(0, 0, 0, 0.05)',
+                      padding: '24px 20px 20px 20px',
                       textAlign: 'center',
                       position: 'relative',
                       overflow: 'hidden',
@@ -840,66 +838,158 @@ export default function StudentDashboard() {
                       boxSizing: 'border-box',
                     }}
                   >
-                    <div
-                      style={{
-                        position: 'absolute',
-                        top: 0,
-                        left: 0,
-                        right: 0,
-                        height: '110px',
-                        backgroundColor: '#15803d',
-                        borderBottomLeftRadius: '36px',
-                        borderBottomRightRadius: '36px',
-                        display: 'flex',
-                        alignItems: 'flex-start',
-                        justifyContent: 'center',
-                        paddingTop: '16px',
-                      }}
-                    >
+                    {/* Top Pill Header */}
+                    <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '16px' }}>
                       <span
                         style={{
-                          color: '#ffffff',
-                          fontSize: '0.78rem',
+                          backgroundColor: '#ffffff',
+                          color: '#15803d',
+                          fontSize: '0.72rem',
                           fontWeight: 900,
-                          letterSpacing: '0.12em',
+                          letterSpacing: '0.1em',
                           textTransform: 'uppercase',
-                          backgroundColor: 'rgba(255, 255, 255, 0.22)',
-                          backdropFilter: 'blur(5px)',
-                          padding: '3px 14px',
+                          padding: '4px 16px',
                           borderRadius: '9999px',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          boxShadow: '0 2px 6px rgba(0, 0, 0, 0.06)',
                         }}
                       >
-                        CEC-TRACK
+                        <span style={{ fontSize: '0.65rem' }}>●</span> CEC-TRACK
                       </span>
                     </div>
 
+                    {/* Student Photo */}
                     <div
                       onClick={() => fileInputRef.current?.click()}
                       style={{
                         cursor: 'pointer',
-                        position: 'relative',
-                        zIndex: 2,
-                        marginTop: '10px',
-                        border: '4px solid #ffffff',
+                        width: '92px',
+                        height: '92px',
+                        borderRadius: '22px',
+                        border: '3.5px solid #ffffff',
+                        backgroundColor: '#ffffff',
                         overflow: 'hidden',
-                        backgroundColor: '#f1f5f9',
+                        margin: '0 auto 12px auto',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        width: '94px',
-                        height: '94px',
-                        borderRadius: '24px',
-                        margin: '10px auto 0 auto',
-                        boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                        boxShadow: '0 6px 16px rgba(0, 0, 0, 0.16)',
+                        position: 'relative',
                       }}
                     >
                       {profile.avatar_url ? (
                         <img src={profile.avatar_url} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                       ) : (
-                        <span style={{ fontSize: '2rem' }}>👤</span>
+                        <span style={{ fontSize: '2.2rem' }}>👤</span>
                       )}
                     </div>
 
+                    {/* Full Name */}
+                    <h2
+                      style={{
+                        fontSize: '1.25rem',
+                        fontWeight: 900,
+                        color: '#064e3b',
+                        margin: '0 0 2px 0',
+                        letterSpacing: '-0.01em',
+                      }}
+                    >
+                      {profile.full_name}
+                    </h2>
+
+                    {/* Student ID label */}
+                    <div
+                      style={{
+                        fontSize: '0.68rem',
+                        fontWeight: 800,
+                        color: '#14532d',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.04em',
+                        marginBottom: '6px',
+                      }}
+                    >
+                      STUDENT ID
+                    </div>
+
+                    {/* White Pill Badge sa ID Number */}
+                    <div
+                      style={{
+                        display: 'inline-block',
+                        backgroundColor: '#ffffff',
+                        color: '#064e3b',
+                        padding: '4px 22px',
+                        borderRadius: '9999px',
+                        fontSize: '1rem',
+                        fontWeight: 900,
+                        letterSpacing: '0.02em',
+                        boxShadow: '0 2px 6px rgba(0,0,0,0.06)',
+                        marginBottom: '16px',
+                      }}
+                    >
+                      {profile.school_id}
+                    </div>
+
+                    {/* White QR Code Card Container */}
+                    <div
+                      style={{
+                        backgroundColor: '#ffffff',
+                        borderRadius: '22px',
+                        padding: '16px',
+                        boxShadow: '0 8px 24px rgba(0, 0, 0, 0.08)',
+                        maxWidth: '215px',
+                        margin: '0 auto 14px auto',
+                      }}
+                    >
+                      {profile.avatar_url ? (
+                        <img
+                          src={qrCodeUrl}
+                          alt="QR Code"
+                          style={{
+                            width: '100%',
+                            height: 'auto',
+                            display: 'block',
+                            borderRadius: '8px',
+                          }}
+                        />
+                      ) : (
+                        <div style={{ padding: '16px 8px', color: '#991b1b', backgroundColor: '#fef2f2', borderRadius: '12px' }}>
+                          <div style={{ fontSize: '0.78rem', fontWeight: 900 }}>QR Code Locked</div>
+                          <p style={{ fontSize: '0.68rem', margin: '4px 0 0 0' }}>Upload your photo to view</p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Card Footer Text */}
+                    <div
+                      style={{
+                        fontSize: '0.72rem',
+                        fontWeight: 900,
+                        color: '#15803d',
+                        letterSpacing: '0.08em',
+                        textTransform: 'uppercase',
+                        marginBottom: '4px',
+                      }}
+                    >
+                      SCAN FOR ATTENDANCE
+                    </div>
+
+                    <div
+                      style={{
+                        fontSize: '0.68rem',
+                        fontWeight: 800,
+                        color: '#64748b',
+                        letterSpacing: '0.06em',
+                        textTransform: 'uppercase',
+                      }}
+                    >
+                      CATEEL EXTENSION CAMPUS
+                    </div>
+                  </div>
+
+                  {/* Photo Change Action sa Ilalim */}
+                  <div style={{ textAlign: 'center', marginTop: '12px' }}>
                     <button
                       type="button"
                       onClick={() => fileInputRef.current?.click()}
@@ -907,50 +997,23 @@ export default function StudentDashboard() {
                         background: 'none',
                         border: 'none',
                         color: '#15803d',
-                        fontSize: '0.75rem',
+                        fontSize: '0.78rem',
                         fontWeight: 800,
                         cursor: 'pointer',
-                        marginTop: '6px',
-                        textDecoration: 'underline',
-                        position: 'relative',
-                        zIndex: 2,
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        padding: '6px 12px',
+                        borderRadius: '8px',
                         touchAction: 'manipulation',
                       }}
                     >
-                      {uploadingPhoto ? 'Uploading...' : profile.avatar_url ? 'Change Photo' : 'Upload 2x2 Photo'}
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+                        <circle cx="12" cy="13" r="4" />
+                      </svg>
+                      <span>{uploadingPhoto ? 'Uploading...' : 'Tap photo to crop/change'}</span>
                     </button>
-
-                    <h2 style={{ fontSize: '1.3rem', fontWeight: 900, color: '#0f172a', margin: '10px 0 2px 0' }}>
-                      {profile.full_name}
-                    </h2>
-                    <div style={{ fontSize: '0.7rem', fontWeight: 800, color: '#15803d', textTransform: 'uppercase' }}>STUDENT ID</div>
-                    <div style={{ display: 'inline-block', backgroundColor: '#f0fdf4', color: '#0f172a', border: '1px solid #bbf7d0', padding: '3px 16px', borderRadius: '10px', fontSize: '1.05rem', fontWeight: 900, margin: '4px 0 14px 0' }}>
-                      {profile.school_id}
-                    </div>
-
-                    {profile.avatar_url ? (
-                      <div>
-                        <div style={{ maxWidth: '180px', margin: '0 auto', padding: '10px', border: '1px solid #e2e8f0', borderRadius: '16px' }}>
-                          <img src={qrCodeUrl} alt="QR Code" style={{ width: '100%', height: 'auto', display: 'block' }} />
-                        </div>
-                        <div style={{ fontSize: '0.72rem', fontWeight: 900, color: '#15803d', letterSpacing: '0.08em', marginTop: '10px' }}>
-                          SCAN FOR ATTENDANCE
-                        </div>
-                      </div>
-                    ) : (
-                      <div style={{ padding: '16px', backgroundColor: '#fef2f2', border: '1px dashed #fca5a5', borderRadius: '16px' }}>
-                        <div style={{ fontSize: '0.8rem', fontWeight: 900, color: '#991b1b' }}>QR Code Locked</div>
-                        <p style={{ fontSize: '0.7rem', color: '#b91c1c', margin: '4px 0 0 0' }}>
-                          Upload your photo above to activate your Attendance QR Code.
-                        </p>
-                      </div>
-                    )}
-
-                    <div style={{ borderTop: '1px solid #f1f5f9', marginTop: '16px', paddingTop: '10px' }}>
-                      <span style={{ fontSize: '0.68rem', fontWeight: 900, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                        CATEEL EXTENSION CAMPUS
-                      </span>
-                    </div>
                   </div>
                 </div>
 
