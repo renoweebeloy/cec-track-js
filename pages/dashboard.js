@@ -30,9 +30,9 @@ export default function StudentDashboard() {
 
   // Student Profile Data
   const [profile, setProfile] = useState({
-    full_name: 'Renowee Beloy',
-    school_id: '2024-0516',
-    email: 'renowee.beloy@dorsu.edu.ph',
+    full_name: 'Ive cadalzo',
+    school_id: '2023-8133',
+    email: 'ive.cadalzo@dorsu.edu.ph',
     course: 'BSCRIM',
     section: 'Section A',
     year_level: '3rd Year',
@@ -248,7 +248,6 @@ export default function StudentDashboard() {
     }
   };
 
-  // Upload photo at i-sync sa Supabase
   const handlePhotoUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -332,7 +331,7 @@ export default function StudentDashboard() {
         useCORS: true,
         allowTaint: true,
         backgroundColor: null,
-        borderRadius: 32,
+        borderRadius: 34,
       });
 
       const imageUri = canvas.toDataURL('image/png');
@@ -391,7 +390,6 @@ export default function StudentDashboard() {
     }
   };
 
-  // Aktwal na pag-sign out pagkatapos pindutin ang Logout sa modal
   const handleConfirmSignOut = async () => {
     if (supabase) await supabase.auth.signOut();
     try {
@@ -624,7 +622,6 @@ export default function StudentDashboard() {
             alignItems: 'center',
             gap: '8px',
             boxShadow: '0 6px 20px rgba(16, 185, 129, 0.12)',
-            animation: 'fadeInDown 0.3s ease',
           }}
         >
           <div
@@ -887,7 +884,6 @@ export default function StudentDashboard() {
                       gap: '8px',
                     }}
                   >
-                    {/* DOWNLOAD TRAY ICON */}
                     <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
                       <polyline points="7 10 12 15 17 10" />
@@ -903,15 +899,15 @@ export default function StudentDashboard() {
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))', gap: '24px', alignItems: 'start', width: '100%' }}>
                 <div style={{ maxWidth: '330px', margin: '0 auto', width: '100%' }}>
                   
-                  {/* DIGITAL ID CARD */}
+                  {/* DIGITAL ID CARD (EXACT PROPORTION AND DESIGN) */}
                   <div
                     ref={idCardRef}
                     style={{
-                      background: 'linear-gradient(180deg, #15803d 0%, #16a34a 36%, #bbf7d0 72%, #ffffff 94%)',
-                      borderRadius: '32px',
-                      border: '1.5px solid rgba(255, 255, 255, 0.4)',
+                      background: 'linear-gradient(180deg, #15803d 0%, #16a34a 38%, #bbf7d0 75%, #ffffff 96%)',
+                      borderRadius: '34px',
+                      border: '1.5px solid rgba(255, 255, 255, 0.45)',
                       boxShadow: '0 16px 36px -6px rgba(22, 101, 52, 0.28), 0 8px 16px rgba(0, 0, 0, 0.05)',
-                      padding: '24px 20px 20px 20px',
+                      padding: '24px 20px 22px 20px',
                       textAlign: 'center',
                       position: 'relative',
                       overflow: 'hidden',
@@ -920,7 +916,7 @@ export default function StudentDashboard() {
                     }}
                   >
                     {/* Top Pill Header */}
-                    <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '16px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '14px' }}>
                       <span
                         style={{
                           backgroundColor: '#ffffff',
@@ -929,7 +925,7 @@ export default function StudentDashboard() {
                           fontWeight: 900,
                           letterSpacing: '0.1em',
                           textTransform: 'uppercase',
-                          padding: '4px 16px',
+                          padding: '4px 18px',
                           borderRadius: '9999px',
                           display: 'inline-flex',
                           alignItems: 'center',
@@ -941,22 +937,22 @@ export default function StudentDashboard() {
                       </span>
                     </div>
 
-                    {/* Student Photo */}
+                    {/* Student Photo Frame (Portrait with thick white border) */}
                     <div
                       onClick={() => fileInputRef.current?.click()}
                       style={{
                         cursor: 'pointer',
-                        width: '92px',
-                        height: '92px',
-                        borderRadius: '22px',
-                        border: '3.5px solid #ffffff',
+                        width: '88px',
+                        height: '108px',
+                        borderRadius: '24px',
+                        border: '4px solid #ffffff',
                         backgroundColor: '#ffffff',
                         overflow: 'hidden',
                         margin: '0 auto 12px auto',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        boxShadow: '0 6px 16px rgba(0, 0, 0, 0.16)',
+                        boxShadow: '0 6px 16px rgba(0, 0, 0, 0.14)',
                         position: 'relative',
                       }}
                     >
@@ -970,7 +966,7 @@ export default function StudentDashboard() {
                     {/* Full Name */}
                     <h2
                       style={{
-                        fontSize: '1.25rem',
+                        fontSize: '1.28rem',
                         fontWeight: 900,
                         color: '#064e3b',
                         margin: '0 0 2px 0',
@@ -983,11 +979,11 @@ export default function StudentDashboard() {
                     {/* Student ID Label */}
                     <div
                       style={{
-                        fontSize: '0.68rem',
+                        fontSize: '0.65rem',
                         fontWeight: 800,
-                        color: '#14532d',
+                        color: '#166534',
                         textTransform: 'uppercase',
-                        letterSpacing: '0.04em',
+                        letterSpacing: '0.06em',
                         marginBottom: '6px',
                       }}
                     >
@@ -1002,7 +998,7 @@ export default function StudentDashboard() {
                         color: '#064e3b',
                         padding: '4px 22px',
                         borderRadius: '9999px',
-                        fontSize: '1rem',
+                        fontSize: '1.02rem',
                         fontWeight: 900,
                         letterSpacing: '0.02em',
                         boxShadow: '0 2px 6px rgba(0,0,0,0.06)',
@@ -1012,14 +1008,14 @@ export default function StudentDashboard() {
                       {profile.school_id}
                     </div>
 
-                    {/* White QR Code Card Container */}
+                    {/* Compact White QR Code Card Container (Hindi Malaki) */}
                     <div
                       style={{
                         backgroundColor: '#ffffff',
                         borderRadius: '22px',
-                        padding: '16px',
-                        boxShadow: '0 8px 24px rgba(0, 0, 0, 0.08)',
-                        maxWidth: '215px',
+                        padding: '14px',
+                        boxShadow: '0 8px 22px rgba(0, 0, 0, 0.08)',
+                        maxWidth: '185px',
                         margin: '0 auto 14px auto',
                       }}
                     >
@@ -1031,7 +1027,7 @@ export default function StudentDashboard() {
                             width: '100%',
                             height: 'auto',
                             display: 'block',
-                            borderRadius: '8px',
+                            borderRadius: '6px',
                           }}
                         />
                       ) : (
@@ -1042,7 +1038,7 @@ export default function StudentDashboard() {
                       )}
                     </div>
 
-                    {/* Card Footer Text */}
+                    {/* SCAN FOR ATTENDANCE */}
                     <div
                       style={{
                         fontSize: '0.72rem',
@@ -1050,17 +1046,28 @@ export default function StudentDashboard() {
                         color: '#15803d',
                         letterSpacing: '0.08em',
                         textTransform: 'uppercase',
-                        marginBottom: '4px',
+                        marginBottom: '10px',
                       }}
                     >
                       SCAN FOR ATTENDANCE
                     </div>
 
+                    {/* Divider Line bago ang Campus Name */}
+                    <div
+                      style={{
+                        width: '84%',
+                        height: '1px',
+                        backgroundColor: '#cbd5e1',
+                        margin: '0 auto 10px auto',
+                      }}
+                    />
+
+                    {/* CATEEL EXTENSION CAMPUS sa Ibaba */}
                     <div
                       style={{
                         fontSize: '0.68rem',
                         fontWeight: 800,
-                        color: '#64748b',
+                        color: '#475569',
                         letterSpacing: '0.06em',
                         textTransform: 'uppercase',
                       }}
@@ -1990,7 +1997,6 @@ export default function StudentDashboard() {
               position: 'relative',
             }}
           >
-            {/* Modal Header */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px' }}>
               <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 900, color: '#0f172a' }}>Sign Out</h3>
               <button
@@ -2008,7 +2014,6 @@ export default function StudentDashboard() {
               </button>
             </div>
 
-            {/* Pinkish Rounded Box na may Pulang Trash Icon */}
             <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '16px' }}>
               <div
                 style={{
@@ -2030,7 +2035,6 @@ export default function StudentDashboard() {
               </div>
             </div>
 
-            {/* Modal Message */}
             <p
               style={{
                 textAlign: 'center',
@@ -2044,7 +2048,6 @@ export default function StudentDashboard() {
               Are you sure you want to log out of the Student Portal?
             </p>
 
-            {/* Modal Actions */}
             <div style={{ display: 'flex', gap: '10px' }}>
               <button
                 type="button"
