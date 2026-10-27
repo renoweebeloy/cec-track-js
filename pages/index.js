@@ -9,7 +9,7 @@ export default function Home() {
   const [currentTime, setCurrentTime] = useState('');
   const [currentDate, setCurrentDate] = useState('');
 
-  // Course counts gikan sa database
+  // Course counts galing sa database
   const [counts, setCounts] = useState({
     BSBA: 0,
     BSCRIM: 0,
@@ -19,11 +19,11 @@ export default function Home() {
     total: 0,
   });
 
-  // Events gikan sa database
+  // Events galing sa database
   const [events, setEvents] = useState([]);
   const [eventsLoading, setEventsLoading] = useState(true);
 
-  // Officers & Leaders gikan sa database
+  // Officers & Leaders galing sa database
   const [officers, setOfficers] = useState([]);
   const [officersLoading, setOfficersLoading] = useState(true);
 
@@ -60,7 +60,7 @@ export default function Home() {
     return () => clearInterval(timer);
   }, []);
 
-  // Pagkuha sa datos gikan sa Supabase
+  // Pagkuha ng datos galing sa database
   const fetchData = async () => {
     if (!supabase) return;
     try {
@@ -194,36 +194,15 @@ export default function Home() {
       </Head>
 
       <style jsx>{`
-        /* 3D FLOATING & GLOW ANIMATION SA LOGO */
-        @keyframes logoFloat3D {
-          0% {
-            transform: translateY(0px) rotate(0deg) scale(1);
-            filter: drop-shadow(0 12px 24px rgba(21, 128, 61, 0.22));
-          }
-          50% {
-            transform: translateY(-12px) rotate(2deg) scale(1.03);
-            filter: drop-shadow(0 24px 34px rgba(21, 128, 61, 0.32));
-          }
-          100% {
-            transform: translateY(0px) rotate(0deg) scale(1);
-            filter: drop-shadow(0 12px 24px rgba(21, 128, 61, 0.22));
-          }
-        }
-
-        .animated-logo-hero {
-          width: 155px;
-          height: 155px;
+        /* STATIC LOGO NA PINALAKI NANG KAUNTI */
+        .hero-logo-img {
+          width: 175px;
+          height: 175px;
           object-fit: contain;
           display: block;
           margin: 0 auto;
-          animation: logoFloat3D 4.5s ease-in-out infinite;
-          cursor: pointer;
-          transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
           border-radius: 50%;
-        }
-
-        .animated-logo-hero:hover {
-          transform: scale(1.1) rotate(-3deg);
+          filter: drop-shadow(0 10px 24px rgba(21, 128, 61, 0.16));
         }
 
         /* LIVE CLOCK DOT GLOW */
@@ -334,15 +313,15 @@ export default function Home() {
         }
 
         .officer-card:hover {
-          transform: translateY(-5px);
+          transform: translateY(-4px);
           box-shadow: 0 14px 28px rgba(21, 128, 61, 0.1);
           border-color: #86efac;
         }
 
         @media (max-width: 600px) {
-          .animated-logo-hero {
-            width: 130px;
-            height: 130px;
+          .hero-logo-img {
+            width: 140px;
+            height: 140px;
           }
           .search-container {
             padding: 5px 6px 5px 12px;
@@ -485,13 +464,13 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Hero Area With 3D Animated Logo */}
+        {/* Hero Area (Wala nang animation ang logo, pinalaki nang kaunti) */}
         <section className={styles.heroSection} style={{ padding: '16px 0 24px 0' }}>
-          <div style={{ marginBottom: '18px', perspective: '1000px' }}>
+          <div style={{ marginBottom: '18px' }}>
             <img
               src="/logo.png"
               alt="Cateel Extension Campus Logo"
-              className="animated-logo-hero"
+              className="hero-logo-img"
               onError={(e) => {
                 e.currentTarget.style.display = 'none';
               }}
