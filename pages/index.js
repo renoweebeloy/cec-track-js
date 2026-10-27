@@ -9,7 +9,7 @@ export default function Home() {
   const [currentTime, setCurrentTime] = useState('');
   const [currentDate, setCurrentDate] = useState('');
 
-  // Course counts from database
+  // Course counts gikan sa database
   const [counts, setCounts] = useState({
     BSBA: 0,
     BSCRIM: 0,
@@ -19,11 +19,11 @@ export default function Home() {
     total: 0,
   });
 
-  // Events from database
+  // Events gikan sa database
   const [events, setEvents] = useState([]);
   const [eventsLoading, setEventsLoading] = useState(true);
 
-  // Officers & Leaders from database
+  // Officers & Leaders gikan sa database
   const [officers, setOfficers] = useState([]);
   const [officersLoading, setOfficersLoading] = useState(true);
 
@@ -60,7 +60,7 @@ export default function Home() {
     return () => clearInterval(timer);
   }, []);
 
-  // Fetch data from database
+  // Pagkuha sa datos gikan sa Supabase
   const fetchData = async () => {
     if (!supabase) return;
     try {
@@ -70,7 +70,9 @@ export default function Home() {
         .select('course, role, status');
 
       if (profilesData) {
-        const studentMembers = profilesData.filter((p) => p.role !== 'admin' && p.role !== 'staff');
+        const studentMembers = profilesData.filter(
+          (p) => p.role !== 'admin' && p.role !== 'staff'
+        );
 
         setCounts({
           BSBA: studentMembers.filter((s) => s.course === 'BSBA').length,
@@ -192,7 +194,7 @@ export default function Home() {
       </Head>
 
       <style jsx>{`
-        /* 3D LOGO FLOATING & SHADOW ANIMATION */
+        /* 3D FLOATING & GLOW ANIMATION SA LOGO */
         @keyframes logoFloat3D {
           0% {
             transform: translateY(0px) rotate(0deg) scale(1);
@@ -239,6 +241,7 @@ export default function Home() {
             box-shadow: 0 0 0 0 rgba(34, 197, 94, 0);
           }
         }
+
         .live-dot-pulse {
           width: 8px;
           height: 8px;
@@ -250,7 +253,7 @@ export default function Home() {
           flex-shrink: 0;
         }
 
-        /* SEARCH BAR */
+        /* SEARCH CONTAINER & BUTTONS */
         .search-container {
           background-color: #ffffff;
           border: 1.5px solid #cbd5e1;
@@ -264,6 +267,7 @@ export default function Home() {
           box-sizing: border-box;
           transition: all 0.25s ease;
         }
+
         .search-container:focus-within {
           border-color: #15803d;
           box-shadow: 0 8px 24px rgba(21, 128, 61, 0.15);
@@ -286,6 +290,7 @@ export default function Home() {
           flex-shrink: 0;
           transition: background-color 0.2s, transform 0.15s;
         }
+
         .search-btn-green:hover {
           background-color: #166534;
           transform: translateY(-1px);
@@ -313,6 +318,7 @@ export default function Home() {
           gap: 22px;
           margin-top: 26px;
         }
+
         .officer-card {
           background-color: #ffffff;
           border: 1px solid #e2e8f0;
@@ -326,6 +332,7 @@ export default function Home() {
           align-items: center;
           justify-content: space-between;
         }
+
         .officer-card:hover {
           transform: translateY(-5px);
           box-shadow: 0 14px 28px rgba(21, 128, 61, 0.1);
@@ -384,7 +391,6 @@ export default function Home() {
               About
             </button>
 
-            {/* Login button */}
             <button
               onClick={() => router.push('/login')}
               className={styles.loginBtn}
@@ -537,7 +543,7 @@ export default function Home() {
           </p>
         </section>
 
-        {/* Roomier Search Bar & Student Verification Record */}
+        {/* Search Bar & Verification Record */}
         <section className={styles.actionArea} style={{ maxWidth: '640px', margin: '0 auto 36px auto', width: '100%', padding: '0 12px', boxSizing: 'border-box' }}>
           <form onSubmit={handleCheckRecord} className="search-container">
             <div style={{ display: 'flex', alignItems: 'center', color: '#15803d', flexShrink: 0, paddingLeft: '2px' }}>
