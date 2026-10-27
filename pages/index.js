@@ -82,18 +82,7 @@ export default function Home() {
         });
       }
 
-      // 2. Fetch Officers
-      setOfficersLoading(true);
-      const { data: officersData } = await supabase
-        .from('officers')
-        .select('*')
-        .order('id', { ascending: true });
-
-      if (officersData) {
-        setOfficers(officersData);
-      }
-
-      // 3. Fetch Events
+      // 2. Fetch Events
       setEventsLoading(true);
       const { data: eventsData } = await supabase
         .from('events')
@@ -102,6 +91,17 @@ export default function Home() {
 
       if (eventsData) {
         setEvents(eventsData);
+      }
+
+      // 3. Fetch Officers
+      setOfficersLoading(true);
+      const { data: officersData } = await supabase
+        .from('officers')
+        .select('*')
+        .order('id', { ascending: true });
+
+      if (officersData) {
+        setOfficers(officersData);
       }
     } catch (err) {
       console.error('Error fetching landing page data:', err);
@@ -185,7 +185,7 @@ export default function Home() {
   };
 
   return (
-    <div className={styles.container} style={{ paddingBottom: 0 }}>
+    <div className={styles.container} style={{ paddingBottom: 0, overflowX: 'hidden' }}>
       <Head>
         <title>CECTRACK • Cateel Extension Campus</title>
         <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
@@ -331,7 +331,7 @@ export default function Home() {
         }
       `}</style>
 
-      {/* Header */}
+      {/* Header with door icon on Login Button */}
       <header className={styles.header}>
         <div className={styles.headerContent} style={{ justifyContent: 'space-between' }}>
           <button onClick={() => router.push('/')} className={styles.logoText}>
@@ -354,12 +354,34 @@ export default function Home() {
               About
             </button>
 
+            {/* Login button matching image_e2705d.png */}
             <button
               onClick={() => router.push('/login')}
               className={styles.loginBtn}
-              style={{ padding: '8px 18px', fontSize: '0.85rem' }}
+              style={{
+                padding: '8px 18px',
+                fontSize: '0.85rem',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+              }}
             >
-              <span>➔</span> Login
+              <svg
+                width="15"
+                height="15"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                style={{ flexShrink: 0 }}
+              >
+                <line x1="3" y1="12" x2="15" y2="12" />
+                <polyline points="10 7 15 12 10 17" />
+                <path d="M14 4h5a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-5" />
+              </svg>
+              <span>Login</span>
             </button>
           </div>
         </div>
@@ -772,7 +794,7 @@ export default function Home() {
             </div>
           )}
 
-          {/* Quick Buttons: With Exact Door-Arrow Icon (->]) */}
+          {/* Quick Buttons: Door-Arrow Icon (->]) */}
           <div style={{ display: 'flex', justifyContent: 'center', gap: '10px', marginTop: '16px', width: '100%', flexWrap: 'wrap' }}>
             <button
               onClick={() => router.push('/login')}
@@ -923,131 +945,9 @@ export default function Home() {
         </section>
 
         {/* ======================================================== */}
-        {/* OUR OFFICERS & LEADERS SECTION */}
+        {/* 1. UPCOMING & OFFICIAL CAMPUS EVENTS (NAUNA SA LIST) */}
         {/* ======================================================== */}
-        <section className={styles.analyticsSection} style={{ marginTop: '44px', textAlign: 'center' }}>
-          {/* Badge Tag */}
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', backgroundColor: '#fef3c7', border: '1px solid #fde68a', borderRadius: '9999px', padding: '5px 14px', marginBottom: '10px' }}>
-            <span style={{ fontSize: '0.85rem' }}>🏅</span>
-            <span style={{ fontSize: '0.72rem', fontWeight: 900, color: '#b45309', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-              LEADERSHIP &amp; FACULTY
-            </span>
-          </div>
-
-          <h2 style={{ fontSize: 'clamp(1.7rem, 4vw, 2.3rem)', fontWeight: 900, color: '#0f172a', margin: '0 0 8px 0', letterSpacing: '-0.02em' }}>
-            Our Officers &amp; Leaders
-          </h2>
-
-          <p style={{ fontSize: '0.88rem', color: '#64748b', maxWidth: '580px', margin: '0 auto 24px auto', lineHeight: 1.55 }}>
-            Dedicated student leaders and faculty advisers steering the Cateel Extension Campus toward academic and professional excellence.
-          </p>
-
-          {officersLoading ? (
-            <div style={{ textAlign: 'center', padding: '36px', color: '#64748b', fontWeight: 700 }}>
-              Loading officers roster...
-            </div>
-          ) : officers.length === 0 ? (
-            <div
-              style={{
-                textAlign: 'center',
-                padding: '36px 18px',
-                backgroundColor: '#ffffff',
-                border: '1px solid #e2e8f0',
-                borderRadius: '20px',
-                color: '#64748b',
-                maxWidth: '500px',
-                margin: '0 auto',
-              }}
-            >
-              <div style={{ fontSize: '2rem', marginBottom: '6px' }}>👤</div>
-              <h4 style={{ margin: '0 0 4px 0', fontSize: '0.95rem', fontWeight: 900, color: '#0f172a' }}>
-                No Officers Published Yet
-              </h4>
-              <p style={{ margin: 0, fontSize: '0.8rem' }}>
-                Campus student leaders and advisers will be showcased here once updated by the administration.
-              </p>
-            </div>
-          ) : (
-            <div className="officers-grid">
-              {officers.map((off) => (
-                <div key={off.id} className="officer-card">
-                  {/* Photo with subtle border */}
-                  <div
-                    style={{
-                      width: '105px',
-                      height: '105px',
-                      borderRadius: '20px',
-                      backgroundColor: '#f1f5f9',
-                      border: '2px solid #e2e8f0',
-                      overflow: 'hidden',
-                      margin: '0 auto 14px auto',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      flexShrink: 0,
-                    }}
-                  >
-                    {off.avatar_url ? (
-                      <img
-                        src={off.avatar_url}
-                        alt={off.name}
-                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                      />
-                    ) : (
-                      <span style={{ fontSize: '2.5rem' }}>👤</span>
-                    )}
-                  </div>
-
-                  {/* Position Pill Badge */}
-                  <div style={{ marginBottom: '8px' }}>
-                    <span
-                      style={{
-                        display: 'inline-block',
-                        padding: '3px 12px',
-                        borderRadius: '9999px',
-                        fontSize: '0.66rem',
-                        fontWeight: 900,
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.04em',
-                        backgroundColor: '#eff6ff',
-                        color: '#1d4ed8',
-                        border: '1px solid #bfdbfe',
-                      }}
-                    >
-                      {off.position}
-                    </span>
-                  </div>
-
-                  {/* Full Name */}
-                  <h3
-                    style={{
-                      margin: '0 0 4px 0',
-                      fontSize: '0.98rem',
-                      fontWeight: 900,
-                      color: '#0f172a',
-                      lineHeight: 1.3,
-                    }}
-                  >
-                    {off.name}
-                  </h3>
-
-                  {/* Department / Council */}
-                  <div style={{ fontSize: '0.74rem', color: '#64748b', fontWeight: 700, marginBottom: '6px' }}>
-                    {off.department}
-                  </div>
-
-                  {/* Term / A.Y. */}
-                  <div style={{ fontSize: '0.68rem', color: '#94a3b8', fontWeight: 800 }}>
-                    A.Y. {off.term || '2026 - 2027'}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </section>
-
-        {/* Events Section */}
-        <section className={styles.analyticsSection} id="events-section" style={{ marginTop: '48px' }}>
+        <section className={styles.analyticsSection} id="events-section" style={{ marginTop: '36px' }}>
           <div className={styles.analyticsHeader}>
             <div className={styles.analyticsTitle}>
               📅 UPCOMING &amp; OFFICIAL CAMPUS EVENTS
@@ -1187,6 +1087,143 @@ export default function Home() {
                   </div>
                 );
               })}
+            </div>
+          )}
+        </section>
+
+        {/* ======================================================== */}
+        {/* 2. LEADERSHIP & FACULTY SECTION (SA UBOS NA SEKSYON) */}
+        {/* ======================================================== */}
+        <section className={styles.analyticsSection} style={{ marginTop: '48px', textAlign: 'center' }}>
+          {/* Badge Tag with Green Vector Ribbon Icon matching image_e27083.png */}
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '7px', backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '9999px', padding: '5px 14px', marginBottom: '10px' }}>
+            <svg
+              width="15"
+              height="15"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="#15803d"
+              strokeWidth="2.4"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              style={{ flexShrink: 0 }}
+            >
+              <circle cx="12" cy="8" r="6" />
+              <polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88" />
+            </svg>
+            <span style={{ fontSize: '0.72rem', fontWeight: 900, color: '#15803d', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+              LEADERSHIP &amp; FACULTY
+            </span>
+          </div>
+
+          <h2 style={{ fontSize: 'clamp(1.7rem, 4vw, 2.3rem)', fontWeight: 900, color: '#0f172a', margin: '0 0 8px 0', letterSpacing: '-0.02em' }}>
+            Our Officers &amp; Leaders
+          </h2>
+
+          <p style={{ fontSize: '0.88rem', color: '#64748b', maxWidth: '580px', margin: '0 auto 24px auto', lineHeight: 1.55 }}>
+            Dedicated student leaders and faculty advisers steering the Cateel Extension Campus toward academic and professional excellence.
+          </p>
+
+          {officersLoading ? (
+            <div style={{ textAlign: 'center', padding: '36px', color: '#64748b', fontWeight: 700 }}>
+              Loading officers roster...
+            </div>
+          ) : officers.length === 0 ? (
+            <div
+              style={{
+                textAlign: 'center',
+                padding: '36px 18px',
+                backgroundColor: '#ffffff',
+                border: '1px solid #e2e8f0',
+                borderRadius: '20px',
+                color: '#64748b',
+                maxWidth: '500px',
+                margin: '0 auto',
+              }}
+            >
+              <div style={{ fontSize: '2rem', marginBottom: '6px' }}>👤</div>
+              <h4 style={{ margin: '0 0 4px 0', fontSize: '0.95rem', fontWeight: 900, color: '#0f172a' }}>
+                No Officers Published Yet
+              </h4>
+              <p style={{ margin: 0, fontSize: '0.8rem' }}>
+                Campus student leaders and advisers will be showcased here once updated by the administration.
+              </p>
+            </div>
+          ) : (
+            <div className="officers-grid">
+              {officers.map((off) => (
+                <div key={off.id} className="officer-card">
+                  {/* Photo with subtle border */}
+                  <div
+                    style={{
+                      width: '105px',
+                      height: '105px',
+                      borderRadius: '20px',
+                      backgroundColor: '#f1f5f9',
+                      border: '2px solid #e2e8f0',
+                      overflow: 'hidden',
+                      margin: '0 auto 14px auto',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexShrink: 0,
+                    }}
+                  >
+                    {off.avatar_url ? (
+                      <img
+                        src={off.avatar_url}
+                        alt={off.name}
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      />
+                    ) : (
+                      <span style={{ fontSize: '2.5rem' }}>👤</span>
+                    )}
+                  </div>
+
+                  {/* Position Pill Badge */}
+                  <div style={{ marginBottom: '8px' }}>
+                    <span
+                      style={{
+                        display: 'inline-block',
+                        padding: '3px 12px',
+                        borderRadius: '9999px',
+                        fontSize: '0.66rem',
+                        fontWeight: 900,
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.04em',
+                        backgroundColor: '#eff6ff',
+                        color: '#1d4ed8',
+                        border: '1px solid #bfdbfe',
+                      }}
+                    >
+                      {off.position}
+                    </span>
+                  </div>
+
+                  {/* Full Name */}
+                  <h3
+                    style={{
+                      margin: '0 0 4px 0',
+                      fontSize: '0.98rem',
+                      fontWeight: 900,
+                      color: '#0f172a',
+                      lineHeight: 1.3,
+                    }}
+                  >
+                    {off.name}
+                  </h3>
+
+                  {/* Department / Council */}
+                  <div style={{ fontSize: '0.74rem', color: '#64748b', fontWeight: 700, marginBottom: '6px' }}>
+                    {off.department}
+                  </div>
+
+                  {/* Term / A.Y. */}
+                  <div style={{ fontSize: '0.68rem', color: '#94a3b8', fontWeight: 800 }}>
+                    A.Y. {off.term || '2026 - 2027'}
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </section>
