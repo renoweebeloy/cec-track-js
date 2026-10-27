@@ -34,7 +34,7 @@ export default function AdminDashboard() {
   const [deleteModal, setDeleteModal] = useState({ isOpen: false, type: '', id: null, title: '' });
   const [deletingRecord, setDeletingRecord] = useState(false);
 
-  // Edit Confirmation Modal ("Are you sure you want to change? Yes / No")
+  // Edit Confirmation Modal
   const [confirmEditModal, setConfirmEditModal] = useState({
     isOpen: false,
     type: '', // 'student' | 'officer'
@@ -407,9 +407,7 @@ export default function AdminDashboard() {
     }
   };
 
-  // ========================================================
-  // STUDENT: ADD & EDIT HANDLERS
-  // ========================================================
+  // STUDENT: ADD & EDIT
   const handleStartEditStudent = (st) => {
     setEditingStudentId(st.id);
     setStudentId(st.school_id || '');
@@ -493,9 +491,7 @@ export default function AdminDashboard() {
     }
   };
 
-  // ========================================================
-  // OFFICER: ADD & EDIT HANDLERS
-  // ========================================================
+  // OFFICER: ADD & EDIT
   const handleOfficerAvatarUpload = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -613,9 +609,7 @@ export default function AdminDashboard() {
     }
   };
 
-  // ========================================================
   // CONFIRMATION SAVE HANDLER (YES / NO)
-  // ========================================================
   const handleExecuteEditSave = async () => {
     if (!confirmEditModal.payload) return;
     setSavingEdit(true);
@@ -652,9 +646,7 @@ export default function AdminDashboard() {
     }
   };
 
-  // ========================================================
   // EVENT HANDLERS
-  // ========================================================
   const handleEventImageUpload = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -683,7 +675,7 @@ export default function AdminDashboard() {
           }
         } else {
           if (height > MAX_HEIGHT) {
-            width *= MAX_HEIGHT / height;
+            width *= MAX_DIM / height;
             height = MAX_HEIGHT;
           }
         }
@@ -907,7 +899,6 @@ export default function AdminDashboard() {
     setLiveScanFeedback(null);
   };
 
-  // Button: OK (Confirm & Scan Next)
   const handleAcknowledgeScan = () => {
     setLiveScanFeedback(null);
     setTimeout(() => {
@@ -916,19 +907,16 @@ export default function AdminDashboard() {
     }, 400);
   };
 
-  // Button: No (Cancel / Undo Log Entry)
   const handleRejectScan = async () => {
     if (!liveScanFeedback) return;
 
     try {
-      // Kung bag-o lang gi-insert ang attendance, i-delete kini sa database
       if (liveScanFeedback.actionType === 'inserted' && liveScanFeedback.attendanceId) {
         await supabase
           .from('attendance')
           .delete()
           .eq('id', liveScanFeedback.attendanceId);
       } else if (liveScanFeedback.actionType === 'updated_timeout' && liveScanFeedback.attendanceId) {
-        // Revert time_out back to null
         await supabase
           .from('attendance')
           .update({ time_out: null })
@@ -942,9 +930,12 @@ export default function AdminDashboard() {
     }
   };
 
+  // ========================================================
+  // UPDATED QR CODE DETECTOR (SUPPORTS JSON & RAW SCHOOL ID)
+  // ========================================================
   const handleQrCodeDetected = async (decodedText) => {
-    const cleanSchoolId = (decodedText || '').trim();
-    if (!cleanSchoolId) return;
+    let rawText = (decodedText || '').trim();
+    if (!rawText) return;
 
     if (!isScannerGateOpen) {
       setLiveScanFeedback({
@@ -954,6 +945,21 @@ export default function AdminDashboard() {
       });
       return;
     }
+
+    let cleanSchoolId = rawText;
+
+    // Check kung ang QR payload kay JSON format gikan sa Student Portal
+    try {
+      if (rawText.startsWith('{') && rawText.endsWith('}')) {
+        const parsed = JSON.parse(rawText);
+        cleanSchoolId = parsed.school_id || parsed.student_id || parsed.id || cleanSchoolId;
+      }
+    } catch (parseErr) {
+      const match = rawText.match(/\d{4}-\d{4,5}/);
+      if (match) cleanSchoolId = match[0];
+    }
+
+    cleanSchoolId = cleanSchoolId.trim();
 
     if (isProcessingScanRef.current) return;
     if (lastScannedCodeRef.current === cleanSchoolId) return;
@@ -1707,9 +1713,9 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          {/* TAB 2: ADD & EDIT STUDENT */}
+          {/* TAB 2: ADD & EDIT STUDENT (RESPONSIVE FOR MOBILE) */}
           {activeTab === 'add-student' && isAdmin && (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))', gap: '20px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))', gap: '20px', width: '100%' }}>
               <div className={styles.adminFormCard} ref={studentFormRef}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
                   <h3 className={styles.analyticsTitle} style={{ fontSize: '0.9rem', margin: 0 }}>
@@ -1855,8 +1861,8 @@ export default function AdminDashboard() {
                 </form>
               </div>
 
-              {/* ENROLLED STUDENTS LIST */}
-              <div className={styles.adminFormCard}>
+              {/* ENROLLED STUDENTS LIST (RESPONSIVE FOR CELLPHONE/MOBILE) */}
+              <div className={styles.adminFormCard} style={{ width: '100%', boxSizing: 'border-box' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '8px' }}>
                   <div>
                     <h3 className={styles.analyticsTitle} style={{ fontSize: '0.9rem', margin: 0 }}>
@@ -1871,7 +1877,7 @@ export default function AdminDashboard() {
                       value={searchStudentQuery}
                       onChange={(e) => setSearchStudentQuery(e.target.value)}
                       className={styles.loginInput}
-                      style={{ width: '130px', padding: '6px 10px', fontSize: '0.8rem' }}
+                      style={{ width: '120px', padding: '6px 10px', fontSize: '0.8rem' }}
                     />
 
                     {students.length > 0 && (
@@ -1884,9 +1890,9 @@ export default function AdminDashboard() {
                           color: '#b91c1c',
                           fontWeight: 900,
                           cursor: 'pointer',
-                          padding: '6px 12px',
+                          padding: '6px 10px',
                           borderRadius: '8px',
-                          fontSize: '0.78rem',
+                          fontSize: '0.75rem',
                           whiteSpace: 'nowrap',
                           touchAction: 'manipulation',
                         }}
@@ -1897,38 +1903,47 @@ export default function AdminDashboard() {
                   </div>
                 </div>
 
-                <div className={styles.adminTableWrapper}>
-                  <table className={styles.adminTable}>
+                {/* SCROLLABLE TABLE CONTAINER (DILI MAPUTOL SA CP) */}
+                <div
+                  style={{
+                    width: '100%',
+                    overflowX: 'auto',
+                    WebkitOverflowScrolling: 'touch',
+                    borderRadius: '12px',
+                    border: '1px solid #e2e8f0',
+                  }}
+                >
+                  <table style={{ width: '100%', minWidth: '520px', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.82rem' }}>
                     <thead>
-                      <tr>
-                        <th>School ID</th>
-                        <th>Student Details</th>
-                        <th>Course &amp; Section</th>
-                        <th style={{ textAlign: 'right' }}>Action</th>
+                      <tr style={{ backgroundColor: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+                        <th style={{ padding: '10px 12px', fontWeight: 800, color: '#475569' }}>School ID</th>
+                        <th style={{ padding: '10px 12px', fontWeight: 800, color: '#475569' }}>Student Details</th>
+                        <th style={{ padding: '10px 12px', fontWeight: 800, color: '#475569' }}>Course &amp; Section</th>
+                        <th style={{ padding: '10px 12px', fontWeight: 800, color: '#475569', textAlign: 'center', minWidth: '130px' }}>Action</th>
                       </tr>
                     </thead>
                     <tbody>
                       {filteredStudents.length === 0 ? (
                         <tr>
-                          <td colSpan={4} style={{ textAlign: 'center', padding: '20px', color: '#94a3b8' }}>
+                          <td colSpan={4} style={{ textAlign: 'center', padding: '24px', color: '#94a3b8' }}>
                             No student records found.
                           </td>
                         </tr>
                       ) : (
                         filteredStudents.map((st) => (
-                          <tr key={st.id}>
-                            <td style={{ fontWeight: 800 }}>{st.school_id}</td>
-                            <td>
-                              <div style={{ fontWeight: 700 }}>{st.full_name}</div>
+                          <tr key={st.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                            <td style={{ padding: '10px 12px', fontWeight: 900, color: '#0f172a' }}>{st.school_id}</td>
+                            <td style={{ padding: '10px 12px' }}>
+                              <div style={{ fontWeight: 800, color: '#0f172a' }}>{st.full_name}</div>
                               <div style={{ fontSize: '0.7rem', color: '#64748b' }}>{st.email}</div>
                             </td>
-                            <td>
-                              <span className={styles.idBadge}>{st.course}</span>
+                            <td style={{ padding: '10px 12px' }}>
+                              <span className={styles.idBadge} style={{ padding: '2px 6px', fontSize: '0.68rem' }}>{st.course}</span>
                               <div style={{ fontSize: '0.7rem', color: '#15803d', fontWeight: 800, marginTop: '2px' }}>
                                 {st.section || 'Section A'} • {st.year_level || '1st Year'}
                               </div>
                             </td>
-                            <td style={{ textAlign: 'right' }}>
+                            <td style={{ padding: '10px 12px', textAlign: 'center', whiteSpace: 'nowrap' }}>
                               <div style={{ display: 'inline-flex', gap: '6px' }}>
                                 <button
                                   type="button"
@@ -1937,7 +1952,7 @@ export default function AdminDashboard() {
                                     border: '1px solid #bbf7d0',
                                     backgroundColor: '#f0fdf4',
                                     color: '#15803d',
-                                    fontWeight: 800,
+                                    fontWeight: 900,
                                     cursor: 'pointer',
                                     padding: '5px 10px',
                                     borderRadius: '8px',
@@ -1954,7 +1969,7 @@ export default function AdminDashboard() {
                                     border: '1px solid #fecaca',
                                     backgroundColor: '#fef2f2',
                                     color: '#b91c1c',
-                                    fontWeight: 800,
+                                    fontWeight: 900,
                                     cursor: 'pointer',
                                     padding: '5px 10px',
                                     borderRadius: '8px',
@@ -2013,7 +2028,6 @@ export default function AdminDashboard() {
                     style={{ display: 'none' }}
                   />
 
-                  {/* Upload / Change Photo */}
                   <div className={styles.inputGroup}>
                     <label className={styles.inputLabel} style={{ fontSize: '0.75rem' }}>Officer 2x2 / Formal Photo</label>
                     <div
@@ -3182,7 +3196,7 @@ export default function AdminDashboard() {
         </main>
       </div>
 
-      {/* CONTINUOUS CAMERA SCANNER MODAL (LIMPYO NGA CAMERA LANG) */}
+      {/* CONTINUOUS CAMERA SCANNER MODAL */}
       {isCameraModalOpen && (
         <div
           style={{
@@ -3283,9 +3297,7 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      {/* ======================================================== */}
-      {/* LAHI NGA DAKO NGA MODAL / VERIFICATION CARD (WITH OK & NO) */}
-      {/* ======================================================== */}
+      {/* LIVE SCAN FEEDBACK CARD (WITH DETAILS, OK, & NO BUTTONS) */}
       {liveScanFeedback && (
         <div
           style={{
@@ -3321,7 +3333,6 @@ export default function AdminDashboard() {
               }`,
             }}
           >
-            {/* Top Status Header */}
             <div style={{ marginBottom: '14px' }}>
               <span
                 style={{
@@ -3354,7 +3365,6 @@ export default function AdminDashboard() {
 
             {liveScanFeedback.student ? (
               <div>
-                {/* DAKO NGA HULAGWAY ARON MAKITA ANG NAWONG SA NAG-SCAN */}
                 <div
                   style={{
                     width: '135px',
@@ -3381,7 +3391,6 @@ export default function AdminDashboard() {
                   )}
                 </div>
 
-                {/* Estudyante Name & ID */}
                 <h3
                   style={{
                     margin: '0 0 4px 0',
@@ -3397,7 +3406,6 @@ export default function AdminDashboard() {
                   ID: {liveScanFeedback.student.school_id}
                 </div>
 
-                {/* LAHI NGA TABLE / DETAILS GRID */}
                 <div
                   style={{
                     backgroundColor: '#f8fafc',
@@ -3430,7 +3438,6 @@ export default function AdminDashboard() {
                   </div>
                 </div>
 
-                {/* DAKO NGA "OK" UG "NO" BUTTONS */}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                   <button
                     type="button"
@@ -3599,7 +3606,7 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      {/* MOBILE IN-APP DELETE / REVOKE CONFIRMATION MODAL */}
+      {/* IN-APP DELETE / REVOKE CONFIRMATION MODAL */}
       {deleteModal.isOpen && (
         <div
           style={{
