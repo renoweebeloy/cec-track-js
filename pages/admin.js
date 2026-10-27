@@ -25,6 +25,10 @@ export default function AdminDashboard() {
   const [currentUser, setCurrentUser] = useState({ name: '', email: '', school_id: '' });
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
+  // Welcome Toast & Logout Modal States
+  const [showWelcomeToast, setShowWelcomeToast] = useState(true);
+  const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
+
   // Navigation Tabs: 'profile' | 'add-student' | 'add-staff' | 'add-event' | 'manage-officers' | 'scan-qr' | 'search-student'
   const [activeTab, setActiveTab] = useState('profile');
   const [loading, setLoading] = useState(false);
@@ -157,6 +161,14 @@ export default function AdminDashboard() {
       console.warn('AudioContext warning:', e);
     }
   };
+
+  // Auto-dismiss welcome toast pagkatapos ng 5 segundo
+  useEffect(() => {
+    const welcomeTimer = setTimeout(() => {
+      setShowWelcomeToast(false);
+    }, 5000);
+    return () => clearTimeout(welcomeTimer);
+  }, []);
 
   // 5-Minute Inactivity Session Guard
   useEffect(() => {
@@ -377,7 +389,8 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleSignOut = async () => {
+  // Sign out confirmation trigger
+  const handleConfirmSignOut = async () => {
     if (supabase) await supabase.auth.signOut();
     try {
       sessionStorage.clear();
@@ -930,9 +943,7 @@ export default function AdminDashboard() {
     }
   };
 
-  // ========================================================
-  // UPDATED QR CODE DETECTOR (SUPPORTS JSON & RAW SCHOOL ID)
-  // ========================================================
+  // QR CODE DETECTOR (JSON & RAW ID COMPATIBLE)
   const handleQrCodeDetected = async (decodedText) => {
     let rawText = (decodedText || '').trim();
     if (!rawText) return;
@@ -948,7 +959,6 @@ export default function AdminDashboard() {
 
     let cleanSchoolId = rawText;
 
-    // Check kung ang QR payload kay JSON format gikan sa Student Portal
     try {
       if (rawText.startsWith('{') && rawText.endsWith('}')) {
         const parsed = JSON.parse(rawText);
@@ -1374,12 +1384,69 @@ export default function AdminDashboard() {
   const activeEventObj = events.find((e) => e.id === selectedEventId);
 
   return (
-    <div className={styles.container} style={{ paddingBottom: 0, overflowX: 'hidden', maxWidth: '100vw' }}>
+    <div className={styles.container} style={{ paddingBottom: 0, overflowX: 'hidden', maxWidth: '100vw', position: 'relative' }}>
       <Head>
         <title>CEC TRACK • {isAdmin ? 'Admin Portal' : 'Staff Portal'}</title>
         <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
         <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js" async />
       </Head>
+
+      {/* TOP GREEN WELCOME BANNER (AUTOMATIC ON LOGIN / LOAD) */}
+      {showWelcomeToast && (
+        <div
+          style={{
+            position: 'fixed',
+            top: '18px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 9999,
+            backgroundColor: '#ecfdf5',
+            border: '1.5px solid #a7f3d0',
+            padding: '7px 20px',
+            borderRadius: '16px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            boxShadow: '0 6px 20px rgba(16, 185, 129, 0.12)',
+            animation: 'fadeIn 0.25s ease',
+          }}
+        >
+          <div
+            style={{
+              width: '18px',
+              height: '18px',
+              borderRadius: '50%',
+              backgroundColor: '#15803d',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#ffffff',
+              fontSize: '11px',
+              fontWeight: 900,
+            }}
+          >
+            ✓
+          </div>
+          <span style={{ fontSize: '0.85rem', fontWeight: 800, color: '#15803d' }}>
+            Welcome to the Admin Portal!
+          </span>
+          <button
+            onClick={() => setShowWelcomeToast(false)}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: '#15803d',
+              fontSize: '12px',
+              fontWeight: 900,
+              cursor: 'pointer',
+              marginLeft: '4px',
+              padding: '0 4px',
+            }}
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
       {/* TOP HEADER */}
       <header
@@ -1626,7 +1693,7 @@ export default function AdminDashboard() {
 
           <div style={{ borderTop: '1px solid #f1f5f9', paddingTop: '16px', marginTop: '16px' }}>
             <button
-              onClick={handleSignOut}
+              onClick={() => setIsLogoutModalOpen(true)}
               className={styles.portalNavLink}
               style={{ color: '#b91c1c', fontWeight: 900, fontSize: '0.92rem', padding: '12px 14px', justifyContent: 'flex-start' }}
             >
@@ -1713,7 +1780,7 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          {/* TAB 2: ADD & EDIT STUDENT (RESPONSIVE FOR MOBILE) */}
+          {/* TAB 2: ADD & EDIT STUDENT */}
           {activeTab === 'add-student' && isAdmin && (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))', gap: '20px', width: '100%' }}>
               <div className={styles.adminFormCard} ref={studentFormRef}>
@@ -1861,7 +1928,7 @@ export default function AdminDashboard() {
                 </form>
               </div>
 
-              {/* ENROLLED STUDENTS LIST (RESPONSIVE FOR CELLPHONE/MOBILE) */}
+              {/* ENROLLED STUDENTS LIST */}
               <div className={styles.adminFormCard} style={{ width: '100%', boxSizing: 'border-box' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '8px' }}>
                   <div>
@@ -1903,7 +1970,6 @@ export default function AdminDashboard() {
                   </div>
                 </div>
 
-                {/* SCROLLABLE TABLE CONTAINER (DILI MAPUTOL SA CP) */}
                 <div
                   style={{
                     width: '100%',
@@ -2051,7 +2117,7 @@ export default function AdminDashboard() {
                           <img
                             src={officerAvatar}
                             alt="Officer Preview"
-                            style={{ width: '70px', height: '70px', borderRadius: '18px', objectFit: 'cover', margin: '0 auto', display: 'block', border: '2px solid #15803d' }}
+                            style={{ width: '70px', height: '70px', borderRadius: '18px', objectFit: 'cover' }}
                           />
                           <span style={{ fontSize: '0.72rem', color: '#15803d', fontWeight: 800, marginTop: '4px', display: 'block' }}>
                             Click to change photo
@@ -3297,7 +3363,7 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      {/* LIVE SCAN FEEDBACK CARD (WITH DETAILS, OK, & NO BUTTONS) */}
+      {/* LIVE SCAN FEEDBACK CARD */}
       {liveScanFeedback && (
         <div
           style={{
@@ -3600,6 +3666,104 @@ export default function AdminDashboard() {
                 }}
               >
                 No, Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* SIGN OUT / LOGOUT CONFIRMATION MODAL */}
+      {isLogoutModalOpen && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(15, 23, 42, 0.45)',
+            backdropFilter: 'blur(4px)',
+            zIndex: 170,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '16px',
+          }}
+        >
+          <div
+            style={{
+              backgroundColor: '#ffffff',
+              width: '100%',
+              maxWidth: '380px',
+              borderRadius: '22px',
+              padding: '24px 22px',
+              boxShadow: '0 20px 40px rgba(0,0,0,0.18)',
+              position: 'relative',
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+              <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 900, color: '#0f172a' }}>Sign Out</h3>
+              <button
+                onClick={() => setIsLogoutModalOpen(false)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  fontSize: '1rem',
+                  color: '#94a3b8',
+                  cursor: 'pointer',
+                  padding: '4px',
+                }}
+              >
+                ✕
+              </button>
+            </div>
+
+            <p
+              style={{
+                textAlign: 'center',
+                color: '#334155',
+                fontSize: '0.92rem',
+                margin: '18px 0 24px 0',
+                fontWeight: 600,
+                lineHeight: 1.5,
+              }}
+            >
+              Are you sure you want to log out of the Admin Portal?
+            </p>
+
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button
+                type="button"
+                onClick={() => setIsLogoutModalOpen(false)}
+                style={{
+                  flex: 1,
+                  padding: '10px',
+                  backgroundColor: '#ffffff',
+                  border: '1px solid #cbd5e1',
+                  borderRadius: '10px',
+                  fontWeight: 800,
+                  fontSize: '0.85rem',
+                  color: '#334155',
+                  cursor: 'pointer',
+                  touchAction: 'manipulation',
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmSignOut}
+                style={{
+                  flex: 1,
+                  padding: '10px',
+                  backgroundColor: '#e11d48',
+                  border: 'none',
+                  borderRadius: '10px',
+                  fontWeight: 800,
+                  fontSize: '0.85rem',
+                  color: '#ffffff',
+                  cursor: 'pointer',
+                  touchAction: 'manipulation',
+                }}
+              >
+                Logout
               </button>
             </div>
           </div>
