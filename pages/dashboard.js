@@ -2040,7 +2040,7 @@ export default function StudentDashboard() {
                 lineHeight: 1.5,
               }}
             >
-              Are you sure you want to log out of the Student Portal?[cite: 10]
+              Are you sure you want to log out of the Student Portal?
             </p>
 
             {/* Modal Buttons */}
