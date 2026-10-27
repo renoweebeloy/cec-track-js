@@ -4,8 +4,6 @@ import { useRouter } from 'next/router';
 import { supabase } from '../lib/supabaseClient';
 import styles from '../styles/Home.module.css';
 
-const COURSE_KEYS = ['BSBA', 'BSCRIM', 'BSA', 'BEED', 'BSAM'];
-
 export default function Home() {
   const router = useRouter();
   const [currentTime, setCurrentTime] = useState('');
@@ -1017,10 +1015,19 @@ export default function Home() {
               </div>
             </div>
 
-            {/* BSCRIM */}
+            {/* BSCRIM (UPDATED TO RED) */}
             <div className={styles.courseCard}>
               <div className={styles.cardTop}>
-                <span className={`${styles.badge} ${styles.bscrimBadge}`}>BSCRIM</span>
+                <span
+                  className={`${styles.badge} ${styles.bscrimBadge}`}
+                  style={{
+                    backgroundColor: '#fee2e2',
+                    color: '#dc2626',
+                    border: '1px solid #fca5a5',
+                  }}
+                >
+                  BSCRIM
+                </span>
               </div>
               <div>
                 <div className={styles.countValue}>{counts.BSCRIM}</div>
@@ -1079,7 +1086,7 @@ export default function Home() {
           </div>
         </section>
 
-        {/* 1. UPCOMING & OFFICIAL CAMPUS EVENTS */}
+        {/* UPCOMING & OFFICIAL CAMPUS EVENTS */}
         <section
           className={styles.analyticsSection}
           id="events-section"
@@ -1298,7 +1305,7 @@ export default function Home() {
           )}
         </section>
 
-        {/* 2. LEADERSHIP & FACULTY SECTION */}
+        {/* LEADERSHIP & FACULTY SECTION */}
         <section
           className={styles.analyticsSection}
           style={{ marginTop: '48px', textAlign: 'center' }}
