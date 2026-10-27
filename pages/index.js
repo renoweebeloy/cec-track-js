@@ -9,7 +9,7 @@ export default function Home() {
   const [currentTime, setCurrentTime] = useState('');
   const [currentDate, setCurrentDate] = useState('');
 
-  // Course counts galing sa database
+  // Course counts mula sa database
   const [counts, setCounts] = useState({
     BSBA: 0,
     BSCRIM: 0,
@@ -19,11 +19,11 @@ export default function Home() {
     total: 0,
   });
 
-  // Events galing sa database
+  // Events mula sa database
   const [events, setEvents] = useState([]);
   const [eventsLoading, setEventsLoading] = useState(true);
 
-  // Officers & Leaders galing sa database
+  // Officers & Leaders mula sa database
   const [officers, setOfficers] = useState([]);
   const [officersLoading, setOfficersLoading] = useState(true);
 
@@ -60,7 +60,7 @@ export default function Home() {
     return () => clearInterval(timer);
   }, []);
 
-  // Pagkuha ng datos galing sa database
+  // Pagkuha ng datos mula sa Supabase
   const fetchData = async () => {
     if (!supabase) return;
     try {
@@ -194,7 +194,7 @@ export default function Home() {
       </Head>
 
       <style jsx>{`
-        /* STATIC LOGO NA PINALAKI NANG KAUNTI */
+        /* STATIC LOGO NA PINALAKI */
         .hero-logo-img {
           width: 175px;
           height: 175px;
@@ -230,6 +230,25 @@ export default function Home() {
           margin-right: 6px;
           animation: liveDotGlow 1.8s infinite cubic-bezier(0.4, 0, 0.6, 1);
           flex-shrink: 0;
+        }
+
+        /* RESPONSIVE HERO DESCRIPTION (PANTAY SA CP AT DESKTOP) */
+        .hero-tagline-container {
+          max-width: 520px;
+          width: 95%;
+          margin: 0 auto 24px auto;
+          text-align: center;
+          padding: 0 4px;
+          box-sizing: border-box;
+        }
+
+        .hero-tagline-line {
+          display: block;
+          color: #64748b;
+          font-size: 0.94rem;
+          font-weight: 500;
+          line-height: 1.55;
+          text-wrap: balance;
         }
 
         /* SEARCH CONTAINER & BUTTONS */
@@ -322,6 +341,10 @@ export default function Home() {
           .hero-logo-img {
             width: 140px;
             height: 140px;
+          }
+          .hero-tagline-line {
+            font-size: 0.82rem;
+            line-height: 1.45;
           }
           .search-container {
             padding: 5px 6px 5px 12px;
@@ -464,7 +487,7 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Hero Area (Wala nang animation ang logo, pinalaki nang kaunti) */}
+        {/* Hero Area */}
         <section className={styles.heroSection} style={{ padding: '16px 0 24px 0' }}>
           <div style={{ marginBottom: '18px' }}>
             <img
@@ -506,20 +529,15 @@ export default function Home() {
             Cateel Extension Campus
           </h2>
 
-          <p
-            className={styles.heroDescription}
-            style={{
-              fontSize: '0.96rem',
-              maxWidth: '620px',
-              lineHeight: 1.6,
-              margin: '0 auto 24px auto',
-              color: '#64748b',
-              fontWeight: 500,
-            }}
-          >
-            Uniting students across CEC Dorsu disciplines.<br />
-            Innovate, collaborate, and excel together.
-          </p>
+          {/* PINAGANDANG LINE LAYOUT SA CELLPHONE (HINDI NA PUTOL-PUTOL) */}
+          <div className="hero-tagline-container">
+            <span className="hero-tagline-line">
+              Uniting students across CEC Dorsu disciplines.
+            </span>
+            <span className="hero-tagline-line" style={{ marginTop: '2px' }}>
+              Innovate, collaborate, and excel together.
+            </span>
+          </div>
         </section>
 
         {/* Search Bar & Verification Record */}
