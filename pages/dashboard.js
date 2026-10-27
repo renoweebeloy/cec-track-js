@@ -9,6 +9,7 @@ export default function StudentDashboard() {
   const router = useRouter();
   const fileInputRef = useRef(null);
   const idCardRef = useRef(null);
+  const qrCanvasRef = useRef(null);
 
   // Active Tab Navigation: 'my-id' | 'attendance' | 'events' | 'officers' | 'sanctions' | 'profile' | 'about'
   const [activeTab, setActiveTab] = useState('my-id');
@@ -16,9 +17,6 @@ export default function StudentDashboard() {
   const [loading, setLoading] = useState(true);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [downloadingId, setDownloadingId] = useState(false);
-
-  // QR Code Base64 State (Solusyon para hindi maging blangko sa pag-download)
-  const [qrCodeDataUrl, setQrCodeDataUrl] = useState('');
 
   // Password Change Modal States
   const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
@@ -68,28 +66,41 @@ export default function StudentDashboard() {
     }, 4500);
   };
 
-  // Convert QR Code to Base64 Image upang maiwasan ang CORS blank error sa html2canvas
+  // 100% Client-side Canvas QR Generator (Walang CORS Error sa Pag-download)
   useEffect(() => {
-    if (!profile.school_id) return;
+    if (typeof window === 'undefined' || !profile.school_id) return;
 
-    const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=360x360&ecc=H&margin=2&data=${encodeURIComponent(
-      profile.school_id
-    )}`;
+    const renderClientQR = () => {
+      if (window.QRCode && qrCanvasRef.current) {
+        window.QRCode.toCanvas(
+          qrCanvasRef.current,
+          profile.school_id,
+          {
+            width: 220,
+            margin: 1,
+            errorCorrectionLevel: 'H',
+            color: {
+              dark: '#000000',
+              light: '#ffffff',
+            },
+          },
+          (err) => {
+            if (err) console.error('QR Render Error:', err);
+          }
+        );
+      }
+    };
 
-    fetch(qrApiUrl)
-      .then((res) => res.blob())
-      .then((blob) => {
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          setQrCodeDataUrl(reader.result);
-        };
-        reader.readAsDataURL(blob);
-      })
-      .catch((err) => {
-        console.warn('QR conversion fallback:', err);
-        setQrCodeDataUrl(qrApiUrl);
-      });
-  }, [profile.school_id]);
+    if (window.QRCode) {
+      renderClientQR();
+    } else {
+      const script = document.createElement('script');
+      script.src = 'https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js';
+      script.async = true;
+      script.onload = renderClientQR;
+      document.body.appendChild(script);
+    }
+  }, [profile.school_id, activeTab]);
 
   // 5-Minute Inactivity Session Guard
   useEffect(() => {
@@ -325,7 +336,7 @@ export default function StudentDashboard() {
     reader.readAsDataURL(file);
   };
 
-  // Ligtas na pag-download gamit ang html2canvas nang hindi nagiging blangko ang QR code
+  // Siguradong may QR code ang download gamit ang html2canvas
   const handleDownloadIdCard = async () => {
     if (!idCardRef.current) return;
     setDownloadingId(true);
@@ -344,7 +355,7 @@ export default function StudentDashboard() {
       const canvas = await window.html2canvas(idCardRef.current, {
         scale: 3,
         useCORS: true,
-        allowTaint: false,
+        allowTaint: true,
         backgroundColor: null,
       });
 
@@ -441,6 +452,7 @@ export default function StudentDashboard() {
         <title>Student Portal • CECTRACK</title>
         <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
         <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" async />
+        <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js" async />
       </Head>
 
       <style jsx>{`
@@ -961,7 +973,7 @@ export default function StudentDashboard() {
                       </span>
                     </div>
 
-                    {/* Photo with White Rounded Border (Wala nang Change Photo text sa ilalim sa loob ng card) */}
+                    {/* Photo without inner Change Photo text */}
                     <div
                       onClick={() => fileInputRef.current?.click()}
                       style={{
@@ -1036,15 +1048,8 @@ export default function StudentDashboard() {
                             margin: '0 auto',
                           }}
                         >
-                          <img
-                            src={
-                              qrCodeDataUrl ||
-                              `https://api.qrserver.com/v1/create-qr-code/?size=360x360&ecc=H&margin=2&data=${encodeURIComponent(
-                                profile.school_id
-                              )}`
-                            }
-                            alt="Attendance QR Code"
-                            crossOrigin="anonymous"
+                          <canvas
+                            ref={qrCanvasRef}
                             style={{
                               width: '185px',
                               height: '185px',
@@ -1090,8 +1095,8 @@ export default function StudentDashboard() {
                     </div>
                   </div>
 
-                  {/* BUTTON SA LABAS NG CARD: TAP PHOTO TO CROP/CHANGE (Mula sa Image 3) */}
-                  <div style={{ textAlign: 'center', marginTop: '12px' }}>
+                  {/* BUTTON SA LABAS NG CARD: TAP PHOTO TO CROP/CHANGE */}
+                  <div style={{ textAlign: 'center', marginTop: '14px' }}>
                     <button
                       type="button"
                       onClick={() => fileInputRef.current?.click()}
