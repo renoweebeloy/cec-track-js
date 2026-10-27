@@ -69,7 +69,7 @@ export default function StudentDashboard() {
     }, 4500);
   };
 
-  // Auto-dismiss welcome toast pagkahuman sa 5 segundos
+  // Auto-dismiss welcome toast pagkatapos ng 5 segundo
   useEffect(() => {
     const welcomeTimer = setTimeout(() => {
       setShowWelcomeToast(false);
@@ -420,7 +420,7 @@ export default function StudentDashboard() {
       );
     });
 
-  // STRUCTURED PAYLOAD + HIGH ECC (ecc=H) PARA MAKUHA ANG SIKSIK UG PINO NGA QRCODE PATTERN
+  // STRUCTURED PAYLOAD + HIGH ECC PARA SA PINONG QR PATTERN
   const qrPayload = JSON.stringify({
     school_id: profile.school_id,
     full_name: profile.full_name,
@@ -1986,7 +1986,7 @@ export default function StudentDashboard() {
         </main>
       </div>
 
-      {/* SIGN OUT / LOGOUT CONFIRMATION MODAL */}
+      {/* SIGN OUT / LOGOUT CONFIRMATION MODAL (TEXT ONLY) */}
       {isLogoutModalOpen && (
         <div
           style={{
@@ -2005,14 +2005,14 @@ export default function StudentDashboard() {
             style={{
               backgroundColor: '#ffffff',
               width: '100%',
-              maxWidth: '390px',
+              maxWidth: '380px',
               borderRadius: '22px',
               padding: '24px 22px',
               boxShadow: '0 20px 40px rgba(0,0,0,0.18)',
               position: 'relative',
             }}
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
               <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 900, color: '#0f172a' }}>Sign Out</h3>
               <button
                 onClick={() => setIsLogoutModalOpen(false)}
@@ -2029,40 +2029,21 @@ export default function StudentDashboard() {
               </button>
             </div>
 
-            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '16px' }}>
-              <div
-                style={{
-                  width: '56px',
-                  height: '56px',
-                  borderRadius: '16px',
-                  backgroundColor: '#fff1f2',
-                  border: '1px solid #ffe4e6',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#e11d48" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M3 6h18m-2 0v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
-                  <line x1="10" y1="11" x2="10" y2="17" />
-                  <line x1="14" y1="11" x2="14" y2="17" />
-                </svg>
-              </div>
-            </div>
-
+            {/* TEKSTO LAMANG (WALA NANG LOGO/ICON) */}
             <p
               style={{
                 textAlign: 'center',
                 color: '#334155',
-                fontSize: '0.88rem',
-                margin: '0 0 22px 0',
+                fontSize: '0.92rem',
+                margin: '18px 0 24px 0',
                 fontWeight: 600,
                 lineHeight: 1.5,
               }}
             >
-              Are you sure you want to log out of the Student Portal?
+              Are you sure you want to log out of the Student Portal?[cite: 10]
             </p>
 
+            {/* Modal Buttons */}
             <div style={{ display: 'flex', gap: '10px' }}>
               <button
                 type="button"
