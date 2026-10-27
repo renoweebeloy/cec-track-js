@@ -17,7 +17,7 @@ export default function StudentDashboard() {
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [downloadingId, setDownloadingId] = useState(false);
 
-  // QR Code Base64 State (Solusyon aron 100% makita sa download nga walay CORS error)
+  // QR Code Base64 State (Solusyon para 100% lilitaw sa na-download na ID)
   const [qrBase64, setQrBase64] = useState('');
 
   // Password Change Modal States
@@ -68,64 +68,80 @@ export default function StudentDashboard() {
     }, 4500);
   };
 
-  // Pre-generate og QR Code as Base64 Data URL (Lokal sa memorya para 100% dili maputi sa download)
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
+  // 100% Client-Side QR to Base64 Generator (Walang CORS Block)
+  const generateQrBase64 = async (schoolId) => {
+    const cleanId = (schoolId || '').trim();
+    if (!cleanId) return '';
 
-    const loadAndCreateQR = () => {
-      if (!profile.school_id) return;
-      const cleanId = profile.school_id.trim();
-
-      // 1. Sulayan ang lokal nga QRCode.js aron walay network request
-      if (window.QRCode) {
-        try {
-          const container = document.createElement('div');
-          new window.QRCode(container, {
-            text: cleanId,
-            width: 320,
-            height: 320,
-            colorDark: '#000000',
-            colorLight: '#ffffff',
-            correctLevel: window.QRCode.CorrectLevel ? window.QRCode.CorrectLevel.H : 2,
-          });
-          const cvs = container.querySelector('canvas');
-          if (cvs) {
-            setQrBase64(cvs.toDataURL('image/png'));
-            return;
-          }
-          const img = container.querySelector('img');
-          if (img && img.src.startsWith('data:')) {
-            setQrBase64(img.src);
-            return;
-          }
-        } catch (err) {
-          console.warn('Local QR error:', err);
-        }
-      }
-
-      // 2. Fallback gamit ang QuickChart base64 endpoint (May buong CORS support)
-      const qcUrl = `https://quickchart.io/qr?text=${encodeURIComponent(cleanId)}&size=320&margin=2&ecLevel=H&format=base64`;
-      fetch(qcUrl)
-        .then((res) => res.text())
-        .then((b64) => {
-          if (b64 && b64.length > 50) {
-            setQrBase64(`data:image/png;base64,${b64.trim()}`);
-          }
-        })
-        .catch((e) => {
-          console.warn('QuickChart base64 fallback:', e);
+    // Paraan 1: Gamit ang node-qrcode library (Zero Network Request)
+    if (window.QRCode && typeof window.QRCode.toDataURL === 'function') {
+      try {
+        const url = await window.QRCode.toDataURL(cleanId, {
+          width: 360,
+          margin: 1,
+          errorCorrectionLevel: 'H',
+          color: { dark: '#000000', light: '#ffffff' },
         });
+        if (url && url.startsWith('data:')) return url;
+      } catch (e) {
+        console.warn('QRCode.toDataURL error:', e);
+      }
+    }
+
+    // Paraan 2: Gamit ang QuickChart na may buong CORS header at i-draw sa Canvas
+    try {
+      const qrUrl = `https://quickchart.io/qr?text=${encodeURIComponent(cleanId)}&size=360&margin=2&ecLevel=H`;
+      const dataUri = await new Promise((resolve, reject) => {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = () => {
+          try {
+            const canvas = document.createElement('canvas');
+            canvas.width = img.naturalWidth || 360;
+            canvas.height = img.naturalHeight || 360;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0);
+            resolve(canvas.toDataURL('image/png'));
+          } catch (err) {
+            reject(err);
+          }
+        };
+        img.onerror = reject;
+        img.src = qrUrl;
+      });
+      if (dataUri && dataUri.startsWith('data:')) return dataUri;
+    } catch (err) {
+      console.warn('QuickChart Canvas error:', err);
+    }
+
+    return '';
+  };
+
+  // Awtomatikong buuin ang Base64 QR Code kapag may student ID
+  useEffect(() => {
+    if (!profile.school_id) return;
+    let isMounted = true;
+
+    const buildQR = async () => {
+      const url = await generateQrBase64(profile.school_id);
+      if (isMounted && url) {
+        setQrBase64(url);
+      }
     };
 
     if (!window.QRCode) {
-      const s = document.createElement('script');
-      s.src = 'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js';
-      s.async = true;
-      s.onload = loadAndCreateQR;
-      document.body.appendChild(s);
+      const script = document.createElement('script');
+      script.src = 'https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js';
+      script.async = true;
+      script.onload = buildQR;
+      document.body.appendChild(script);
     } else {
-      loadAndCreateQR();
+      buildQR();
     }
+
+    return () => {
+      isMounted = false;
+    };
   }, [profile.school_id]);
 
   // 5-Minute Inactivity Session Guard
@@ -235,7 +251,7 @@ export default function StudentDashboard() {
         }
       }
 
-      // 1. Kuhaon ang mga Events
+      // 1. Kumuha ng mga Events
       const { data: eventsData } = await supabase
         .from('events')
         .select('*')
@@ -245,7 +261,7 @@ export default function StudentDashboard() {
         setEvents(eventsData);
       }
 
-      // 2. Kuhaon ang Attendance Records para sa Estudyante
+      // 2. Kumuha ng Attendance Records para sa Estudyante
       const { data: studentLogs } = await supabase
         .from('attendance')
         .select('*')
@@ -283,7 +299,7 @@ export default function StudentDashboard() {
         setAttendanceLogs([]);
       }
 
-      // 3. Kuhaon ang Talaan sa mga Opisyales
+      // 3. Kumuha ng Talaan ng mga Opisyales
       const { data: officersData } = await supabase
         .from('officers')
         .select('*')
@@ -304,7 +320,7 @@ export default function StudentDashboard() {
     if (!file) return;
 
     if (!file.type.startsWith('image/')) {
-      alert('Palihug pagpili og saktong litrato (PNG, JPG, o JPEG).');
+      alert('Pumili ng wastong larawan (PNG, JPG, o JPEG).');
       return;
     }
 
@@ -346,9 +362,9 @@ export default function StudentDashboard() {
             .eq('school_id', profile.school_id);
 
           if (dbError) {
-            alert('Wala ma-sync ang litrato sa database: ' + dbError.message);
+            alert('Hindi na-sync ang larawan sa database: ' + dbError.message);
           } else {
-            showNotify('success', 'Profile photo updated successfully!');
+            showNotify('success', 'Matagumpay na na-update ang iyong larawan!');
           }
         } catch (err) {
           console.warn('Avatar database sync error:', err);
@@ -362,47 +378,23 @@ export default function StudentDashboard() {
     reader.readAsDataURL(file);
   };
 
-  // Sigurado nga ma-download ang ID card nga naay QR Code nga dili maputi
+  // Siguradong mada-download ang ID card kasama ang QR Code nang walang puting puwang
   const handleDownloadIdCard = async () => {
     if (!idCardRef.current) return;
     setDownloadingId(true);
 
     try {
-      // 1. Sigurohon nga ang QR code kay 100% Base64 string na sa wala pa mag-capture ang html2canvas
+      // 1. Tiyakin na ang QR Code ay 100% Base64 string bago i-render ng html2canvas
       let finalQr = qrBase64;
-      if (!finalQr && profile.school_id) {
-        const cleanId = profile.school_id.trim();
-
-        if (window.QRCode) {
-          try {
-            const container = document.createElement('div');
-            new window.QRCode(container, {
-              text: cleanId,
-              width: 320,
-              height: 320,
-              correctLevel: window.QRCode.CorrectLevel ? window.QRCode.CorrectLevel.H : 2,
-            });
-            const cvs = container.querySelector('canvas');
-            if (cvs) finalQr = cvs.toDataURL('image/png');
-          } catch (e) {}
-        }
-
-        if (!finalQr) {
-          try {
-            const res = await fetch(`https://quickchart.io/qr?text=${encodeURIComponent(cleanId)}&size=320&margin=2&ecLevel=H&format=base64`);
-            const b64 = await res.text();
-            if (b64 && b64.length > 50) {
-              finalQr = `data:image/png;base64,${b64.trim()}`;
-            }
-          } catch (e) {}
-        }
-
+      if (!finalQr || !finalQr.startsWith('data:')) {
+        finalQr = await generateQrBase64(profile.school_id);
         if (finalQr) {
           setQrBase64(finalQr);
+          await new Promise((r) => setTimeout(r, 250));
         }
       }
 
-      // 2. I-load ang html2canvas
+      // 2. I-load ang html2canvas kung wala pa
       if (!window.html2canvas) {
         const script = document.createElement('script');
         script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
@@ -413,8 +405,8 @@ export default function StudentDashboard() {
         });
       }
 
-      // Maghulat og 300ms aron masiguro nga na-render na ang Base64 sa DOM
-      await new Promise((r) => setTimeout(r, 300));
+      // Maghintay sandali upang masigurong kumpleto ang pag-render sa screen
+      await new Promise((r) => setTimeout(r, 250));
 
       const canvas = await window.html2canvas(idCardRef.current, {
         scale: 3,
@@ -430,7 +422,7 @@ export default function StudentDashboard() {
       document.body.appendChild(downloadLink);
       downloadLink.click();
       document.body.removeChild(downloadLink);
-      showNotify('success', 'Official ID downloaded successfully with QR code!');
+      showNotify('success', 'Matagumpay na na-download ang iyong ID card na may QR code!');
     } catch (err) {
       console.error('Error downloading ID card:', err);
       window.print();
@@ -444,12 +436,12 @@ export default function StudentDashboard() {
     setPasswordMsg({ type: '', text: '' });
 
     if (newPassword.length < 6) {
-      setPasswordMsg({ type: 'error', text: 'Ang password kinahanglang labing menos 6 ka letra/numero.' });
+      setPasswordMsg({ type: 'error', text: 'Ang password ay dapat may hindi bababa sa 6 na karakter.' });
       return;
     }
 
     if (newPassword !== confirmPassword) {
-      setPasswordMsg({ type: 'error', text: 'Wala magkatugma ang bag-ong password.' });
+      setPasswordMsg({ type: 'error', text: 'Hindi nagtutugma ang bagong password.' });
       return;
     }
 
@@ -466,7 +458,7 @@ export default function StudentDashboard() {
 
       if (error) throw new Error(error.message);
 
-      setPasswordMsg({ type: 'success', text: 'Malampusong nabag-o ang imong password!' });
+      setPasswordMsg({ type: 'success', text: 'Matagumpay na nabago ang password!' });
       setTimeout(() => {
         setIsChangePasswordOpen(false);
         setNewPassword('');
@@ -511,9 +503,10 @@ export default function StudentDashboard() {
       );
     });
 
+  // Fallback URL kung naglo-load pa ang Base64 generator
   const fallbackQrUrl = `https://quickchart.io/qr?text=${encodeURIComponent(
     profile.school_id.trim()
-  )}&size=320&margin=2&ecLevel=H`;
+  )}&size=360&margin=2&ecLevel=H`;
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#f8fafc', display: 'flex', flexDirection: 'column', overflowX: 'hidden' }}>
@@ -521,7 +514,7 @@ export default function StudentDashboard() {
         <title>Student Portal • CECTRACK</title>
         <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
         <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" async />
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" async />
+        <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js" async />
       </Head>
 
       <style jsx>{`
@@ -1042,7 +1035,7 @@ export default function StudentDashboard() {
                       </span>
                     </div>
 
-                    {/* Photo with White Rounded Border */}
+                    {/* Photo with White Rounded Border (Walang text sa loob) */}
                     <div
                       onClick={() => fileInputRef.current?.click()}
                       style={{
@@ -1103,7 +1096,7 @@ export default function StudentDashboard() {
                       {profile.school_id}
                     </div>
 
-                    {/* DAKO AT MALINAW NGA QR CODE (MA-DOWNLOAD NGA DILI MAPUTI) */}
+                    {/* MALINAW NA QR CODE (100% BASE64 DATA URL NA SASAMA SA DOWNLOAD) */}
                     {profile.avatar_url ? (
                       <div>
                         <div
@@ -1166,7 +1159,7 @@ export default function StudentDashboard() {
                     </div>
                   </div>
 
-                  {/* BUTTON SA GAWAS SA CARD: TAP PHOTO TO CROP/CHANGE */}
+                  {/* BUTTON SA LABAS NG CARD: TAP PHOTO TO CROP/CHANGE */}
                   <div style={{ textAlign: 'center', marginTop: '14px' }}>
                     <button
                       type="button"
