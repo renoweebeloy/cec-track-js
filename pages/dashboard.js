@@ -1,26 +1,21 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Head from 'next/head';
-import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { supabase } from '../lib/supabaseClient';
-import styles from '../styles/Home.module.css';
 
 export default function StudentDashboard() {
   const router = useRouter();
   const fileInputRef = useRef(null);
   const idCardRef = useRef(null);
 
-  // Active Tab Navigation: 'my-id' | 'attendance' | 'events' | 'officers' | 'sanctions' | 'profile' | 'about'
+  // Active Tab: 'my-id' | 'attendance' | 'events' | 'officers' | 'sanctions' | 'profile' | 'about'
   const [activeTab, setActiveTab] = useState('my-id');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [downloadingId, setDownloadingId] = useState(false);
 
-  // QR Code Base64 State (Solusyon aron 100% maapil sa download nga dili maputi)
-  const [qrBase64, setQrBase64] = useState('');
-
-  // Password Change Modal States
+  // Password Change Modal
   const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -39,7 +34,7 @@ export default function StudentDashboard() {
     can_scan: false,
   });
 
-  // Events, Attendance, & Officers States
+  // Events, Attendance, & Officers Data
   const [events, setEvents] = useState([]);
   const [attendanceLogs, setAttendanceLogs] = useState([]);
   const [officersList, setOfficersList] = useState([]);
@@ -67,70 +62,6 @@ export default function StudentDashboard() {
       setNotification({ type: '', message: '' });
     }, 4500);
   };
-
-  // 100% In-Memory QR to Base64 Generator (Walay CORS restriction)
-  const generateBase64Qr = async (text) => {
-    const cleanText = (text || '').trim();
-    if (!cleanText) return '';
-
-    if (typeof window !== 'undefined') {
-      // 1. Sigurohon nga na-load ang qrcode library
-      if (!window.QRCode) {
-        const script = document.createElement('script');
-        script.src = 'https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js';
-        await new Promise((resolve) => {
-          script.onload = resolve;
-          script.onerror = resolve;
-          document.body.appendChild(script);
-        });
-      }
-
-      // 2. I-generate direkta as Data URL
-      if (window.QRCode && typeof window.QRCode.toDataURL === 'function') {
-        try {
-          return await window.QRCode.toDataURL(cleanText, {
-            width: 360,
-            margin: 1,
-            errorCorrectionLevel: 'H',
-            color: { dark: '#000000', light: '#ffffff' },
-          });
-        } catch (e) {
-          console.warn('QRCode library error:', e);
-        }
-      }
-
-      // 3. Fallback gamit ang QuickChart base64 endpoint
-      try {
-        const res = await fetch(`https://quickchart.io/qr?text=${encodeURIComponent(cleanText)}&size=360&margin=2&ecLevel=H&format=base64`);
-        const b64 = await res.text();
-        if (b64 && b64.length > 50) {
-          return `data:image/png;base64,${b64.trim()}`;
-        }
-      } catch (e) {
-        console.warn('QuickChart fallback error:', e);
-      }
-    }
-    return '';
-  };
-
-  // Awtomatikong himuong Base64 ang QR sa pagsugod
-  useEffect(() => {
-    if (!profile.school_id) return;
-    let isMounted = true;
-
-    const buildQR = async () => {
-      const b64 = await generateBase64Qr(profile.school_id);
-      if (isMounted && b64) {
-        setQrBase64(b64);
-      }
-    };
-
-    buildQR();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [profile.school_id]);
 
   // 5-Minute Inactivity Session Guard
   useEffect(() => {
@@ -196,6 +127,7 @@ export default function StudentDashboard() {
     fetchStudentData();
   }, []);
 
+  // Fetch student records, events, and officers roster
   const fetchStudentData = async () => {
     setLoading(true);
     try {
@@ -239,7 +171,7 @@ export default function StudentDashboard() {
         }
       }
 
-      // 1. Kumuha sa mga Events
+      // 1. Events list
       const { data: eventsData } = await supabase
         .from('events')
         .select('*')
@@ -249,7 +181,7 @@ export default function StudentDashboard() {
         setEvents(eventsData);
       }
 
-      // 2. Kumuha sa Attendance Records
+      // 2. Attendance history
       const { data: studentLogs } = await supabase
         .from('attendance')
         .select('*')
@@ -287,7 +219,7 @@ export default function StudentDashboard() {
         setAttendanceLogs([]);
       }
 
-      // 3. Kumuha sa Talaan sa mga Opisyales
+      // 3. Officers roster
       const { data: officersData } = await supabase
         .from('officers')
         .select('*')
@@ -303,6 +235,7 @@ export default function StudentDashboard() {
     }
   };
 
+  // Upload photo and sync to Supabase
   const handlePhotoUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -366,20 +299,12 @@ export default function StudentDashboard() {
     reader.readAsDataURL(file);
   };
 
-  // Ligtas ug sigurado nga download gamit ang html2canvas nga DILI MAPUTI ANG QR CODE
+  // Download ID as PNG
   const handleDownloadIdCard = async () => {
     if (!idCardRef.current) return;
     setDownloadingId(true);
 
     try {
-      // 1. Sigurohon nga ang QR code kay 100% Base64 string na daan
-      let currentQr = qrBase64;
-      if (!currentQr || !currentQr.startsWith('data:image')) {
-        currentQr = await generateBase64Qr(profile.school_id || 'Student');
-        if (currentQr) setQrBase64(currentQr);
-      }
-
-      // 2. I-load ang html2canvas
       if (!window.html2canvas) {
         const script = document.createElement('script');
         script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
@@ -390,21 +315,12 @@ export default function StudentDashboard() {
         });
       }
 
-      // Maghulat og 250ms aron masiguro nga na-render ang Base64 image
-      await new Promise((r) => setTimeout(r, 250));
-
       const canvas = await window.html2canvas(idCardRef.current, {
         scale: 3,
         useCORS: true,
-        allowTaint: false,
-        backgroundColor: null,
-        logging: false,
-        onclone: (clonedDoc) => {
-          const clonedQrImg = clonedDoc.querySelector('#id-card-qr-img');
-          if (clonedQrImg && currentQr) {
-            clonedQrImg.src = currentQr;
-          }
-        },
+        allowTaint: true,
+        backgroundColor: '#ffffff',
+        borderRadius: 28,
       });
 
       const imageUri = canvas.toDataURL('image/png');
@@ -414,7 +330,6 @@ export default function StudentDashboard() {
       document.body.appendChild(downloadLink);
       downloadLink.click();
       document.body.removeChild(downloadLink);
-      showNotify('success', 'Malampusong na-download ang ID card nga naay QR code!');
     } catch (err) {
       console.error('Error downloading ID card:', err);
       window.print();
@@ -423,6 +338,7 @@ export default function StudentDashboard() {
     }
   };
 
+  // Change Password
   const handleChangePassword = async (e) => {
     e.preventDefault();
     setPasswordMsg({ type: '', text: '' });
@@ -473,7 +389,7 @@ export default function StudentDashboard() {
     router.replace('/');
   };
 
-  // Dynamic Statistics
+  // Stats Calculations
   const totalEventsCount = attendanceLogs.length;
   const totalPresentCount = attendanceLogs.filter((l) => l.status === 'PRESENT').length;
   const totalAbsencesCount = attendanceLogs.filter((l) => l.status === 'ABSENT').length;
@@ -495,13 +411,16 @@ export default function StudentDashboard() {
       );
     });
 
+  const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(
+    profile.school_id
+  )}`;
+
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#f8fafc', display: 'flex', flexDirection: 'column', overflowX: 'hidden' }}>
       <Head>
         <title>Student Portal • CECTRACK</title>
         <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
         <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" async />
-        <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js" async />
       </Head>
 
       <style jsx>{`
@@ -618,7 +537,19 @@ export default function StudentDashboard() {
         {/* TOP RIGHT PROFILE BADGE */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <div style={{ textAlign: 'right', minWidth: 0 }}>
-            <span style={{ fontSize: '0.78rem', fontWeight: 900, color: '#0f172a', display: 'block', lineHeight: 1.15, maxWidth: '105px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            <span
+              style={{
+                fontSize: '0.78rem',
+                fontWeight: 900,
+                color: '#0f172a',
+                display: 'block',
+                lineHeight: 1.15,
+                maxWidth: '105px',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+              }}
+            >
               {profile.full_name}
             </span>
             <span style={{ fontSize: '0.68rem', color: '#15803d', fontWeight: 800 }}>
@@ -683,9 +614,7 @@ export default function StudentDashboard() {
           <div>
             <div style={{ paddingLeft: '8px', marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
-                <h2 style={{ fontSize: '1.25rem', fontWeight: 900, color: '#0f172a', margin: 0 }}>
-                  Portal
-                </h2>
+                <h2 style={{ fontSize: '1.25rem', fontWeight: 900, color: '#0f172a', margin: 0 }}>Portal</h2>
                 <span style={{ fontSize: '0.65rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                   STUDENT ACCESS
                 </span>
@@ -701,200 +630,115 @@ export default function StudentDashboard() {
             </div>
 
             <nav style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <button
-                onClick={() => { setActiveTab('my-id'); setIsSidebarOpen(false); }}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '12px',
-                  padding: '10px 14px',
-                  borderRadius: '12px',
-                  border: 'none',
-                  fontSize: '0.85rem',
-                  fontWeight: activeTab === 'my-id' ? 900 : 700,
-                  cursor: 'pointer',
-                  textAlign: 'left',
-                  backgroundColor: activeTab === 'my-id' ? '#15803d' : 'transparent',
-                  color: activeTab === 'my-id' ? '#ffffff' : '#64748b',
-                  boxShadow: activeTab === 'my-id' ? '0 4px 12px rgba(21, 128, 61, 0.25)' : 'none',
-                  transition: 'all 0.15s ease',
-                  touchAction: 'manipulation',
-                }}
-              >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="3" y="4" width="18" height="16" rx="3" />
-                  <line x1="7" y1="8" x2="11" y2="8" />
-                  <line x1="7" y1="12" x2="11" y2="12" />
-                  <rect x="14" y="8" width="4" height="4" />
-                </svg>
-                <span>My ID</span>
-              </button>
-
-              <button
-                onClick={() => { setActiveTab('attendance'); setIsSidebarOpen(false); }}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '12px',
-                  padding: '10px 14px',
-                  borderRadius: '12px',
-                  border: 'none',
-                  fontSize: '0.85rem',
-                  fontWeight: activeTab === 'attendance' ? 900 : 700,
-                  cursor: 'pointer',
-                  textAlign: 'left',
-                  backgroundColor: activeTab === 'attendance' ? '#15803d' : 'transparent',
-                  color: activeTab === 'attendance' ? '#ffffff' : '#64748b',
-                  boxShadow: activeTab === 'attendance' ? '0 4px 12px rgba(21, 128, 61, 0.25)' : 'none',
-                  transition: 'all 0.15s ease',
-                  touchAction: 'manipulation',
-                }}
-              >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M12 8v4l3 3" />
-                  <path d="M3.05 11a9 9 0 1 1 .5 4m-.5 5v-5h5" />
-                </svg>
-                <span>Attendance</span>
-              </button>
-
-              <button
-                onClick={() => { setActiveTab('events'); setIsSidebarOpen(false); }}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '12px',
-                  padding: '10px 14px',
-                  borderRadius: '12px',
-                  border: 'none',
-                  fontSize: '0.85rem',
-                  fontWeight: activeTab === 'events' ? 900 : 700,
-                  cursor: 'pointer',
-                  textAlign: 'left',
-                  backgroundColor: activeTab === 'events' ? '#15803d' : 'transparent',
-                  color: activeTab === 'events' ? '#ffffff' : '#64748b',
-                  boxShadow: activeTab === 'events' ? '0 4px 12px rgba(21, 128, 61, 0.25)' : 'none',
-                  transition: 'all 0.15s ease',
-                  touchAction: 'manipulation',
-                }}
-              >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="3" y="4" width="18" height="18" rx="2" />
-                  <line x1="16" y1="2" x2="16" y2="6" />
-                  <line x1="8" y1="2" x2="8" y2="6" />
-                  <line x1="3" y1="10" x2="21" y2="10" />
-                </svg>
-                <span>Events</span>
-              </button>
-
-              <button
-                onClick={() => { setActiveTab('officers'); setIsSidebarOpen(false); }}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '12px',
-                  padding: '10px 14px',
-                  borderRadius: '12px',
-                  border: 'none',
-                  fontSize: '0.85rem',
-                  fontWeight: activeTab === 'officers' ? 900 : 700,
-                  cursor: 'pointer',
-                  textAlign: 'left',
-                  backgroundColor: activeTab === 'officers' ? '#15803d' : 'transparent',
-                  color: activeTab === 'officers' ? '#ffffff' : '#64748b',
-                  boxShadow: activeTab === 'officers' ? '0 4px 12px rgba(21, 128, 61, 0.25)' : 'none',
-                  transition: 'all 0.15s ease',
-                  touchAction: 'manipulation',
-                }}
-              >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="12" cy="8" r="5" />
-                  <polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88" />
-                </svg>
-                <span>Officers</span>
-              </button>
-
-              <button
-                onClick={() => { setActiveTab('sanctions'); setIsSidebarOpen(false); }}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '12px',
-                  padding: '10px 14px',
-                  borderRadius: '12px',
-                  border: 'none',
-                  fontSize: '0.85rem',
-                  fontWeight: activeTab === 'sanctions' ? 900 : 700,
-                  cursor: 'pointer',
-                  textAlign: 'left',
-                  backgroundColor: activeTab === 'sanctions' ? '#15803d' : 'transparent',
-                  color: activeTab === 'sanctions' ? '#ffffff' : '#64748b',
-                  boxShadow: activeTab === 'sanctions' ? '0 4px 12px rgba(21, 128, 61, 0.25)' : 'none',
-                  transition: 'all 0.15s ease',
-                  touchAction: 'manipulation',
-                }}
-              >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                  <line x1="12" y1="8" x2="12" y2="12" />
-                  <line x1="12" y1="16" x2="12.01" y2="16" />
-                </svg>
-                <span>Sanctions</span>
-              </button>
-
-              <button
-                onClick={() => { setActiveTab('profile'); setIsSidebarOpen(false); }}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '12px',
-                  padding: '10px 14px',
-                  borderRadius: '12px',
-                  border: 'none',
-                  fontSize: '0.85rem',
-                  fontWeight: activeTab === 'profile' ? 900 : 700,
-                  cursor: 'pointer',
-                  textAlign: 'left',
-                  backgroundColor: activeTab === 'profile' ? '#15803d' : 'transparent',
-                  color: activeTab === 'profile' ? '#ffffff' : '#64748b',
-                  boxShadow: activeTab === 'profile' ? '0 4px 12px rgba(21, 128, 61, 0.25)' : 'none',
-                  transition: 'all 0.15s ease',
-                  touchAction: 'manipulation',
-                }}
-              >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-                  <circle cx="12" cy="7" r="4" />
-                </svg>
-                <span>Profile</span>
-              </button>
-
-              <button
-                onClick={() => { setActiveTab('about'); setIsSidebarOpen(false); }}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '12px',
-                  padding: '10px 14px',
-                  borderRadius: '12px',
-                  border: 'none',
-                  fontSize: '0.85rem',
-                  fontWeight: activeTab === 'about' ? 900 : 700,
-                  cursor: 'pointer',
-                  textAlign: 'left',
-                  backgroundColor: activeTab === 'about' ? '#15803d' : 'transparent',
-                  color: activeTab === 'about' ? '#ffffff' : '#64748b',
-                  boxShadow: activeTab === 'about' ? '0 4px 12px rgba(21, 128, 61, 0.25)' : 'none',
-                  transition: 'all 0.15s ease',
-                  touchAction: 'manipulation',
-                }}
-              >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="12" cy="12" r="10" />
-                  <line x1="12" y1="16" x2="12" y2="12" />
-                  <line x1="12" y1="8" x2="12.01" y2="8" />
-                </svg>
-                <span>About</span>
-              </button>
+              {[
+                {
+                  id: 'my-id',
+                  label: 'My ID',
+                  icon: (
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="3" y="4" width="18" height="16" rx="3" />
+                      <line x1="7" y1="8" x2="11" y2="8" />
+                      <line x1="7" y1="12" x2="11" y2="12" />
+                      <rect x="14" y="8" width="4" height="4" />
+                    </svg>
+                  ),
+                },
+                {
+                  id: 'attendance',
+                  label: 'Attendance',
+                  icon: (
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M12 8v4l3 3" />
+                      <path d="M3.05 11a9 9 0 1 1 .5 4m-.5 5v-5h5" />
+                    </svg>
+                  ),
+                },
+                {
+                  id: 'events',
+                  label: 'Events',
+                  icon: (
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="3" y="4" width="18" height="18" rx="2" />
+                      <line x1="16" y1="2" x2="16" y2="6" />
+                      <line x1="8" y1="2" x2="8" y2="6" />
+                      <line x1="3" y1="10" x2="21" y2="10" />
+                    </svg>
+                  ),
+                },
+                {
+                  id: 'officers',
+                  label: 'Officers',
+                  icon: (
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="12" cy="8" r="5" />
+                      <polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88" />
+                    </svg>
+                  ),
+                },
+                {
+                  id: 'sanctions',
+                  label: 'Sanctions',
+                  icon: (
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                      <line x1="12" y1="8" x2="12" y2="12" />
+                      <line x1="12" y1="16" x2="12.01" y2="16" />
+                    </svg>
+                  ),
+                },
+                {
+                  id: 'profile',
+                  label: 'Profile',
+                  icon: (
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                      <circle cx="12" cy="7" r="4" />
+                    </svg>
+                  ),
+                },
+                {
+                  id: 'about',
+                  label: 'About',
+                  icon: (
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="12" cy="12" r="10" />
+                      <line x1="12" y1="16" x2="12" y2="12" />
+                      <line x1="12" y1="8" x2="12.01" y2="8" />
+                    </svg>
+                  ),
+                },
+              ].map((tab) => {
+                const isActive = activeTab === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => {
+                      setActiveTab(tab.id);
+                      setIsSidebarOpen(false);
+                    }}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '12px',
+                      padding: '10px 14px',
+                      borderRadius: '12px',
+                      border: 'none',
+                      fontSize: '0.85rem',
+                      fontWeight: isActive ? 900 : 700,
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                      backgroundColor: isActive ? '#15803d' : 'transparent',
+                      color: isActive ? '#ffffff' : '#64748b',
+                      boxShadow: isActive ? '0 4px 12px rgba(21, 128, 61, 0.25)' : 'none',
+                      transition: 'all 0.15s ease',
+                      touchAction: 'manipulation',
+                    }}
+                  >
+                    {tab.icon}
+                    <span>{tab.label}</span>
+                  </button>
+                );
+              })}
             </nav>
           </div>
 
@@ -950,9 +794,7 @@ export default function StudentDashboard() {
             <div style={{ maxWidth: '980px', margin: '0 auto', width: '100%' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '10px' }}>
                 <div>
-                  <h1 style={{ fontSize: '1.65rem', fontWeight: 900, color: '#0f172a', margin: '0 0 4px 0' }}>
-                    My Digital ID
-                  </h1>
+                  <h1 style={{ fontSize: '1.65rem', fontWeight: 900, color: '#0f172a', margin: '0 0 4px 0' }}>My Digital ID</h1>
                   <p style={{ fontSize: '0.85rem', color: '#15803d', margin: 0, fontWeight: 700 }}>
                     Your official scannable organization credentials.
                   </p>
@@ -982,16 +824,15 @@ export default function StudentDashboard() {
               <input type="file" ref={fileInputRef} onChange={handlePhotoUpload} accept="image/*" style={{ display: 'none' }} />
 
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))', gap: '24px', alignItems: 'start', width: '100%' }}>
-                {/* ID Card Display */}
                 <div style={{ maxWidth: '340px', margin: '0 auto', width: '100%' }}>
                   <div
                     ref={idCardRef}
                     style={{
-                      background: 'linear-gradient(180deg, #15803d 0%, #16a34a 32%, #dcfce7 65%, #f0fdf4 85%, #ffffff 100%)',
-                      borderRadius: '34px',
-                      border: '2px solid #bbf7d0',
-                      boxShadow: '0 16px 36px rgba(21, 128, 61, 0.16)',
-                      padding: '24px 18px 20px 18px',
+                      backgroundColor: '#ffffff',
+                      borderRadius: '28px',
+                      border: '2px solid #22c55e',
+                      boxShadow: '0 12px 30px rgba(34, 197, 94, 0.15)',
+                      padding: '60px 18px 24px 18px',
                       textAlign: 'center',
                       position: 'relative',
                       overflow: 'hidden',
@@ -999,196 +840,117 @@ export default function StudentDashboard() {
                       boxSizing: 'border-box',
                     }}
                   >
-                    {/* Header Badge Pill: CEC-TRACK */}
-                    <div style={{ marginBottom: '16px' }}>
+                    <div
+                      style={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        height: '110px',
+                        backgroundColor: '#15803d',
+                        borderBottomLeftRadius: '36px',
+                        borderBottomRightRadius: '36px',
+                        display: 'flex',
+                        alignItems: 'flex-start',
+                        justifyContent: 'center',
+                        paddingTop: '16px',
+                      }}
+                    >
                       <span
                         style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '6px',
-                          backgroundColor: 'rgba(255, 255, 255, 0.95)',
-                          color: '#15803d',
-                          padding: '5px 18px',
-                          borderRadius: '9999px',
-                          fontSize: '0.74rem',
+                          color: '#ffffff',
+                          fontSize: '0.78rem',
                           fontWeight: 900,
-                          letterSpacing: '0.08em',
+                          letterSpacing: '0.12em',
                           textTransform: 'uppercase',
-                          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)',
+                          backgroundColor: 'rgba(255, 255, 255, 0.22)',
+                          backdropFilter: 'blur(5px)',
+                          padding: '3px 14px',
+                          borderRadius: '9999px',
                         }}
                       >
-                        <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#15803d', display: 'inline-block' }}></span>
                         CEC-TRACK
                       </span>
                     </div>
 
-                    {/* Photo with White Rounded Border (Walang text sa loob ng card) */}
                     <div
                       onClick={() => fileInputRef.current?.click()}
                       style={{
                         cursor: 'pointer',
-                        width: '105px',
-                        height: '105px',
-                        borderRadius: '24px',
+                        position: 'relative',
+                        zIndex: 2,
+                        marginTop: '10px',
                         border: '4px solid #ffffff',
-                        backgroundColor: '#f1f5f9',
-                        margin: '0 auto 12px auto',
                         overflow: 'hidden',
+                        backgroundColor: '#f1f5f9',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        boxShadow: '0 8px 20px rgba(0, 0, 0, 0.15)',
-                        position: 'relative',
+                        width: '94px',
+                        height: '94px',
+                        borderRadius: '24px',
+                        margin: '10px auto 0 auto',
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
                       }}
                     >
                       {profile.avatar_url ? (
                         <img src={profile.avatar_url} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                       ) : (
-                        <span style={{ fontSize: '2.4rem' }}>👤</span>
+                        <span style={{ fontSize: '2rem' }}>👤</span>
                       )}
                     </div>
 
-                    {/* Student Full Name */}
-                    <h2
-                      style={{
-                        fontSize: '1.35rem',
-                        fontWeight: 900,
-                        color: '#0f172a',
-                        margin: '0 0 4px 0',
-                        lineHeight: 1.2,
-                      }}
-                    >
-                      {profile.full_name}
-                    </h2>
-
-                    {/* Student ID label & white rounded pill */}
-                    <div style={{ fontSize: '0.68rem', fontWeight: 800, color: '#64748b', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '4px' }}>
-                      STUDENT ID
-                    </div>
-                    <div
-                      style={{
-                        display: 'inline-block',
-                        backgroundColor: '#ffffff',
-                        color: '#0f172a',
-                        padding: '4px 20px',
-                        borderRadius: '9999px',
-                        fontSize: '1.15rem',
-                        fontWeight: 900,
-                        letterSpacing: '0.05em',
-                        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.05)',
-                        border: '1px solid #e2e8f0',
-                        marginBottom: '16px',
-                      }}
-                    >
-                      {profile.school_id}
-                    </div>
-
-                    {/* DAKO AT MALINAW NGA QR CODE (100% BASE64 NGA DILI MAPUTI SA DOWNLOAD) */}
-                    {profile.avatar_url ? (
-                      <div>
-                        <div
-                          style={{
-                            backgroundColor: '#ffffff',
-                            borderRadius: '24px',
-                            padding: '14px',
-                            display: 'inline-block',
-                            boxShadow: '0 8px 24px rgba(0, 0, 0, 0.08)',
-                            border: '1.5px solid #e2e8f0',
-                            margin: '0 auto',
-                          }}
-                        >
-                          {qrBase64 ? (
-                            <img
-                              id="id-card-qr-img"
-                              src={qrBase64}
-                              alt="Attendance QR Code"
-                              style={{
-                                width: '185px',
-                                height: '185px',
-                                display: 'block',
-                                borderRadius: '10px',
-                              }}
-                            />
-                          ) : (
-                            <div
-                              style={{
-                                width: '185px',
-                                height: '185px',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                fontSize: '0.82rem',
-                                color: '#15803d',
-                                fontWeight: 800,
-                              }}
-                            >
-                              Loading QR Code...
-                            </div>
-                          )}
-                        </div>
-                        <div
-                          style={{
-                            fontSize: '0.74rem',
-                            fontWeight: 900,
-                            color: '#15803d',
-                            letterSpacing: '0.08em',
-                            textTransform: 'uppercase',
-                            marginTop: '12px',
-                          }}
-                        >
-                          SCAN FOR ATTENDANCE
-                        </div>
-                      </div>
-                    ) : (
-                      <div style={{ padding: '16px', backgroundColor: '#ffffff', border: '1px dashed #fca5a5', borderRadius: '18px', maxWidth: '240px', margin: '0 auto' }}>
-                        <div style={{ fontSize: '0.82rem', fontWeight: 900, color: '#991b1b' }}>QR Code Locked</div>
-                        <p style={{ fontSize: '0.72rem', color: '#b91c1c', margin: '4px 0 0 0' }}>
-                          Upload your photo to activate your Attendance QR Code.
-                        </p>
-                      </div>
-                    )}
-
-                    {/* Thin Separator Line & Bottom Caption */}
-                    <div style={{ borderTop: '1px solid #e2e8f0', width: '85%', margin: '14px auto 10px auto' }} />
-                    <div
-                      style={{
-                        fontSize: '0.66rem',
-                        fontWeight: 900,
-                        color: '#475569',
-                        letterSpacing: '0.06em',
-                        textTransform: 'uppercase',
-                      }}
-                    >
-                      CATEEL EXTENSION CAMPUS
-                    </div>
-                  </div>
-
-                  {/* BUTTON SA GAWAS SA CARD: TAP PHOTO TO CROP/CHANGE */}
-                  <div style={{ textAlign: 'center', marginTop: '14px' }}>
                     <button
                       type="button"
                       onClick={() => fileInputRef.current?.click()}
                       style={{
                         background: 'none',
                         border: 'none',
-                        color: '#64748b',
-                        fontSize: '0.82rem',
+                        color: '#15803d',
+                        fontSize: '0.75rem',
                         fontWeight: 800,
                         cursor: 'pointer',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '6px',
-                        padding: '6px 12px',
-                        borderRadius: '8px',
+                        marginTop: '6px',
+                        textDecoration: 'underline',
+                        position: 'relative',
+                        zIndex: 2,
                         touchAction: 'manipulation',
                       }}
                     >
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
-                        <circle cx="12" cy="13" r="4" />
-                      </svg>
-                      <span>{uploadingPhoto ? 'Uploading Photo...' : 'Tap photo to crop/change'}</span>
+                      {uploadingPhoto ? 'Uploading...' : profile.avatar_url ? 'Change Photo' : 'Upload 2x2 Photo'}
                     </button>
+
+                    <h2 style={{ fontSize: '1.3rem', fontWeight: 900, color: '#0f172a', margin: '10px 0 2px 0' }}>
+                      {profile.full_name}
+                    </h2>
+                    <div style={{ fontSize: '0.7rem', fontWeight: 800, color: '#15803d', textTransform: 'uppercase' }}>STUDENT ID</div>
+                    <div style={{ display: 'inline-block', backgroundColor: '#f0fdf4', color: '#0f172a', border: '1px solid #bbf7d0', padding: '3px 16px', borderRadius: '10px', fontSize: '1.05rem', fontWeight: 900, margin: '4px 0 14px 0' }}>
+                      {profile.school_id}
+                    </div>
+
+                    {profile.avatar_url ? (
+                      <div>
+                        <div style={{ maxWidth: '180px', margin: '0 auto', padding: '10px', border: '1px solid #e2e8f0', borderRadius: '16px' }}>
+                          <img src={qrCodeUrl} alt="QR Code" style={{ width: '100%', height: 'auto', display: 'block' }} />
+                        </div>
+                        <div style={{ fontSize: '0.72rem', fontWeight: 900, color: '#15803d', letterSpacing: '0.08em', marginTop: '10px' }}>
+                          SCAN FOR ATTENDANCE
+                        </div>
+                      </div>
+                    ) : (
+                      <div style={{ padding: '16px', backgroundColor: '#fef2f2', border: '1px dashed #fca5a5', borderRadius: '16px' }}>
+                        <div style={{ fontSize: '0.8rem', fontWeight: 900, color: '#991b1b' }}>QR Code Locked</div>
+                        <p style={{ fontSize: '0.7rem', color: '#b91c1c', margin: '4px 0 0 0' }}>
+                          Upload your photo above to activate your Attendance QR Code.
+                        </p>
+                      </div>
+                    )}
+
+                    <div style={{ borderTop: '1px solid #f1f5f9', marginTop: '16px', paddingTop: '10px' }}>
+                      <span style={{ fontSize: '0.68rem', fontWeight: 900, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                        CATEEL EXTENSION CAMPUS
+                      </span>
+                    </div>
                   </div>
                 </div>
 
@@ -1283,54 +1045,28 @@ export default function StudentDashboard() {
               {/* Filters & Search */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '10px' }}>
                 <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                  <button
-                    onClick={() => setAttendanceFilter('all')}
-                    style={{
-                      padding: '6px 12px',
-                      borderRadius: '8px',
-                      border: 'none',
-                      fontSize: '0.78rem',
-                      fontWeight: 800,
-                      cursor: 'pointer',
-                      backgroundColor: attendanceFilter === 'all' ? '#15803d' : '#f1f5f9',
-                      color: attendanceFilter === 'all' ? '#ffffff' : '#475569',
-                      touchAction: 'manipulation',
-                    }}
-                  >
-                    All ({attendanceLogs.length})
-                  </button>
-                  <button
-                    onClick={() => setAttendanceFilter('present')}
-                    style={{
-                      padding: '6px 12px',
-                      borderRadius: '8px',
-                      border: 'none',
-                      fontSize: '0.78rem',
-                      fontWeight: 800,
-                      cursor: 'pointer',
-                      backgroundColor: attendanceFilter === 'present' ? '#15803d' : '#f1f5f9',
-                      color: attendanceFilter === 'present' ? '#ffffff' : '#475569',
-                      touchAction: 'manipulation',
-                    }}
-                  >
-                    ✓ Present ({totalPresentCount})
-                  </button>
-                  <button
-                    onClick={() => setAttendanceFilter('absent')}
-                    style={{
-                      padding: '6px 12px',
-                      borderRadius: '8px',
-                      border: 'none',
-                      fontSize: '0.78rem',
-                      fontWeight: 800,
-                      cursor: 'pointer',
-                      backgroundColor: attendanceFilter === 'absent' ? '#15803d' : '#f1f5f9',
-                      color: attendanceFilter === 'absent' ? '#ffffff' : '#475569',
-                      touchAction: 'manipulation',
-                    }}
-                  >
-                    ✕ Absent ({totalAbsencesCount})
-                  </button>
+                  {['all', 'present', 'absent'].map((filterKey) => (
+                    <button
+                      key={filterKey}
+                      onClick={() => setAttendanceFilter(filterKey)}
+                      style={{
+                        padding: '6px 12px',
+                        borderRadius: '8px',
+                        border: 'none',
+                        fontSize: '0.78rem',
+                        fontWeight: 800,
+                        cursor: 'pointer',
+                        backgroundColor: attendanceFilter === filterKey ? '#15803d' : '#f1f5f9',
+                        color: attendanceFilter === filterKey ? '#ffffff' : '#475569',
+                        textTransform: 'capitalize',
+                        touchAction: 'manipulation',
+                      }}
+                    >
+                      {filterKey === 'all' && `All (${attendanceLogs.length})`}
+                      {filterKey === 'present' && `✓ Present (${totalPresentCount})`}
+                      {filterKey === 'absent' && `✕ Absent (${totalAbsencesCount})`}
+                    </button>
+                  ))}
                 </div>
 
                 <input
@@ -1507,7 +1243,7 @@ export default function StudentDashboard() {
                 <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '20px', padding: '40px 20px', textAlign: 'center' }}>
                   <div style={{ fontSize: '2rem', marginBottom: '8px' }}>🏅</div>
                   <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 900, color: '#0f172a' }}>Officers Roster Coming Soon</h3>
-                  <p style={{ fontSize: '0.82rem', color: '#64748b', margin: '4px 0 0 0' }}>No officers registered at this time.</p>
+                  <p style={{ fontSize: '0.82rem', color: '#64748b', margin: '4px 0 0 0' }}>Wala pa&apos;y gidugang nga opisyales ang mga tagdumala.</p>
                 </div>
               ) : (
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '18px' }}>
@@ -1620,7 +1356,7 @@ export default function StudentDashboard() {
                 </button>
               </div>
 
-              {/* 3 STATS CARDS */}
+              {/* STATS */}
               <div className="stats-grid-three" style={{ display: 'grid', marginBottom: '20px' }}>
                 <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '18px 22px', display: 'flex', alignItems: 'center', gap: '14px', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
                   <div style={{ width: '44px', height: '44px', borderRadius: '12px', backgroundColor: '#fff7ed', border: '1px solid #ffedd5', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
@@ -1865,12 +1601,12 @@ export default function StudentDashboard() {
                     fontWeight: 500,
                   }}
                 >
-                  CECTRACK is an all-in-one centralized digital ecosystem engineered specifically for
+                  CECTRACK is an all-in-one digital ecosystem engineered specifically for
                   the students, officers, and faculty of <strong>Davao Oriental State University – Cateel Extension Campus (DOrSU-CEC)</strong>.
                 </p>
               </section>
 
-              {/* What is CECTRACK? */}
+              {/* What is CECTRACK */}
               <section
                 style={{
                   backgroundColor: '#ffffff',
@@ -1916,7 +1652,7 @@ export default function StudentDashboard() {
                 </p>
               </section>
 
-              {/* Who Uses CECTRACK? */}
+              {/* Who Uses CECTRACK */}
               <section style={{ marginBottom: '40px' }}>
                 <div style={{ textAlign: 'center', marginBottom: '24px' }}>
                   <h2 style={{ fontSize: '1.65rem', fontWeight: 900, color: '#0f172a', margin: '0 0 6px 0' }}>
