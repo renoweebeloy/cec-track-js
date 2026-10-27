@@ -40,9 +40,30 @@ export default function About() {
             <button
               onClick={() => router.push('/login')}
               className={styles.loginBtn}
-              style={{ padding: '8px 18px', fontSize: '0.85rem' }}
+              style={{
+                padding: '8px 18px',
+                fontSize: '0.85rem',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+              }}
             >
-              <span>➔</span> Login
+              <svg
+                width="15"
+                height="15"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                style={{ flexShrink: 0 }}
+              >
+                <line x1="3" y1="12" x2="15" y2="12" />
+                <polyline points="10 7 15 12 10 17" />
+                <path d="M14 4h5a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-5" />
+              </svg>
+              <span>Login</span>
             </button>
           </div>
         </div>
@@ -67,7 +88,7 @@ export default function About() {
               marginBottom: '16px',
             }}
           >
-             ABOUT CECTRACK
+            ABOUT CECTRACK
           </div>
 
           <h1
