@@ -17,6 +17,9 @@ export default function StudentDashboard() {
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [downloadingId, setDownloadingId] = useState(false);
 
+  // QR Code Base64 State (Solusyon para hindi maging blangko sa pag-download)
+  const [qrCodeDataUrl, setQrCodeDataUrl] = useState('');
+
   // Password Change Modal States
   const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
   const [newPassword, setNewPassword] = useState('');
@@ -64,6 +67,29 @@ export default function StudentDashboard() {
       setNotification({ type: '', message: '' });
     }, 4500);
   };
+
+  // Convert QR Code to Base64 Image upang maiwasan ang CORS blank error sa html2canvas
+  useEffect(() => {
+    if (!profile.school_id) return;
+
+    const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=360x360&ecc=H&margin=2&data=${encodeURIComponent(
+      profile.school_id
+    )}`;
+
+    fetch(qrApiUrl)
+      .then((res) => res.blob())
+      .then((blob) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setQrCodeDataUrl(reader.result);
+        };
+        reader.readAsDataURL(blob);
+      })
+      .catch((err) => {
+        console.warn('QR conversion fallback:', err);
+        setQrCodeDataUrl(qrApiUrl);
+      });
+  }, [profile.school_id]);
 
   // 5-Minute Inactivity Session Guard
   useEffect(() => {
@@ -129,7 +155,6 @@ export default function StudentDashboard() {
     fetchStudentData();
   }, []);
 
-  // Fetch Student Data, Events, and Attendance from Supabase
   const fetchStudentData = async () => {
     setLoading(true);
     try {
@@ -237,7 +262,6 @@ export default function StudentDashboard() {
     }
   };
 
-  // Upload 2x2 Photo to Supabase
   const handlePhotoUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -287,7 +311,7 @@ export default function StudentDashboard() {
           if (dbError) {
             alert('Error syncing photo to database: ' + dbError.message);
           } else {
-            showNotify('success', 'Profile photo updated and synced across all devices!');
+            showNotify('success', 'Profile photo updated successfully!');
           }
         } catch (err) {
           console.warn('Avatar database sync error:', err);
@@ -301,6 +325,7 @@ export default function StudentDashboard() {
     reader.readAsDataURL(file);
   };
 
+  // Ligtas na pag-download gamit ang html2canvas nang hindi nagiging blangko ang QR code
   const handleDownloadIdCard = async () => {
     if (!idCardRef.current) return;
     setDownloadingId(true);
@@ -319,9 +344,8 @@ export default function StudentDashboard() {
       const canvas = await window.html2canvas(idCardRef.current, {
         scale: 3,
         useCORS: true,
-        allowTaint: true,
-        backgroundColor: '#ffffff',
-        borderRadius: 32,
+        allowTaint: false,
+        backgroundColor: null,
       });
 
       const imageUri = canvas.toDataURL('image/png');
@@ -411,11 +435,6 @@ export default function StudentDashboard() {
       );
     });
 
-  // High-density QR code URL with High Error Correction (ecc=H) matching Image 1
-  const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=360x360&ecc=H&margin=2&data=${encodeURIComponent(
-    profile.school_id
-  )}`;
-
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#f8fafc', display: 'flex', flexDirection: 'column', overflowX: 'hidden' }}>
       <Head>
@@ -424,7 +443,6 @@ export default function StudentDashboard() {
         <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" async />
       </Head>
 
-      {/* RESPONSIVE CSS INJECTION */}
       <style jsx>{`
         @media (max-width: 768px) {
           .portal-sidebar {
@@ -866,7 +884,7 @@ export default function StudentDashboard() {
             </div>
           )}
 
-          {/* TAB 1: MY ID (UPGRADED TO MATCH IMAGE 1 DESIGN & QR DENSITY) */}
+          {/* TAB 1: MY ID */}
           {activeTab === 'my-id' && (
             <div style={{ maxWidth: '980px', margin: '0 auto', width: '100%' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '10px' }}>
@@ -920,7 +938,7 @@ export default function StudentDashboard() {
                       boxSizing: 'border-box',
                     }}
                   >
-                    {/* Header Badge Pill */}
+                    {/* Header Badge Pill - CEC-TRACK NA LANG ANG NAIWAN */}
                     <div style={{ marginBottom: '16px' }}>
                       <span
                         style={{
@@ -933,17 +951,17 @@ export default function StudentDashboard() {
                           borderRadius: '9999px',
                           fontSize: '0.74rem',
                           fontWeight: 900,
-                          letterSpacing: '0.06em',
+                          letterSpacing: '0.08em',
                           textTransform: 'uppercase',
                           boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)',
                         }}
                       >
                         <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#15803d', display: 'inline-block' }}></span>
-                        CECTRACK 3.0 • CEC
+                        CEC-TRACK
                       </span>
                     </div>
 
-                    {/* Photo with White Rounded Border */}
+                    {/* Photo with White Rounded Border (Wala nang Change Photo text sa ilalim sa loob ng card) */}
                     <div
                       onClick={() => fileInputRef.current?.click()}
                       style={{
@@ -953,7 +971,7 @@ export default function StudentDashboard() {
                         borderRadius: '24px',
                         border: '4px solid #ffffff',
                         backgroundColor: '#f1f5f9',
-                        margin: '0 auto 6px auto',
+                        margin: '0 auto 12px auto',
                         overflow: 'hidden',
                         display: 'flex',
                         alignItems: 'center',
@@ -968,24 +986,6 @@ export default function StudentDashboard() {
                         <span style={{ fontSize: '2.4rem' }}>👤</span>
                       )}
                     </div>
-
-                    <button
-                      type="button"
-                      onClick={() => fileInputRef.current?.click()}
-                      style={{
-                        background: 'none',
-                        border: 'none',
-                        color: '#15803d',
-                        fontSize: '0.74rem',
-                        fontWeight: 800,
-                        cursor: 'pointer',
-                        marginBottom: '8px',
-                        textDecoration: 'underline',
-                        touchAction: 'manipulation',
-                      }}
-                    >
-                      {uploadingPhoto ? 'Uploading...' : profile.avatar_url ? 'Change Photo' : '+ Upload Photo'}
-                    </button>
 
                     {/* Student Full Name */}
                     <h2
@@ -1022,29 +1022,34 @@ export default function StudentDashboard() {
                       {profile.school_id}
                     </div>
 
-                    {/* Dense QR Code Box with Soft Rounded Shadow matching Image 1 */}
+                    {/* Mataas na Densidad at Malinaw na QR Code Box */}
                     {profile.avatar_url ? (
                       <div>
                         <div
                           style={{
                             backgroundColor: '#ffffff',
                             borderRadius: '24px',
-                            padding: '16px',
+                            padding: '14px',
                             display: 'inline-block',
-                            boxShadow: '0 10px 25px rgba(0, 0, 0, 0.08)',
-                            border: '1px solid rgba(0, 0, 0, 0.04)',
+                            boxShadow: '0 8px 24px rgba(0, 0, 0, 0.08)',
+                            border: '1.5px solid #e2e8f0',
                             margin: '0 auto',
                           }}
                         >
                           <img
-                            src={qrCodeUrl}
+                            src={
+                              qrCodeDataUrl ||
+                              `https://api.qrserver.com/v1/create-qr-code/?size=360x360&ecc=H&margin=2&data=${encodeURIComponent(
+                                profile.school_id
+                              )}`
+                            }
                             alt="Attendance QR Code"
                             crossOrigin="anonymous"
                             style={{
                               width: '185px',
                               height: '185px',
                               display: 'block',
-                              borderRadius: '6px',
+                              borderRadius: '10px',
                             }}
                           />
                         </div>
@@ -1065,7 +1070,7 @@ export default function StudentDashboard() {
                       <div style={{ padding: '16px', backgroundColor: '#ffffff', border: '1px dashed #fca5a5', borderRadius: '18px', maxWidth: '240px', margin: '0 auto' }}>
                         <div style={{ fontSize: '0.82rem', fontWeight: 900, color: '#991b1b' }}>QR Code Locked</div>
                         <p style={{ fontSize: '0.72rem', color: '#b91c1c', margin: '4px 0 0 0' }}>
-                          Upload your photo above to activate your high-density Attendance QR Code.
+                          Upload your photo to activate your high-density Attendance QR Code.
                         </p>
                       </div>
                     )}
@@ -1083,6 +1088,34 @@ export default function StudentDashboard() {
                     >
                       CATEEL EXTENSION CAMPUS
                     </div>
+                  </div>
+
+                  {/* BUTTON SA LABAS NG CARD: TAP PHOTO TO CROP/CHANGE (Mula sa Image 3) */}
+                  <div style={{ textAlign: 'center', marginTop: '12px' }}>
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: '#64748b',
+                        fontSize: '0.82rem',
+                        fontWeight: 800,
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        padding: '6px 12px',
+                        borderRadius: '8px',
+                        touchAction: 'manipulation',
+                      }}
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+                        <circle cx="12" cy="13" r="4" />
+                      </svg>
+                      <span>{uploadingPhoto ? 'Uploading Photo...' : 'Tap photo to crop/change'}</span>
+                    </button>
                   </div>
                 </div>
 
