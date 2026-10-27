@@ -15,6 +15,12 @@ export default function StudentDashboard() {
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [downloadingId, setDownloadingId] = useState(false);
 
+  // Welcome Toast Banner State
+  const [showWelcomeToast, setShowWelcomeToast] = useState(true);
+
+  // Logout Confirmation Modal State
+  const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
+
   // Password Change Modal States
   const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
   const [newPassword, setNewPassword] = useState('');
@@ -24,7 +30,7 @@ export default function StudentDashboard() {
 
   // Student Profile Data
   const [profile, setProfile] = useState({
-    full_name: 'Renowee beloy',
+    full_name: 'Renowee Beloy',
     school_id: '2024-0516',
     email: 'renowee.beloy@dorsu.edu.ph',
     course: 'BSCRIM',
@@ -62,6 +68,14 @@ export default function StudentDashboard() {
       setNotification({ type: '', message: '' });
     }, 4500);
   };
+
+  // Auto-dismiss welcome toast pagkatapos ng 5 segundo
+  useEffect(() => {
+    const welcomeTimer = setTimeout(() => {
+      setShowWelcomeToast(false);
+    }, 5000);
+    return () => clearTimeout(welcomeTimer);
+  }, []);
 
   // 5-Minute Inactivity Session Guard
   useEffect(() => {
@@ -377,7 +391,8 @@ export default function StudentDashboard() {
     }
   };
 
-  const handleSignOut = async () => {
+  // Aktwal na pag-sign out pagkatapos pindutin ang Logout sa modal
+  const handleConfirmSignOut = async () => {
     if (supabase) await supabase.auth.signOut();
     try {
       sessionStorage.clear();
@@ -412,7 +427,7 @@ export default function StudentDashboard() {
   )}`;
 
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: '#f8fafc', display: 'flex', flexDirection: 'column', overflowX: 'hidden' }}>
+    <div style={{ minHeight: '100vh', backgroundColor: '#f8fafc', display: 'flex', flexDirection: 'column', overflowX: 'hidden', position: 'relative' }}>
       <Head>
         <title>Student Portal • CECTRACK</title>
         <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
@@ -592,6 +607,63 @@ export default function StudentDashboard() {
         />
       )}
 
+      {/* GREEN WELCOME TO STUDENT PORTAL TOAST BANNER */}
+      {showWelcomeToast && (
+        <div
+          style={{
+            position: 'fixed',
+            top: '18px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 9999,
+            backgroundColor: '#ecfdf5',
+            border: '1.5px solid #a7f3d0',
+            padding: '7px 20px',
+            borderRadius: '16px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            boxShadow: '0 6px 20px rgba(16, 185, 129, 0.12)',
+            animation: 'fadeInDown 0.3s ease',
+          }}
+        >
+          <div
+            style={{
+              width: '18px',
+              height: '18px',
+              borderRadius: '50%',
+              backgroundColor: '#15803d',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#ffffff',
+              fontSize: '11px',
+              fontWeight: 900,
+            }}
+          >
+            ✓
+          </div>
+          <span style={{ fontSize: '0.85rem', fontWeight: 800, color: '#15803d' }}>
+            Welcome to the Student Portal!
+          </span>
+          <button
+            onClick={() => setShowWelcomeToast(false)}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: '#15803d',
+              fontSize: '12px',
+              fontWeight: 900,
+              cursor: 'pointer',
+              marginLeft: '4px',
+              padding: '0 4px',
+            }}
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
       <div style={{ display: 'flex', flex: 1, minWidth: 0, width: '100%' }}>
         {/* SIDEBAR NAVIGATION */}
         <aside
@@ -740,7 +812,7 @@ export default function StudentDashboard() {
 
           <div style={{ paddingTop: '16px' }}>
             <button
-              onClick={handleSignOut}
+              onClick={() => setIsLogoutModalOpen(true)}
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -804,15 +876,24 @@ export default function StudentDashboard() {
                       backgroundColor: '#15803d',
                       color: '#ffffff',
                       border: 'none',
-                      borderRadius: '10px',
+                      borderRadius: '12px',
                       fontWeight: 800,
-                      fontSize: '0.85rem',
+                      fontSize: '0.88rem',
                       cursor: 'pointer',
-                      boxShadow: '0 2px 6px rgba(21,128,61,0.2)',
+                      boxShadow: '0 4px 14px rgba(21, 128, 61, 0.28)',
                       touchAction: 'manipulation',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '8px',
                     }}
                   >
-                    {downloadingId ? 'Generating...' : 'Download Official ID'}
+                    {/* DOWNLOAD TRAY ICON */}
+                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                      <polyline points="7 10 12 15 17 10" />
+                      <line x1="12" y1="15" x2="12" y2="3" />
+                    </svg>
+                    <span>{downloadingId ? 'Generating...' : 'Download Official ID'}</span>
                   </button>
                 )}
               </div>
@@ -822,7 +903,7 @@ export default function StudentDashboard() {
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))', gap: '24px', alignItems: 'start', width: '100%' }}>
                 <div style={{ maxWidth: '330px', margin: '0 auto', width: '100%' }}>
                   
-                  {/* DIGITAL ID CARD (DESIGN FROM REFERENCE) */}
+                  {/* DIGITAL ID CARD */}
                   <div
                     ref={idCardRef}
                     style={{
@@ -899,7 +980,7 @@ export default function StudentDashboard() {
                       {profile.full_name}
                     </h2>
 
-                    {/* Student ID label */}
+                    {/* Student ID Label */}
                     <div
                       style={{
                         fontSize: '0.68rem',
@@ -1882,6 +1963,129 @@ export default function StudentDashboard() {
           )}
         </main>
       </div>
+
+      {/* SIGN OUT / LOGOUT CONFIRMATION MODAL */}
+      {isLogoutModalOpen && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(15, 23, 42, 0.45)',
+            backdropFilter: 'blur(4px)',
+            zIndex: 130,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '16px',
+          }}
+        >
+          <div
+            style={{
+              backgroundColor: '#ffffff',
+              width: '100%',
+              maxWidth: '390px',
+              borderRadius: '22px',
+              padding: '24px 22px',
+              boxShadow: '0 20px 40px rgba(0,0,0,0.18)',
+              position: 'relative',
+            }}
+          >
+            {/* Modal Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px' }}>
+              <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 900, color: '#0f172a' }}>Sign Out</h3>
+              <button
+                onClick={() => setIsLogoutModalOpen(false)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  fontSize: '1rem',
+                  color: '#94a3b8',
+                  cursor: 'pointer',
+                  padding: '4px',
+                }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Pinkish Rounded Box na may Pulang Trash Icon */}
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '16px' }}>
+              <div
+                style={{
+                  width: '56px',
+                  height: '56px',
+                  borderRadius: '16px',
+                  backgroundColor: '#fff1f2',
+                  border: '1px solid #ffe4e6',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#e11d48" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M3 6h18m-2 0v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+                  <line x1="10" y1="11" x2="10" y2="17" />
+                  <line x1="14" y1="11" x2="14" y2="17" />
+                </svg>
+              </div>
+            </div>
+
+            {/* Modal Message */}
+            <p
+              style={{
+                textAlign: 'center',
+                color: '#334155',
+                fontSize: '0.88rem',
+                margin: '0 0 22px 0',
+                fontWeight: 600,
+                lineHeight: 1.5,
+              }}
+            >
+              Are you sure you want to log out of the Student Portal?
+            </p>
+
+            {/* Modal Actions */}
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button
+                type="button"
+                onClick={() => setIsLogoutModalOpen(false)}
+                style={{
+                  flex: 1,
+                  padding: '10px',
+                  backgroundColor: '#ffffff',
+                  border: '1px solid #cbd5e1',
+                  borderRadius: '10px',
+                  fontWeight: 800,
+                  fontSize: '0.85rem',
+                  color: '#334155',
+                  cursor: 'pointer',
+                  touchAction: 'manipulation',
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmSignOut}
+                style={{
+                  flex: 1,
+                  padding: '10px',
+                  backgroundColor: '#e11d48',
+                  border: 'none',
+                  borderRadius: '10px',
+                  fontWeight: 800,
+                  fontSize: '0.85rem',
+                  color: '#ffffff',
+                  cursor: 'pointer',
+                  touchAction: 'manipulation',
+                }}
+              >
+                Logout
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* CHANGE PASSWORD MODAL */}
       {isChangePasswordOpen && (
