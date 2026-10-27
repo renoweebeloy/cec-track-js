@@ -17,7 +17,7 @@ export default function StudentDashboard() {
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [downloadingId, setDownloadingId] = useState(false);
 
-  // QR Code Base64 State (Solusyon aron 100% mogawas sa na-download nga ID)
+  // QR Code Base64 State (Solusyon aron 100% maapil sa download nga dili maputi)
   const [qrBase64, setQrBase64] = useState('');
 
   // Password Change Modal States
@@ -68,58 +68,64 @@ export default function StudentDashboard() {
     }, 4500);
   };
 
-  // 100% Client-Side QR Generator gamit ang Base64 Data URL
-  const generateBase64QrCode = (cleanId) => {
-    return new Promise((resolve) => {
-      if (!cleanId) return resolve('');
+  // 100% In-Memory QR to Base64 Generator (Walay CORS restriction)
+  const generateBase64Qr = async (text) => {
+    const cleanText = (text || '').trim();
+    if (!cleanText) return '';
 
-      if (typeof window !== 'undefined' && window.QRCode && typeof window.QRCode.toDataURL === 'function') {
-        window.QRCode.toDataURL(
-          cleanId,
-          {
+    if (typeof window !== 'undefined') {
+      // 1. Sigurohon nga na-load ang qrcode library
+      if (!window.QRCode) {
+        const script = document.createElement('script');
+        script.src = 'https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js';
+        await new Promise((resolve) => {
+          script.onload = resolve;
+          script.onerror = resolve;
+          document.body.appendChild(script);
+        });
+      }
+
+      // 2. I-generate direkta as Data URL
+      if (window.QRCode && typeof window.QRCode.toDataURL === 'function') {
+        try {
+          return await window.QRCode.toDataURL(cleanText, {
             width: 360,
             margin: 1,
             errorCorrectionLevel: 'H',
             color: { dark: '#000000', light: '#ffffff' },
-          },
-          (err, url) => {
-            if (!err && url) {
-              return resolve(url);
-            }
-            resolve('');
-          }
-        );
-      } else {
-        resolve('');
+          });
+        } catch (e) {
+          console.warn('QRCode library error:', e);
+        }
       }
-    });
+
+      // 3. Fallback gamit ang QuickChart base64 endpoint
+      try {
+        const res = await fetch(`https://quickchart.io/qr?text=${encodeURIComponent(cleanText)}&size=360&margin=2&ecLevel=H&format=base64`);
+        const b64 = await res.text();
+        if (b64 && b64.length > 50) {
+          return `data:image/png;base64,${b64.trim()}`;
+        }
+      } catch (e) {
+        console.warn('QuickChart fallback error:', e);
+      }
+    }
+    return '';
   };
 
+  // Awtomatikong himuong Base64 ang QR sa pagsugod
   useEffect(() => {
     if (!profile.school_id) return;
-    const cleanId = profile.school_id.trim();
     let isMounted = true;
 
-    const setupQR = async () => {
-      if (window.QRCode) {
-        const url = await generateBase64QrCode(cleanId);
-        if (isMounted && url) {
-          setQrBase64(url);
-        }
+    const buildQR = async () => {
+      const b64 = await generateBase64Qr(profile.school_id);
+      if (isMounted && b64) {
+        setQrBase64(b64);
       }
     };
 
-    if (typeof window !== 'undefined' && !window.QRCode) {
-      const script = document.createElement('script');
-      script.src = 'https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js';
-      script.async = true;
-      script.onload = () => {
-        setupQR();
-      };
-      document.body.appendChild(script);
-    } else {
-      setupQR();
-    }
+    buildQR();
 
     return () => {
       isMounted = false;
@@ -360,32 +366,20 @@ export default function StudentDashboard() {
     reader.readAsDataURL(file);
   };
 
-  // Sigurado nga ma-download ang ID card nga kompleto ang QR Code nga dili maputi
+  // Ligtas ug sigurado nga download gamit ang html2canvas nga DILI MAPUTI ANG QR CODE
   const handleDownloadIdCard = async () => {
     if (!idCardRef.current) return;
     setDownloadingId(true);
 
     try {
-      // 1. Sigurohon nga na-load ang QRCode library
-      if (!window.QRCode) {
-        const qScript = document.createElement('script');
-        qScript.src = 'https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js';
-        await new Promise((resolve) => {
-          qScript.onload = resolve;
-          document.body.appendChild(qScript);
-        });
+      // 1. Sigurohon nga ang QR code kay 100% Base64 string na daan
+      let currentQr = qrBase64;
+      if (!currentQr || !currentQr.startsWith('data:image')) {
+        currentQr = await generateBase64Qr(profile.school_id || 'Student');
+        if (currentQr) setQrBase64(currentQr);
       }
 
-      // 2. Sigurohon nga ang QR code kay 100% Base64 Data URL na daan
-      let activeQr = qrBase64;
-      if (!activeQr || !activeQr.startsWith('data:image')) {
-        activeQr = await generateBase64QrCode(profile.school_id.trim());
-        if (activeQr) {
-          setQrBase64(activeQr);
-        }
-      }
-
-      // 3. Sigurohon nga na-load ang html2canvas
+      // 2. I-load ang html2canvas
       if (!window.html2canvas) {
         const script = document.createElement('script');
         script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
@@ -396,14 +390,21 @@ export default function StudentDashboard() {
         });
       }
 
-      // Maghulat ug 300ms aron masiguro nga na-render ang Base64 image sa DOM
-      await new Promise((r) => setTimeout(r, 300));
+      // Maghulat og 250ms aron masiguro nga na-render ang Base64 image
+      await new Promise((r) => setTimeout(r, 250));
 
       const canvas = await window.html2canvas(idCardRef.current, {
         scale: 3,
         useCORS: true,
-        allowTaint: true,
+        allowTaint: false,
         backgroundColor: null,
+        logging: false,
+        onclone: (clonedDoc) => {
+          const clonedQrImg = clonedDoc.querySelector('#id-card-qr-img');
+          if (clonedQrImg && currentQr) {
+            clonedQrImg.src = currentQr;
+          }
+        },
       });
 
       const imageUri = canvas.toDataURL('image/png');
@@ -998,7 +999,7 @@ export default function StudentDashboard() {
                       boxSizing: 'border-box',
                     }}
                   >
-                    {/* Header Badge Pill: CEC-TRACK LAMANG ANG NAIWAN */}
+                    {/* Header Badge Pill: CEC-TRACK */}
                     <div style={{ marginBottom: '16px' }}>
                       <span
                         style={{
@@ -1021,7 +1022,7 @@ export default function StudentDashboard() {
                       </span>
                     </div>
 
-                    {/* Photo with White Rounded Border */}
+                    {/* Photo with White Rounded Border (Walang text sa loob ng card) */}
                     <div
                       onClick={() => fileInputRef.current?.click()}
                       style={{
@@ -1082,7 +1083,7 @@ export default function StudentDashboard() {
                       {profile.school_id}
                     </div>
 
-                    {/* DAKO UG KLARO NGA QR CODE (100% BASE64 NGA DILI MAPUTI SA DOWNLOAD) */}
+                    {/* DAKO AT MALINAW NGA QR CODE (100% BASE64 NGA DILI MAPUTI SA DOWNLOAD) */}
                     {profile.avatar_url ? (
                       <div>
                         <div
@@ -1098,6 +1099,7 @@ export default function StudentDashboard() {
                         >
                           {qrBase64 ? (
                             <img
+                              id="id-card-qr-img"
                               src={qrBase64}
                               alt="Attendance QR Code"
                               style={{
