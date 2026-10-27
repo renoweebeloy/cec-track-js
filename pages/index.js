@@ -331,7 +331,7 @@ export default function Home() {
         }
       `}</style>
 
-      {/* Header with door icon on Login Button */}
+      {/* Header */}
       <header className={styles.header}>
         <div className={styles.headerContent} style={{ justifyContent: 'space-between' }}>
           <button onClick={() => router.push('/')} className={styles.logoText}>
@@ -354,7 +354,7 @@ export default function Home() {
               About
             </button>
 
-            {/* Login button matching image_e2705d.png */}
+            {/* Login button with door icon */}
             <button
               onClick={() => router.push('/login')}
               className={styles.loginBtn}
@@ -1095,7 +1095,7 @@ export default function Home() {
         {/* 2. LEADERSHIP & FACULTY SECTION (SA UBOS NA SEKSYON) */}
         {/* ======================================================== */}
         <section className={styles.analyticsSection} style={{ marginTop: '48px', textAlign: 'center' }}>
-          {/* Badge Tag with Green Vector Ribbon Icon matching image_e27083.png */}
+          {/* Badge Tag with Green Vector Ribbon Icon */}
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: '7px', backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '9999px', padding: '5px 14px', marginBottom: '10px' }}>
             <svg
               width="15"
@@ -1180,7 +1180,7 @@ export default function Home() {
                     )}
                   </div>
 
-                  {/* Position Pill Badge */}
+                  {/* Position Pill Badge: Updated to GREEN theme */}
                   <div style={{ marginBottom: '8px' }}>
                     <span
                       style={{
@@ -1191,9 +1191,9 @@ export default function Home() {
                         fontWeight: 900,
                         textTransform: 'uppercase',
                         letterSpacing: '0.04em',
-                        backgroundColor: '#eff6ff',
-                        color: '#1d4ed8',
-                        border: '1px solid #bfdbfe',
+                        backgroundColor: '#f0fdf4',
+                        color: '#15803d',
+                        border: '1px solid #bbf7d0',
                       }}
                     >
                       {off.position}
