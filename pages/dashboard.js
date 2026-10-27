@@ -33,7 +33,7 @@ export default function StudentDashboard() {
     full_name: 'Ive cadalzo',
     school_id: '2023-8133',
     email: 'ive.cadalzo@dorsu.edu.ph',
-    course: 'BSCRIM',
+    course: 'BSAM',
     section: 'Section A',
     year_level: '3rd Year',
     avatar_url: '',
@@ -69,7 +69,7 @@ export default function StudentDashboard() {
     }, 4500);
   };
 
-  // Auto-dismiss welcome toast pagkatapos ng 5 segundo
+  // Auto-dismiss welcome toast pagkahuman sa 5 segundos
   useEffect(() => {
     const welcomeTimer = setTimeout(() => {
       setShowWelcomeToast(false);
@@ -253,7 +253,7 @@ export default function StudentDashboard() {
     if (!file) return;
 
     if (!file.type.startsWith('image/')) {
-      alert('Pumili ng tamang litrato (PNG, JPG, o JPEG).');
+      alert('Palihug pagpili og saktong litrato (PNG, JPG, o JPEG).');
       return;
     }
 
@@ -295,9 +295,9 @@ export default function StudentDashboard() {
             .eq('school_id', profile.school_id);
 
           if (dbError) {
-            alert('Hindi na-sync ang litrato sa database: ' + dbError.message);
+            alert('Wala ma-sync ang litrato sa database: ' + dbError.message);
           } else {
-            showNotify('success', 'Profile photo updated and synced across all devices!');
+            showNotify('success', 'Profile photo updated & Attendance QR Code generated successfully!');
           }
         } catch (err) {
           console.warn('Avatar database sync error:', err);
@@ -354,12 +354,12 @@ export default function StudentDashboard() {
     setPasswordMsg({ type: '', text: '' });
 
     if (newPassword.length < 6) {
-      setPasswordMsg({ type: 'error', text: 'Ang password ay dapat hindi bababa sa 6 na karakter.' });
+      setPasswordMsg({ type: 'error', text: 'Ang password kinahanglang labing menos 6 ka letra/numero.' });
       return;
     }
 
     if (newPassword !== confirmPassword) {
-      setPasswordMsg({ type: 'error', text: 'Hindi nagtutugma ang bagong password.' });
+      setPasswordMsg({ type: 'error', text: 'Wala magkatugma ang bag-ong password.' });
       return;
     }
 
@@ -376,7 +376,7 @@ export default function StudentDashboard() {
 
       if (error) throw new Error(error.message);
 
-      setPasswordMsg({ type: 'success', text: 'Matagumpay na nabago ang iyong password!' });
+      setPasswordMsg({ type: 'success', text: 'Malampusong nabag-o ang imong password!' });
       setTimeout(() => {
         setIsChangePasswordOpen(false);
         setNewPassword('');
@@ -420,8 +420,17 @@ export default function StudentDashboard() {
       );
     });
 
-  const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(
-    profile.school_id
+  // STRUCTURED PAYLOAD + HIGH ECC (ecc=H) PARA MAKUHA ANG SIKSIK UG PINO NGA QRCODE PATTERN
+  const qrPayload = JSON.stringify({
+    school_id: profile.school_id,
+    full_name: profile.full_name,
+    course: profile.course,
+    campus: 'DOrSU-CEC',
+    system: 'CECTRACK_AUTH_ATTENDANCE',
+  });
+
+  const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=320x320&ecc=H&margin=10&data=${encodeURIComponent(
+    qrPayload
   )}`;
 
   return (
@@ -899,7 +908,7 @@ export default function StudentDashboard() {
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))', gap: '24px', alignItems: 'start', width: '100%' }}>
                 <div style={{ maxWidth: '330px', margin: '0 auto', width: '100%' }}>
                   
-                  {/* DIGITAL ID CARD (EXACT PROPORTION AND DESIGN) */}
+                  {/* DIGITAL ID CARD (ACCURATE GREEN GRADIENT & PROPORTION) */}
                   <div
                     ref={idCardRef}
                     style={{
@@ -990,7 +999,7 @@ export default function StudentDashboard() {
                       STUDENT ID
                     </div>
 
-                    {/* White Pill Badge sa ID Number */}
+                    {/* White Pill Badge for ID Number */}
                     <div
                       style={{
                         display: 'inline-block',
@@ -1008,32 +1017,38 @@ export default function StudentDashboard() {
                       {profile.school_id}
                     </div>
 
-                    {/* Compact White QR Code Card Container (Hindi Malaki) */}
+                    {/* DENSE HIGH-DETAIL QR CODE CONTAINER */}
                     <div
                       style={{
                         backgroundColor: '#ffffff',
                         borderRadius: '22px',
-                        padding: '14px',
+                        padding: '12px',
                         boxShadow: '0 8px 22px rgba(0, 0, 0, 0.08)',
                         maxWidth: '185px',
                         margin: '0 auto 14px auto',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
                       }}
                     >
                       {profile.avatar_url ? (
                         <img
                           src={qrCodeUrl}
-                          alt="QR Code"
+                          alt="Student QR Code"
                           style={{
                             width: '100%',
                             height: 'auto',
                             display: 'block',
-                            borderRadius: '6px',
+                            borderRadius: '8px',
+                            imageRendering: 'pixelated',
                           }}
                         />
                       ) : (
-                        <div style={{ padding: '16px 8px', color: '#991b1b', backgroundColor: '#fef2f2', borderRadius: '12px' }}>
+                        <div style={{ padding: '16px 8px', color: '#991b1b', backgroundColor: '#fef2f2', borderRadius: '14px', width: '100%' }}>
                           <div style={{ fontSize: '0.78rem', fontWeight: 900 }}>QR Code Locked</div>
-                          <p style={{ fontSize: '0.68rem', margin: '4px 0 0 0' }}>Upload your photo to view</p>
+                          <p style={{ fontSize: '0.68rem', margin: '4px 0 0 0' }}>
+                            Upload your photo to generate your Attendance QR Code.
+                          </p>
                         </div>
                       )}
                     </div>
@@ -1052,7 +1067,7 @@ export default function StudentDashboard() {
                       SCAN FOR ATTENDANCE
                     </div>
 
-                    {/* Divider Line bago ang Campus Name */}
+                    {/* Divider Line */}
                     <div
                       style={{
                         width: '84%',
@@ -1062,7 +1077,7 @@ export default function StudentDashboard() {
                       }}
                     />
 
-                    {/* CATEEL EXTENSION CAMPUS sa Ibaba */}
+                    {/* CATEEL EXTENSION CAMPUS */}
                     <div
                       style={{
                         fontSize: '0.68rem',
