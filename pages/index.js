@@ -23,6 +23,10 @@ export default function Home() {
   const [events, setEvents] = useState([]);
   const [eventsLoading, setEventsLoading] = useState(true);
 
+  // Officers & Leaders from database
+  const [officers, setOfficers] = useState([]);
+  const [officersLoading, setOfficersLoading] = useState(true);
+
   // Search ID states
   const [searchId, setSearchId] = useState('');
   const [searchLoading, setSearchLoading] = useState(false);
@@ -60,6 +64,7 @@ export default function Home() {
   const fetchData = async () => {
     if (!supabase) return;
     try {
+      // 1. Fetch Students
       const { data: profilesData } = await supabase
         .from('profiles')
         .select('course, role, status');
@@ -77,6 +82,18 @@ export default function Home() {
         });
       }
 
+      // 2. Fetch Officers
+      setOfficersLoading(true);
+      const { data: officersData } = await supabase
+        .from('officers')
+        .select('*')
+        .order('id', { ascending: true });
+
+      if (officersData) {
+        setOfficers(officersData);
+      }
+
+      // 3. Fetch Events
       setEventsLoading(true);
       const { data: eventsData } = await supabase
         .from('events')
@@ -90,6 +107,7 @@ export default function Home() {
       console.error('Error fetching landing page data:', err);
     } finally {
       setEventsLoading(false);
+      setOfficersLoading(false);
     }
   };
 
@@ -243,6 +261,33 @@ export default function Home() {
           text-align: left;
           width: 100%;
         }
+
+        /* OFFICERS SECTION STYLES */
+        .officers-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+          gap: 20px;
+          margin-top: 24px;
+        }
+        .officer-card {
+          background-color: #ffffff;
+          border: 1px solid #e2e8f0;
+          border-radius: 22px;
+          padding: 20px 16px;
+          text-align: center;
+          box-shadow: 0 4px 14px rgba(0, 0, 0, 0.03);
+          transition: transform 0.2s ease, box-shadow 0.2s ease;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justifyContent: space-between;
+        }
+        .officer-card:hover {
+          transform: translateY(-4px);
+          box-shadow: 0 10px 24px rgba(21, 128, 61, 0.08);
+          border-color: #bbf7d0;
+        }
+
         @media (max-width: 600px) {
           .search-container {
             padding: 4px 4px 4px 10px;
@@ -274,6 +319,14 @@ export default function Home() {
           }
           .stat-value {
             font-size: 1.15rem !important;
+          }
+          .officers-grid {
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 12px;
+          }
+          .officer-card {
+            padding: 14px 10px;
+            border-radius: 18px;
           }
         }
       `}</style>
@@ -345,7 +398,6 @@ export default function Home() {
             }}
           >
             <span style={{ display: 'inline-flex', alignItems: 'center', color: '#15803d' }}>
-              {/* ANIMATED PULSING LIVE DOT */}
               <span className="live-dot-pulse" />
               LIVE PHT
             </span>
@@ -734,7 +786,6 @@ export default function Home() {
                 gap: '8px',
               }}
             >
-              {/* EXACT DOOR-ARROW LOGIN ICON (->]) */}
               <svg
                 width="16"
                 height="16"
@@ -762,11 +813,10 @@ export default function Home() {
           </div>
         </section>
 
-        {/* Live Course Analytics Grid: With Exact Orange Dual-User Icon */}
+        {/* Live Course Analytics Grid */}
         <section className={styles.analyticsSection}>
           <div className={styles.analyticsHeader}>
             <div className={styles.analyticsTitle} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              {/* EXACT ORANGE DUAL-USER ICON */}
               <svg
                 width="22"
                 height="22"
@@ -872,8 +922,132 @@ export default function Home() {
           </div>
         </section>
 
+        {/* ======================================================== */}
+        {/* OUR OFFICERS & LEADERS SECTION */}
+        {/* ======================================================== */}
+        <section className={styles.analyticsSection} style={{ marginTop: '44px', textAlign: 'center' }}>
+          {/* Badge Tag */}
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', backgroundColor: '#fef3c7', border: '1px solid #fde68a', borderRadius: '9999px', padding: '5px 14px', marginBottom: '10px' }}>
+            <span style={{ fontSize: '0.85rem' }}>🏅</span>
+            <span style={{ fontSize: '0.72rem', fontWeight: 900, color: '#b45309', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+              LEADERSHIP &amp; FACULTY
+            </span>
+          </div>
+
+          <h2 style={{ fontSize: 'clamp(1.7rem, 4vw, 2.3rem)', fontWeight: 900, color: '#0f172a', margin: '0 0 8px 0', letterSpacing: '-0.02em' }}>
+            Our Officers &amp; Leaders
+          </h2>
+
+          <p style={{ fontSize: '0.88rem', color: '#64748b', maxWidth: '580px', margin: '0 auto 24px auto', lineHeight: 1.55 }}>
+            Dedicated student leaders and faculty advisers steering the Cateel Extension Campus toward academic and professional excellence.
+          </p>
+
+          {officersLoading ? (
+            <div style={{ textAlign: 'center', padding: '36px', color: '#64748b', fontWeight: 700 }}>
+              Loading officers roster...
+            </div>
+          ) : officers.length === 0 ? (
+            <div
+              style={{
+                textAlign: 'center',
+                padding: '36px 18px',
+                backgroundColor: '#ffffff',
+                border: '1px solid #e2e8f0',
+                borderRadius: '20px',
+                color: '#64748b',
+                maxWidth: '500px',
+                margin: '0 auto',
+              }}
+            >
+              <div style={{ fontSize: '2rem', marginBottom: '6px' }}>👤</div>
+              <h4 style={{ margin: '0 0 4px 0', fontSize: '0.95rem', fontWeight: 900, color: '#0f172a' }}>
+                No Officers Published Yet
+              </h4>
+              <p style={{ margin: 0, fontSize: '0.8rem' }}>
+                Campus student leaders and advisers will be showcased here once updated by the administration.
+              </p>
+            </div>
+          ) : (
+            <div className="officers-grid">
+              {officers.map((off) => (
+                <div key={off.id} className="officer-card">
+                  {/* Photo with subtle border */}
+                  <div
+                    style={{
+                      width: '105px',
+                      height: '105px',
+                      borderRadius: '20px',
+                      backgroundColor: '#f1f5f9',
+                      border: '2px solid #e2e8f0',
+                      overflow: 'hidden',
+                      margin: '0 auto 14px auto',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexShrink: 0,
+                    }}
+                  >
+                    {off.avatar_url ? (
+                      <img
+                        src={off.avatar_url}
+                        alt={off.name}
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      />
+                    ) : (
+                      <span style={{ fontSize: '2.5rem' }}>👤</span>
+                    )}
+                  </div>
+
+                  {/* Position Pill Badge */}
+                  <div style={{ marginBottom: '8px' }}>
+                    <span
+                      style={{
+                        display: 'inline-block',
+                        padding: '3px 12px',
+                        borderRadius: '9999px',
+                        fontSize: '0.66rem',
+                        fontWeight: 900,
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.04em',
+                        backgroundColor: '#eff6ff',
+                        color: '#1d4ed8',
+                        border: '1px solid #bfdbfe',
+                      }}
+                    >
+                      {off.position}
+                    </span>
+                  </div>
+
+                  {/* Full Name */}
+                  <h3
+                    style={{
+                      margin: '0 0 4px 0',
+                      fontSize: '0.98rem',
+                      fontWeight: 900,
+                      color: '#0f172a',
+                      lineHeight: 1.3,
+                    }}
+                  >
+                    {off.name}
+                  </h3>
+
+                  {/* Department / Council */}
+                  <div style={{ fontSize: '0.74rem', color: '#64748b', fontWeight: 700, marginBottom: '6px' }}>
+                    {off.department}
+                  </div>
+
+                  {/* Term / A.Y. */}
+                  <div style={{ fontSize: '0.68rem', color: '#94a3b8', fontWeight: 800 }}>
+                    A.Y. {off.term || '2026 - 2027'}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+
         {/* Events Section */}
-        <section className={styles.analyticsSection} id="events-section" style={{ marginTop: '36px' }}>
+        <section className={styles.analyticsSection} id="events-section" style={{ marginTop: '48px' }}>
           <div className={styles.analyticsHeader}>
             <div className={styles.analyticsTitle}>
               📅 UPCOMING &amp; OFFICIAL CAMPUS EVENTS
