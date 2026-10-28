@@ -718,7 +718,7 @@ export default function AdminDashboard() {
           }
         } else {
           if (height > MAX_HEIGHT) {
-            width *= MAX_WIDTH / height;
+            width *= MAX_HEIGHT / height;
             height = MAX_HEIGHT;
           }
         }
@@ -1220,7 +1220,6 @@ export default function AdminDashboard() {
     }
   };
 
-  // Add Staff Handler with can_add_students state
   const handleAddStaff = async (e) => {
     e.preventDefault();
     if (userRole !== 'admin') {
@@ -2553,7 +2552,7 @@ export default function AdminDashboard() {
 
               {/* PUBLISHED EVENTS */}
               <div className={styles.adminFormCard} style={{ width: '100%', boxSizing: 'border-box', padding: '16px 14px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'gap', gap: '8px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '8px' }}>
                   <h3 className={styles.analyticsTitle} style={{ fontSize: '0.95rem', margin: 0 }}>
                     Published Events ({filteredEvents.length})
                   </h3>
@@ -2685,6 +2684,278 @@ export default function AdminDashboard() {
                         </div>
                       );
                     })}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* TAB: MANAGE OFFICERS (RESTORED SECTION) */}
+          {activeTab === 'manage-officers' && isAdmin && (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))', gap: '20px' }}>
+              <div className={styles.adminFormCard} ref={officerFormRef}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+                  <h3 className={styles.analyticsTitle} style={{ fontSize: '0.95rem', margin: 0 }}>
+                    {editingOfficerId ? 'Edit Student Leader / Officer' : 'Add Student Leader / Officer'}
+                  </h3>
+                  {editingOfficerId && (
+                    <button
+                      type="button"
+                      onClick={handleCancelEditOfficer}
+                      style={{
+                        background: 'none',
+                        border: '1px solid #cbd5e1',
+                        borderRadius: '6px',
+                        padding: '3px 8px',
+                        fontSize: '0.72rem',
+                        fontWeight: 800,
+                        color: '#64748b',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      ✕ Cancel Edit
+                    </button>
+                  )}
+                </div>
+
+                <form onSubmit={handleSaveOfficer} className={styles.loginForm}>
+                  <input
+                    type="file"
+                    ref={officerAvatarInputRef}
+                    onChange={handleOfficerAvatarUpload}
+                    accept="image/*"
+                    style={{ display: 'none' }}
+                  />
+
+                  <div className={styles.inputGroup}>
+                    <label className={styles.inputLabel} style={{ fontSize: '0.75rem' }}>Officer 2x2 / Formal Photo</label>
+                    <div
+                      onClick={() => officerAvatarInputRef.current?.click()}
+                      style={{
+                        border: '2px dashed #bbf7d0',
+                        borderRadius: '14px',
+                        padding: '14px',
+                        textAlign: 'center',
+                        cursor: 'pointer',
+                        backgroundColor: '#f0fdf4',
+                        transition: 'border 0.2s',
+                      }}
+                    >
+                      {compressingOfficerAvatar ? (
+                        <span style={{ fontSize: '0.8rem', color: '#15803d', fontWeight: 800 }}>
+                          Compressing image...
+                        </span>
+                      ) : officerAvatar ? (
+                        <div>
+                          <img
+                            src={officerAvatar}
+                            alt="Officer Preview"
+                            style={{ width: '70px', height: '70px', borderRadius: '18px', objectFit: 'cover' }}
+                          />
+                          <span style={{ fontSize: '0.72rem', color: '#15803d', fontWeight: 800, marginTop: '4px', display: 'block' }}>
+                            Click to change photo
+                          </span>
+                        </div>
+                      ) : (
+                        <div>
+                          <span style={{ fontSize: '1.4rem', display: 'block', marginBottom: '2px' }}>👤</span>
+                          <span style={{ fontSize: '0.82rem', color: '#15803d', fontWeight: 800 }}>
+                            + Upload Formal Photo
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className={styles.inputGroup}>
+                    <label className={styles.inputLabel} style={{ fontSize: '0.75rem' }}>Full Name *</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Juan Dela Cruz"
+                      value={officerName}
+                      onChange={(e) => setOfficerName(e.target.value)}
+                      className={styles.loginInput}
+                      style={{ padding: '10px 12px', fontSize: '0.9rem' }}
+                      required
+                    />
+                  </div>
+
+                  <div className={styles.inputGroup}>
+                    <label className={styles.inputLabel} style={{ fontSize: '0.75rem' }}>Official Position / Role *</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. President, Vice President, Treasurer"
+                      value={officerPosition}
+                      onChange={(e) => setOfficerPosition(e.target.value)}
+                      className={styles.loginInput}
+                      style={{ padding: '10px 12px', fontSize: '0.9rem' }}
+                      required
+                    />
+                  </div>
+
+                  <div className={styles.inputGroup}>
+                    <label className={styles.inputLabel} style={{ fontSize: '0.75rem' }}>Department / Council</label>
+                    <select
+                      value={officerDepartment}
+                      onChange={(e) => setOfficerDepartment(e.target.value)}
+                      className={styles.loginInput}
+                      style={{ padding: '10px 12px', fontSize: '0.9rem' }}
+                    >
+                      <option value="Supreme Student Government (SSG)">Supreme Student Government (SSG)</option>
+                      <option value="BSCRIM Department">BSCRIM Department</option>
+                      <option value="BSBA Department">BSBA Department</option>
+                      <option value="BSA Department">BSA Department</option>
+                      <option value="BEED Department">BEED Department</option>
+                      <option value="BSAM Department">BSAM Department</option>
+                    </select>
+                  </div>
+
+                  <div className={styles.inputGroup}>
+                    <label className={styles.inputLabel} style={{ fontSize: '0.75rem' }}>Term / Academic Year</label>
+                    <input
+                      type="text"
+                      value={officerTerm}
+                      onChange={(e) => setOfficerTerm(e.target.value)}
+                      className={styles.loginInput}
+                      style={{ padding: '10px 12px', fontSize: '0.9rem' }}
+                    />
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button
+                      type="submit"
+                      disabled={loading || compressingOfficerAvatar}
+                      className={styles.adminPrimaryBtn}
+                      style={{ flex: 1, minHeight: '44px', fontSize: '0.9rem' }}
+                    >
+                      {loading
+                        ? 'Saving...'
+                        : editingOfficerId
+                        ? 'Save Changes ➔'
+                        : 'Publish Officer ➔'}
+                    </button>
+                    {editingOfficerId && (
+                      <button
+                        type="button"
+                        onClick={handleCancelEditOfficer}
+                        style={{
+                          backgroundColor: '#f1f5f9',
+                          color: '#475569',
+                          border: '1px solid #cbd5e1',
+                          borderRadius: '12px',
+                          padding: '0 14px',
+                          fontWeight: 800,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        Cancel
+                      </button>
+                    )}
+                  </div>
+                </form>
+              </div>
+
+              {/* Published Officers Roster */}
+              <div className={styles.adminFormCard}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+                  <h3 className={styles.analyticsTitle} style={{ fontSize: '0.95rem', margin: 0 }}>
+                    Official Officers Roster ({officersList.length})
+                  </h3>
+                </div>
+
+                {officersList.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '30px', color: '#94a3b8', fontSize: '0.85rem' }}>
+                    No officers registered yet.
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', width: '100%' }}>
+                    {officersList.map((off) => (
+                      <div
+                        key={off.id}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          padding: '12px 14px',
+                          borderRadius: '14px',
+                          border: '1px solid #e2e8f0',
+                          backgroundColor: '#ffffff',
+                          boxShadow: '0 1px 3px rgba(0,0,0,0.02)',
+                          gap: '10px',
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0, flex: 1 }}>
+                          <div
+                            style={{
+                              width: '46px',
+                              height: '46px',
+                              borderRadius: '12px',
+                              backgroundColor: '#dcfce7',
+                              border: '2px solid #15803d',
+                              overflow: 'hidden',
+                              flexShrink: 0,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                            }}
+                          >
+                            {off.avatar_url ? (
+                              <img src={off.avatar_url} alt={off.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            ) : (
+                              <span style={{ fontSize: '1.2rem' }}>👤</span>
+                            )}
+                          </div>
+                          <div style={{ minWidth: 0 }}>
+                            <h4 style={{ margin: 0, fontSize: '0.92rem', fontWeight: 900, color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                              {off.name}
+                            </h4>
+                            <div style={{ fontSize: '0.78rem', fontWeight: 800, color: '#15803d' }}>
+                              {off.position}
+                            </div>
+                            <div style={{ fontSize: '0.7rem', color: '#64748b' }}>
+                              {off.department} • {off.term}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div style={{ display: 'inline-flex', gap: '6px', flexShrink: 0 }}>
+                          <button
+                            type="button"
+                            onClick={() => handleStartEditOfficer(off)}
+                            style={{
+                              border: '1px solid #bbf7d0',
+                              backgroundColor: '#f0fdf4',
+                              color: '#15803d',
+                              fontWeight: 800,
+                              cursor: 'pointer',
+                              padding: '6px 12px',
+                              borderRadius: '8px',
+                              fontSize: '0.75rem',
+                              touchAction: 'manipulation',
+                            }}
+                          >
+                            Edit
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => triggerDeletePrompt('officer', off.id, off.name)}
+                            style={{
+                              border: '1px solid #fecaca',
+                              backgroundColor: '#fef2f2',
+                              color: '#b91c1c',
+                              fontWeight: 900,
+                              padding: '6px 12px',
+                              borderRadius: '8px',
+                              fontSize: '0.75rem',
+                              cursor: 'pointer',
+                              touchAction: 'manipulation',
+                            }}
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>
