@@ -22,7 +22,7 @@ export default function AdminDashboard() {
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [authChecking, setAuthChecking] = useState(true);
   const [userRole, setUserRole] = useState('admin');
-  const [currentUser, setCurrentUser] = useState({ name: '', email: '', school_id: '' });
+  const [currentUser, setCurrentUser] = useState({ name: '', email: '', school_id: '', can_add_students: false });
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   // Welcome Toast & Logout Modal States
@@ -60,6 +60,7 @@ export default function AdminDashboard() {
   const [staffName, setStaffName] = useState('');
   const [staffEmail, setStaffEmail] = useState('');
   const [staffRole, setStaffRole] = useState('Staff Officer');
+  const [staffCanAddStudent, setStaffCanAddStudent] = useState(false); // Toggle permission state
 
   // 3. Event States
   const [editingEventId, setEditingEventId] = useState(null);
@@ -304,6 +305,7 @@ export default function AdminDashboard() {
           name: profile.full_name || (profile.role === 'admin' ? 'System Administrator' : 'Staff Officer'),
           email: profile.email,
           school_id: profile.school_id || '',
+          can_add_students: Boolean(profile.can_add_students),
         });
 
         if (profile.role === 'staff') {
@@ -420,6 +422,32 @@ export default function AdminDashboard() {
     }
   };
 
+  // TOGGLE STAFF "CAN ADD STUDENT" PERMISSION (INSTANT ADMIN CONTROL)
+  const handleToggleStaffAddStudentPermission = async (staffId, currentStatus, staffMemberName) => {
+    if (userRole !== 'admin') {
+      showNotify('error', 'Only administrators can change staff permissions.');
+      return;
+    }
+
+    try {
+      const nextStatus = !currentStatus;
+      const { error } = await supabase
+        .from('profiles')
+        .update({ can_add_students: nextStatus })
+        .eq('id', staffId);
+
+      if (error) throw new Error(error.message);
+
+      showNotify(
+        'success',
+        `Student Add permission for "${staffMemberName}" is now ${nextStatus ? 'ENABLED (Granted)' : 'DISABLED (Revoked)'}.`
+      );
+      fetchAllData();
+    } catch (err) {
+      showNotify('error', `Permission update failed: ${err.message}`);
+    }
+  };
+
   // STUDENT: ADD & EDIT
   const handleStartEditStudent = (st) => {
     setEditingStudentId(st.id);
@@ -447,6 +475,11 @@ export default function AdminDashboard() {
 
   const handleSaveStudent = async (e) => {
     e.preventDefault();
+
+    if (userRole !== 'admin' && !currentUser.can_add_students) {
+      showNotify('error', 'You do not have permission to add or update students.');
+      return;
+    }
 
     const idRegex = /^\d{4}-\d{4,5}$/;
     if (!idRegex.test(studentId.trim())) {
@@ -688,7 +721,7 @@ export default function AdminDashboard() {
           }
         } else {
           if (height > MAX_HEIGHT) {
-            width *= MAX_DIM / height;
+            width *= MAX_HEIGHT / height;
             height = MAX_HEIGHT;
           }
         }
@@ -829,6 +862,7 @@ export default function AdminDashboard() {
           .update({
             role: 'student',
             can_scan: false,
+            can_add_students: false,
           })
           .eq('id', deleteModal.id);
 
@@ -1190,6 +1224,7 @@ export default function AdminDashboard() {
     }
   };
 
+  // ADD / AUTHORIZE STAFF WITH CAN_ADD_STUDENTS TOGGLE
   const handleAddStaff = async (e) => {
     e.preventDefault();
     if (userRole !== 'admin') {
@@ -1203,7 +1238,7 @@ export default function AdminDashboard() {
     try {
       const { data: existingUser } = await supabase
         .from('profiles')
-        .select('id, full_name, email, role, can_scan')
+        .select('id, full_name, email, role, can_scan, can_add_students')
         .eq('email', cleanEmail)
         .maybeSingle();
 
@@ -1212,13 +1247,17 @@ export default function AdminDashboard() {
           .from('profiles')
           .update({
             can_scan: isScannerGateOpen,
+            can_add_students: staffCanAddStudent,
             role: 'staff',
           })
           .eq('email', cleanEmail);
 
         if (updateError) throw new Error(updateError.message);
 
-        showNotify('success', `Account upgraded. Scanner clearance granted to ${existingUser.full_name}.`);
+        showNotify(
+          'success',
+          `Account upgraded. Scanner clearance granted to ${existingUser.full_name} (Add Student: ${staffCanAddStudent ? 'Enabled' : 'Disabled'}).`
+        );
       } else {
         const generatedStaffId = `STAFF-${Math.floor(1000 + Math.random() * 9000)}`;
         const { error: insertError } = await supabase.from('profiles').insert([
@@ -1229,6 +1268,7 @@ export default function AdminDashboard() {
             password: generatedStaffId,
             role: 'staff',
             can_scan: isScannerGateOpen,
+            can_add_students: staffCanAddStudent,
             status: 'Active',
             must_change_password: true,
           },
@@ -1236,11 +1276,15 @@ export default function AdminDashboard() {
 
         if (insertError) throw new Error(insertError.message);
 
-        showNotify('success', `Staff member ${staffName} successfully registered! Default password: ${generatedStaffId}`);
+        showNotify(
+          'success',
+          `Staff member ${staffName} successfully registered! Default password: ${generatedStaffId}`
+        );
       }
 
       setStaffName('');
       setStaffEmail('');
+      setStaffCanAddStudent(false);
       fetchAllData();
     } catch (err) {
       showNotify('error', err.message);
@@ -1375,6 +1419,7 @@ export default function AdminDashboard() {
   if (!isAuthorized) return null;
 
   const isAdmin = userRole === 'admin';
+  const canAddStudentTab = isAdmin || currentUser.can_add_students;
 
   const historyPresentCount = studentAttendanceRecords.filter((r) => r.status === 'PRESENT').length;
   const historyAbsentCount = studentAttendanceRecords.filter((r) => r.status === 'ABSENT').length;
@@ -1391,7 +1436,7 @@ export default function AdminDashboard() {
         <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js" async />
       </Head>
 
-      {/* TOP GREEN WELCOME BANNER (AUTOMATIC ON LOGIN / LOAD) */}
+      {/* TOP GREEN WELCOME BANNER */}
       {showWelcomeToast && (
         <div
           style={{
@@ -1428,7 +1473,7 @@ export default function AdminDashboard() {
             ✓
           </div>
           <span style={{ fontSize: '0.85rem', fontWeight: 800, color: '#15803d' }}>
-            Welcome to the Admin Portal!
+            Welcome to the {isAdmin ? 'Admin' : 'Staff'} Portal!
           </span>
           <button
             onClick={() => setShowWelcomeToast(false)}
@@ -1633,7 +1678,8 @@ export default function AdminDashboard() {
                 </button>
               )}
 
-              {isAdmin && (
+              {/* ACCESSIBLE IF ADMIN OR PERMITTED STAFF */}
+              {canAddStudentTab && (
                 <button
                   onClick={() => { setActiveTab('add-student'); setIsSidebarOpen(false); }}
                   className={activeTab === 'add-student' ? `${styles.portalNavLink} ${styles.portalNavLinkActive}` : styles.portalNavLink}
@@ -1780,8 +1826,8 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          {/* TAB 2: ADD & EDIT STUDENT */}
-          {activeTab === 'add-student' && isAdmin && (
+          {/* TAB 2: ADD & EDIT STUDENT (ACCESSIBLE TO ADMIN OR PERMITTED STAFF) */}
+          {activeTab === 'add-student' && canAddStudentTab && (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))', gap: '20px', width: '100%' }}>
               <div className={styles.adminFormCard} ref={studentFormRef}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
@@ -1947,7 +1993,7 @@ export default function AdminDashboard() {
                       style={{ width: '120px', padding: '6px 10px', fontSize: '0.8rem' }}
                     />
 
-                    {students.length > 0 && (
+                    {isAdmin && students.length > 0 && (
                       <button
                         type="button"
                         onClick={() => triggerDeletePrompt('all_students', 'ALL', 'ALL enrolled students')}
@@ -2028,23 +2074,25 @@ export default function AdminDashboard() {
                                 >
                                   Edit
                                 </button>
-                                <button
-                                  type="button"
-                                  onClick={() => triggerDeletePrompt('student', st.id, st.school_id)}
-                                  style={{
-                                    border: '1px solid #fecaca',
-                                    backgroundColor: '#fef2f2',
-                                    color: '#b91c1c',
-                                    fontWeight: 900,
-                                    cursor: 'pointer',
-                                    padding: '5px 10px',
-                                    borderRadius: '8px',
-                                    fontSize: '0.75rem',
-                                    touchAction: 'manipulation',
-                                  }}
-                                >
-                                  Remove
-                                </button>
+                                {isAdmin && (
+                                  <button
+                                    type="button"
+                                    onClick={() => triggerDeletePrompt('student', st.id, st.school_id)}
+                                    style={{
+                                      border: '1px solid #fecaca',
+                                      backgroundColor: '#fef2f2',
+                                      color: '#b91c1c',
+                                      fontWeight: 900,
+                                      cursor: 'pointer',
+                                      padding: '5px 10px',
+                                      borderRadius: '8px',
+                                      fontSize: '0.75rem',
+                                      touchAction: 'manipulation',
+                                    }}
+                                  >
+                                    Remove
+                                  </button>
+                                )}
                               </div>
                             </td>
                           </tr>
@@ -2057,281 +2105,9 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          {/* TAB: MANAGE OFFICERS */}
-          {activeTab === 'manage-officers' && isAdmin && (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))', gap: '20px' }}>
-              <div className={styles.adminFormCard} ref={officerFormRef}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
-                  <h3 className={styles.analyticsTitle} style={{ fontSize: '0.95rem', margin: 0 }}>
-                    {editingOfficerId ? 'Edit Student Leader / Officer' : 'Add Student Leader / Officer'}
-                  </h3>
-                  {editingOfficerId && (
-                    <button
-                      type="button"
-                      onClick={handleCancelEditOfficer}
-                      style={{
-                        background: 'none',
-                        border: '1px solid #cbd5e1',
-                        borderRadius: '6px',
-                        padding: '3px 8px',
-                        fontSize: '0.72rem',
-                        fontWeight: 800,
-                        color: '#64748b',
-                        cursor: 'pointer',
-                      }}
-                    >
-                      ✕ Cancel Edit
-                    </button>
-                  )}
-                </div>
-
-                <form onSubmit={handleSaveOfficer} className={styles.loginForm}>
-                  <input
-                    type="file"
-                    ref={officerAvatarInputRef}
-                    onChange={handleOfficerAvatarUpload}
-                    accept="image/*"
-                    style={{ display: 'none' }}
-                  />
-
-                  <div className={styles.inputGroup}>
-                    <label className={styles.inputLabel} style={{ fontSize: '0.75rem' }}>Officer 2x2 / Formal Photo</label>
-                    <div
-                      onClick={() => officerAvatarInputRef.current?.click()}
-                      style={{
-                        border: '2px dashed #bbf7d0',
-                        borderRadius: '14px',
-                        padding: '14px',
-                        textAlign: 'center',
-                        cursor: 'pointer',
-                        backgroundColor: '#f0fdf4',
-                        transition: 'border 0.2s',
-                      }}
-                    >
-                      {compressingOfficerAvatar ? (
-                        <span style={{ fontSize: '0.8rem', color: '#15803d', fontWeight: 800 }}>
-                          Compressing image...
-                        </span>
-                      ) : officerAvatar ? (
-                        <div>
-                          <img
-                            src={officerAvatar}
-                            alt="Officer Preview"
-                            style={{ width: '70px', height: '70px', borderRadius: '18px', objectFit: 'cover' }}
-                          />
-                          <span style={{ fontSize: '0.72rem', color: '#15803d', fontWeight: 800, marginTop: '4px', display: 'block' }}>
-                            Click to change photo
-                          </span>
-                        </div>
-                      ) : (
-                        <div>
-                          <span style={{ fontSize: '1.4rem', display: 'block', marginBottom: '2px' }}>👤</span>
-                          <span style={{ fontSize: '0.82rem', color: '#15803d', fontWeight: 800 }}>
-                            + Upload Formal Photo
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className={styles.inputGroup}>
-                    <label className={styles.inputLabel} style={{ fontSize: '0.75rem' }}>Full Name *</label>
-                    <input
-                      type="text"
-                      placeholder="e.g. Juan Dela Cruz"
-                      value={officerName}
-                      onChange={(e) => setOfficerName(e.target.value)}
-                      className={styles.loginInput}
-                      style={{ padding: '10px 12px', fontSize: '0.9rem' }}
-                      required
-                    />
-                  </div>
-
-                  <div className={styles.inputGroup}>
-                    <label className={styles.inputLabel} style={{ fontSize: '0.75rem' }}>Official Position / Role *</label>
-                    <input
-                      type="text"
-                      placeholder="e.g. President, Vice President, Treasurer"
-                      value={officerPosition}
-                      onChange={(e) => setOfficerPosition(e.target.value)}
-                      className={styles.loginInput}
-                      style={{ padding: '10px 12px', fontSize: '0.9rem' }}
-                      required
-                    />
-                  </div>
-
-                  <div className={styles.inputGroup}>
-                    <label className={styles.inputLabel} style={{ fontSize: '0.75rem' }}>Department / Council</label>
-                    <select
-                      value={officerDepartment}
-                      onChange={(e) => setOfficerDepartment(e.target.value)}
-                      className={styles.loginInput}
-                      style={{ padding: '10px 12px', fontSize: '0.9rem' }}
-                    >
-                      <option value="Supreme Student Government (SSG)">Supreme Student Government (SSG)</option>
-                      <option value="BSCRIM Department">BSCRIM Department</option>
-                      <option value="BSBA Department">BSBA Department</option>
-                      <option value="BSA Department">BSA Department</option>
-                      <option value="BEED Department">BEED Department</option>
-                      <option value="BSAM Department">BSAM Department</option>
-                    </select>
-                  </div>
-
-                  <div className={styles.inputGroup}>
-                    <label className={styles.inputLabel} style={{ fontSize: '0.75rem' }}>Term / Academic Year</label>
-                    <input
-                      type="text"
-                      value={officerTerm}
-                      onChange={(e) => setOfficerTerm(e.target.value)}
-                      className={styles.loginInput}
-                      style={{ padding: '10px 12px', fontSize: '0.9rem' }}
-                    />
-                  </div>
-
-                  <div style={{ display: 'flex', gap: '8px' }}>
-                    <button
-                      type="submit"
-                      disabled={loading || compressingOfficerAvatar}
-                      className={styles.adminPrimaryBtn}
-                      style={{ flex: 1, minHeight: '44px', fontSize: '0.9rem' }}
-                    >
-                      {loading
-                        ? 'Saving...'
-                        : editingOfficerId
-                        ? 'Save Changes ➔'
-                        : 'Publish Officer ➔'}
-                    </button>
-                    {editingOfficerId && (
-                      <button
-                        type="button"
-                        onClick={handleCancelEditOfficer}
-                        style={{
-                          backgroundColor: '#f1f5f9',
-                          color: '#475569',
-                          border: '1px solid #cbd5e1',
-                          borderRadius: '12px',
-                          padding: '0 14px',
-                          fontWeight: 800,
-                          cursor: 'pointer',
-                        }}
-                      >
-                        Cancel
-                      </button>
-                    )}
-                  </div>
-                </form>
-              </div>
-
-              {/* Published Officers Roster */}
-              <div className={styles.adminFormCard}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
-                  <h3 className={styles.analyticsTitle} style={{ fontSize: '0.95rem', margin: 0 }}>
-                    Official Officers Roster ({officersList.length})
-                  </h3>
-                </div>
-
-                {officersList.length === 0 ? (
-                  <div style={{ textAlign: 'center', padding: '30px', color: '#94a3b8', fontSize: '0.85rem' }}>
-                    No officers registered yet.
-                  </div>
-                ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', width: '100%' }}>
-                    {officersList.map((off) => (
-                      <div
-                        key={off.id}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          padding: '12px 14px',
-                          borderRadius: '14px',
-                          border: '1px solid #e2e8f0',
-                          backgroundColor: '#ffffff',
-                          boxShadow: '0 1px 3px rgba(0,0,0,0.02)',
-                          gap: '10px',
-                        }}
-                      >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0, flex: 1 }}>
-                          <div
-                            style={{
-                              width: '46px',
-                              height: '46px',
-                              borderRadius: '12px',
-                              backgroundColor: '#dcfce7',
-                              border: '2px solid #15803d',
-                              overflow: 'hidden',
-                              flexShrink: 0,
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                            }}
-                          >
-                            {off.avatar_url ? (
-                              <img src={off.avatar_url} alt={off.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                            ) : (
-                              <span style={{ fontSize: '1.2rem' }}>👤</span>
-                            )}
-                          </div>
-                          <div style={{ minWidth: 0 }}>
-                            <h4 style={{ margin: 0, fontSize: '0.92rem', fontWeight: 900, color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                              {off.name}
-                            </h4>
-                            <div style={{ fontSize: '0.78rem', fontWeight: 800, color: '#15803d' }}>
-                              {off.position}
-                            </div>
-                            <div style={{ fontSize: '0.7rem', color: '#64748b' }}>
-                              {off.department} • {off.term}
-                            </div>
-                          </div>
-                        </div>
-
-                        <div style={{ display: 'inline-flex', gap: '6px', flexShrink: 0 }}>
-                          <button
-                            type="button"
-                            onClick={() => handleStartEditOfficer(off)}
-                            style={{
-                              border: '1px solid #bbf7d0',
-                              backgroundColor: '#f0fdf4',
-                              color: '#15803d',
-                              fontWeight: 800,
-                              cursor: 'pointer',
-                              padding: '6px 12px',
-                              borderRadius: '8px',
-                              fontSize: '0.75rem',
-                              touchAction: 'manipulation',
-                            }}
-                          >
-                            Edit
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => triggerDeletePrompt('officer', off.id, off.name)}
-                            style={{
-                              border: '1px solid #fecaca',
-                              backgroundColor: '#fef2f2',
-                              color: '#b91c1c',
-                              fontWeight: 900,
-                              padding: '6px 12px',
-                              borderRadius: '8px',
-                              fontSize: '0.75rem',
-                              cursor: 'pointer',
-                              touchAction: 'manipulation',
-                            }}
-                          >
-                            Remove
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* TAB 3: MANAGE STAFF */}
+          {/* TAB 3: MANAGE STAFF & AUTHORIZED SCANNERS */}
           {activeTab === 'add-staff' && isAdmin && (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))', gap: '20px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px' }}>
               <div className={styles.adminFormCard}>
                 <h3 className={styles.analyticsTitle} style={{ fontSize: '0.9rem', marginBottom: '14px' }}>
                   Authorize Staff / Student Scanner
@@ -2375,6 +2151,74 @@ export default function AdminDashboard() {
                     />
                   </div>
 
+                  {/* TOGGLE: ALLOW ADDING STUDENTS */}
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      backgroundColor: staffCanAddStudent ? '#f0fdf4' : '#f8fafc',
+                      border: `1.5px solid ${staffCanAddStudent ? '#86efac' : '#e2e8f0'}`,
+                      borderRadius: '14px',
+                      padding: '10px 14px',
+                      marginBottom: '16px',
+                      transition: 'all 0.2s',
+                    }}
+                  >
+                    <div>
+                      <span style={{ fontSize: '0.82rem', fontWeight: 900, color: staffCanAddStudent ? '#15803d' : '#0f172a', display: 'block' }}>
+                        Allow Adding Students
+                      </span>
+                      <span style={{ fontSize: '0.7rem', color: '#64748b', fontWeight: 600 }}>
+                        {staffCanAddStudent ? 'Staff can register new students' : 'Only allowed to scan attendance'}
+                      </span>
+                    </div>
+
+                    <label
+                      style={{
+                        position: 'relative',
+                        display: 'inline-block',
+                        width: '44px',
+                        height: '24px',
+                        flexShrink: 0,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={staffCanAddStudent}
+                        onChange={(e) => setStaffCanAddStudent(e.target.checked)}
+                        style={{ opacity: 0, width: 0, height: 0 }}
+                      />
+                      <span
+                        style={{
+                          position: 'absolute',
+                          top: 0,
+                          left: 0,
+                          right: 0,
+                          bottom: 0,
+                          backgroundColor: staffCanAddStudent ? '#15803d' : '#cbd5e1',
+                          transition: '0.25s',
+                          borderRadius: '24px',
+                        }}
+                      >
+                        <span
+                          style={{
+                            position: 'absolute',
+                            height: '18px',
+                            width: '18px',
+                            left: staffCanAddStudent ? '22px' : '3px',
+                            bottom: '3px',
+                            backgroundColor: '#ffffff',
+                            transition: '0.25s',
+                            borderRadius: '50%',
+                            boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+                          }}
+                        />
+                      </span>
+                    </label>
+                  </div>
+
                   <button type="submit" disabled={loading} className={styles.adminPrimaryBtn} style={{ minHeight: '44px', fontSize: '0.9rem' }}>
                     {loading ? 'Authorizing...' : 'Authorize Scanner Privilege ➔'}
                   </button>
@@ -2392,9 +2236,10 @@ export default function AdminDashboard() {
                     No authorized scanners registered yet.
                   </div>
                 ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', width: '100%' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', width: '100%' }}>
                     {staffList.map((st) => {
                       const isPermanentAdmin = st.role === 'admin';
+                      const canAddSt = Boolean(st.can_add_students);
 
                       return (
                         <div
@@ -2402,69 +2247,109 @@ export default function AdminDashboard() {
                           style={{
                             backgroundColor: '#ffffff',
                             border: `1px solid ${isPermanentAdmin ? '#bbf7d0' : '#e2e8f0'}`,
-                            borderRadius: '14px',
-                            padding: '12px 14px',
+                            borderRadius: '16px',
+                            padding: '14px',
                             display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'space-between',
+                            flexDirection: 'column',
                             gap: '10px',
                             width: '100%',
                             boxSizing: 'border-box',
                             boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
                           }}
                         >
-                          <div style={{ minWidth: 0, flex: 1 }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                              <h4 style={{ margin: '0 0 2px 0', fontSize: '0.92rem', fontWeight: 900, color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                {st.full_name}
-                              </h4>
-                              {isPermanentAdmin && (
-                                <span style={{ fontSize: '0.62rem', fontWeight: 900, color: '#15803d', backgroundColor: '#dcfce7', padding: '2px 6px', borderRadius: '6px', border: '1px solid #bbf7d0' }}>
-                                  ADMIN
-                                </span>
-                              )}
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
+                            <div style={{ minWidth: 0, flex: 1 }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <h4 style={{ margin: '0 0 2px 0', fontSize: '0.92rem', fontWeight: 900, color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                  {st.full_name}
+                                </h4>
+                                {isPermanentAdmin && (
+                                  <span style={{ fontSize: '0.62rem', fontWeight: 900, color: '#15803d', backgroundColor: '#dcfce7', padding: '2px 6px', borderRadius: '6px', border: '1px solid #bbf7d0' }}>
+                                    ADMIN
+                                  </span>
+                                )}
+                              </div>
+                              <div style={{ fontSize: '0.75rem', color: '#64748b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                {st.email}
+                              </div>
                             </div>
-                            <div style={{ fontSize: '0.75rem', color: '#64748b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                              {st.email}
-                            </div>
+
+                            {isPermanentAdmin ? (
+                              <span
+                                style={{
+                                  backgroundColor: '#f0fdf4',
+                                  color: '#15803d',
+                                  border: '1px solid #bbf7d0',
+                                  padding: '5px 10px',
+                                  borderRadius: '10px',
+                                  fontSize: '0.72rem',
+                                  fontWeight: 900,
+                                  flexShrink: 0,
+                                  textTransform: 'uppercase',
+                                  letterSpacing: '0.02em',
+                                }}
+                              >
+                                Permanent Admin
+                              </span>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => triggerDeletePrompt('staff', st.id, st.full_name)}
+                                style={{
+                                  border: '1px solid #fed7aa',
+                                  backgroundColor: '#fff7ed',
+                                  color: '#ea580c',
+                                  fontWeight: 900,
+                                  cursor: 'pointer',
+                                  padding: '5px 12px',
+                                  borderRadius: '8px',
+                                  fontSize: '0.75rem',
+                                  flexShrink: 0,
+                                  touchAction: 'manipulation',
+                                }}
+                              >
+                                Revoke
+                              </button>
+                            )}
                           </div>
 
-                          {isPermanentAdmin ? (
-                            <span
+                          {/* PERMISSION TOGGLE FOR NON-ADMIN STAFF */}
+                          {!isPermanentAdmin && (
+                            <div
                               style={{
-                                backgroundColor: '#f0fdf4',
-                                color: '#15803d',
-                                border: '1px solid #bbf7d0',
-                                padding: '6px 12px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                backgroundColor: canAddSt ? '#f0fdf4' : '#f8fafc',
+                                border: `1px solid ${canAddSt ? '#bbf7d0' : '#e2e8f0'}`,
                                 borderRadius: '10px',
-                                fontSize: '0.75rem',
-                                fontWeight: 900,
-                                flexShrink: 0,
-                                textTransform: 'uppercase',
-                                letterSpacing: '0.02em',
+                                padding: '6px 10px',
                               }}
                             >
-                              Permanent Admin
-                            </span>
-                          ) : (
-                            <button
-                              type="button"
-                              onClick={() => triggerDeletePrompt('staff', st.id, st.full_name)}
-                              style={{
-                                border: '1px solid #fed7aa',
-                                backgroundColor: '#fff7ed',
-                                color: '#ea580c',
-                                fontWeight: 900,
-                                cursor: 'pointer',
-                                padding: '6px 14px',
-                                borderRadius: '10px',
-                                fontSize: '0.82rem',
-                                flexShrink: 0,
-                                touchAction: 'manipulation',
-                              }}
-                            >
-                              Revoke
-                            </button>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <span style={{ fontSize: '0.72rem', fontWeight: 800, color: canAddSt ? '#15803d' : '#64748b' }}>
+                                  Can Add Student: <strong>{canAddSt ? 'ALLOWED' : 'LOCKED'}</strong>
+                                </span>
+                              </div>
+
+                              <button
+                                type="button"
+                                onClick={() => handleToggleStaffAddStudentPermission(st.id, canAddSt, st.full_name)}
+                                style={{
+                                  padding: '4px 10px',
+                                  borderRadius: '6px',
+                                  fontSize: '0.7rem',
+                                  fontWeight: 900,
+                                  cursor: 'pointer',
+                                  border: `1px solid ${canAddSt ? '#fca5a5' : '#bbf7d0'}`,
+                                  backgroundColor: canAddSt ? '#fef2f2' : '#f0fdf4',
+                                  color: canAddSt ? '#dc2626' : '#15803d',
+                                  touchAction: 'manipulation',
+                                }}
+                              >
+                                {canAddSt ? 'Revoke Permission' : 'Grant Permission'}
+                              </button>
+                            </div>
                           )}
                         </div>
                       );
@@ -2807,6 +2692,278 @@ export default function AdminDashboard() {
                         </div>
                       );
                     })}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* TAB: MANAGE OFFICERS */}
+          {activeTab === 'manage-officers' && isAdmin && (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))', gap: '20px' }}>
+              <div className={styles.adminFormCard} ref={officerFormRef}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+                  <h3 className={styles.analyticsTitle} style={{ fontSize: '0.95rem', margin: 0 }}>
+                    {editingOfficerId ? 'Edit Student Leader / Officer' : 'Add Student Leader / Officer'}
+                  </h3>
+                  {editingOfficerId && (
+                    <button
+                      type="button"
+                      onClick={handleCancelEditOfficer}
+                      style={{
+                        background: 'none',
+                        border: '1px solid #cbd5e1',
+                        borderRadius: '6px',
+                        padding: '3px 8px',
+                        fontSize: '0.72rem',
+                        fontWeight: 800,
+                        color: '#64748b',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      ✕ Cancel Edit
+                    </button>
+                  )}
+                </div>
+
+                <form onSubmit={handleSaveOfficer} className={styles.loginForm}>
+                  <input
+                    type="file"
+                    ref={officerAvatarInputRef}
+                    onChange={handleOfficerAvatarUpload}
+                    accept="image/*"
+                    style={{ display: 'none' }}
+                  />
+
+                  <div className={styles.inputGroup}>
+                    <label className={styles.inputLabel} style={{ fontSize: '0.75rem' }}>Officer 2x2 / Formal Photo</label>
+                    <div
+                      onClick={() => officerAvatarInputRef.current?.click()}
+                      style={{
+                        border: '2px dashed #bbf7d0',
+                        borderRadius: '14px',
+                        padding: '14px',
+                        textAlign: 'center',
+                        cursor: 'pointer',
+                        backgroundColor: '#f0fdf4',
+                        transition: 'border 0.2s',
+                      }}
+                    >
+                      {compressingOfficerAvatar ? (
+                        <span style={{ fontSize: '0.8rem', color: '#15803d', fontWeight: 800 }}>
+                          Compressing image...
+                        </span>
+                      ) : officerAvatar ? (
+                        <div>
+                          <img
+                            src={officerAvatar}
+                            alt="Officer Preview"
+                            style={{ width: '70px', height: '70px', borderRadius: '18px', objectFit: 'cover' }}
+                          />
+                          <span style={{ fontSize: '0.72rem', color: '#15803d', fontWeight: 800, marginTop: '4px', display: 'block' }}>
+                            Click to change photo
+                          </span>
+                        </div>
+                      ) : (
+                        <div>
+                          <span style={{ fontSize: '1.4rem', display: 'block', marginBottom: '2px' }}>👤</span>
+                          <span style={{ fontSize: '0.82rem', color: '#15803d', fontWeight: 800 }}>
+                            + Upload Formal Photo
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className={styles.inputGroup}>
+                    <label className={styles.inputLabel} style={{ fontSize: '0.75rem' }}>Full Name *</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Juan Dela Cruz"
+                      value={officerName}
+                      onChange={(e) => setOfficerName(e.target.value)}
+                      className={styles.loginInput}
+                      style={{ padding: '10px 12px', fontSize: '0.9rem' }}
+                      required
+                    />
+                  </div>
+
+                  <div className={styles.inputGroup}>
+                    <label className={styles.inputLabel} style={{ fontSize: '0.75rem' }}>Official Position / Role *</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. President, Vice President, Treasurer"
+                      value={officerPosition}
+                      onChange={(e) => setOfficerPosition(e.target.value)}
+                      className={styles.loginInput}
+                      style={{ padding: '10px 12px', fontSize: '0.9rem' }}
+                      required
+                    />
+                  </div>
+
+                  <div className={styles.inputGroup}>
+                    <label className={styles.inputLabel} style={{ fontSize: '0.75rem' }}>Department / Council</label>
+                    <select
+                      value={officerDepartment}
+                      onChange={(e) => setOfficerDepartment(e.target.value)}
+                      className={styles.loginInput}
+                      style={{ padding: '10px 12px', fontSize: '0.9rem' }}
+                    >
+                      <option value="Supreme Student Government (SSG)">Supreme Student Government (SSG)</option>
+                      <option value="BSCRIM Department">BSCRIM Department</option>
+                      <option value="BSBA Department">BSBA Department</option>
+                      <option value="BSA Department">BSA Department</option>
+                      <option value="BEED Department">BEED Department</option>
+                      <option value="BSAM Department">BSAM Department</option>
+                    </select>
+                  </div>
+
+                  <div className={styles.inputGroup}>
+                    <label className={styles.inputLabel} style={{ fontSize: '0.75rem' }}>Term / Academic Year</label>
+                    <input
+                      type="text"
+                      value={officerTerm}
+                      onChange={(e) => setOfficerTerm(e.target.value)}
+                      className={styles.loginInput}
+                      style={{ padding: '10px 12px', fontSize: '0.9rem' }}
+                    />
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button
+                      type="submit"
+                      disabled={loading || compressingOfficerAvatar}
+                      className={styles.adminPrimaryBtn}
+                      style={{ flex: 1, minHeight: '44px', fontSize: '0.9rem' }}
+                    >
+                      {loading
+                        ? 'Saving...'
+                        : editingOfficerId
+                        ? 'Save Changes ➔'
+                        : 'Publish Officer ➔'}
+                    </button>
+                    {editingOfficerId && (
+                      <button
+                        type="button"
+                        onClick={handleCancelEditOfficer}
+                        style={{
+                          backgroundColor: '#f1f5f9',
+                          color: '#475569',
+                          border: '1px solid #cbd5e1',
+                          borderRadius: '12px',
+                          padding: '0 14px',
+                          fontWeight: 800,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        Cancel
+                      </button>
+                    )}
+                  </div>
+                </form>
+              </div>
+
+              {/* Published Officers Roster */}
+              <div className={styles.adminFormCard}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+                  <h3 className={styles.analyticsTitle} style={{ fontSize: '0.95rem', margin: 0 }}>
+                    Official Officers Roster ({officersList.length})
+                  </h3>
+                </div>
+
+                {officersList.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '30px', color: '#94a3b8', fontSize: '0.85rem' }}>
+                    No officers registered yet.
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', width: '100%' }}>
+                    {officersList.map((off) => (
+                      <div
+                        key={off.id}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          padding: '12px 14px',
+                          borderRadius: '14px',
+                          border: '1px solid #e2e8f0',
+                          backgroundColor: '#ffffff',
+                          boxShadow: '0 1px 3px rgba(0,0,0,0.02)',
+                          gap: '10px',
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0, flex: 1 }}>
+                          <div
+                            style={{
+                              width: '46px',
+                              height: '46px',
+                              borderRadius: '12px',
+                              backgroundColor: '#dcfce7',
+                              border: '2px solid #15803d',
+                              overflow: 'hidden',
+                              flexShrink: 0,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                            }}
+                          >
+                            {off.avatar_url ? (
+                              <img src={off.avatar_url} alt={off.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            ) : (
+                              <span style={{ fontSize: '1.2rem' }}>👤</span>
+                            )}
+                          </div>
+                          <div style={{ minWidth: 0 }}>
+                            <h4 style={{ margin: 0, fontSize: '0.92rem', fontWeight: 900, color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                              {off.name}
+                            </h4>
+                            <div style={{ fontSize: '0.78rem', fontWeight: 800, color: '#15803d' }}>
+                              {off.position}
+                            </div>
+                            <div style={{ fontSize: '0.7rem', color: '#64748b' }}>
+                              {off.department} • {off.term}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div style={{ display: 'inline-flex', gap: '6px', flexShrink: 0 }}>
+                          <button
+                            type="button"
+                            onClick={() => handleStartEditOfficer(off)}
+                            style={{
+                              border: '1px solid #bbf7d0',
+                              backgroundColor: '#f0fdf4',
+                              color: '#15803d',
+                              fontWeight: 800,
+                              cursor: 'pointer',
+                              padding: '6px 12px',
+                              borderRadius: '8px',
+                              fontSize: '0.75rem',
+                              touchAction: 'manipulation',
+                            }}
+                          >
+                            Edit
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => triggerDeletePrompt('officer', off.id, off.name)}
+                            style={{
+                              border: '1px solid #fecaca',
+                              backgroundColor: '#fef2f2',
+                              color: '#b91c1c',
+                              fontWeight: 900,
+                              padding: '6px 12px',
+                              borderRadius: '8px',
+                              fontSize: '0.75rem',
+                              cursor: 'pointer',
+                              touchAction: 'manipulation',
+                            }}
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>
@@ -3865,29 +4022,3 @@ export default function AdminDashboard() {
                 type="button"
                 onClick={() => setDeleteModal({ isOpen: false, type: '', id: null, title: '' })}
                 disabled={deletingRecord}
-                style={{
-                  width: '100%',
-                  padding: '10px',
-                  backgroundColor: '#f1f5f9',
-                  color: '#475569',
-                  border: 'none',
-                  borderRadius: '12px',
-                  fontSize: '0.85rem',
-                  fontWeight: 800,
-                  cursor: 'pointer',
-                  touchAction: 'manipulation',
-                }}
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-export async function getServerSideProps() {
-  return { props: {} };
-}
