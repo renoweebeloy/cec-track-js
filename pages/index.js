@@ -1345,7 +1345,7 @@ export default function Home() {
                 letterSpacing: '0.06em',
               }}
             >
-              LEADERSHIP &amp; FACULTY
+              LEADERSHIP &amp; Officer
             </span>
           </div>
 
@@ -1370,7 +1370,7 @@ export default function Home() {
               lineHeight: 1.55,
             }}
           >
-            Dedicated student leaders and faculty advisers steering the Cateel Extension Campus
+            Dedicated student leaders and Officer steering the Cateel Extension Campus
             toward academic and professional excellence.
           </p>
 
