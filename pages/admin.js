@@ -2021,7 +2021,7 @@ export default function AdminDashboard() {
                   <table style={{ width: '100%', minWidth: '520px', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.82rem' }}>
                     <thead>
                       <tr style={{ backgroundColor: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
-                        <th style={{ padding: '10px 12px', fontWeight: 800, color: '#475569' }}>School ID</th>
+                        <th style={{ padding: '10px 12px', fontWeight: 800, color: '#475569' }}>Student ID</th>
                         <th style={{ padding: '10px 12px', fontWeight: 800, color: '#475569' }}>Student Details</th>
                         <th style={{ padding: '10px 12px', fontWeight: 800, color: '#475569' }}>Course &amp; Section</th>
                         <th style={{ padding: '10px 12px', fontWeight: 800, color: '#475569', textAlign: 'center', minWidth: '130px' }}>Action</th>
