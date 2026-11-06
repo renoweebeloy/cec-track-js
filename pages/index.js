@@ -9,7 +9,7 @@ export default function Home() {
   const [currentTime, setCurrentTime] = useState('');
   const [currentDate, setCurrentDate] = useState('');
 
-  // Course counts from database
+  // Course counts gikan sa database
   const [counts, setCounts] = useState({
     BSBA: 0,
     BSCRIM: 0,
@@ -35,12 +35,10 @@ export default function Home() {
     if (!timeStr) return '';
     const trimmed = String(timeStr).trim();
 
-    // Kon daan nang naay AM o PM, ibalik lang kini
     if (/am|pm/i.test(trimmed)) {
       return trimmed.toUpperCase();
     }
 
-    // Kon "08:00" o "12:00:00" ang format gikan sa database / input type="time"
     const parts = trimmed.split(':');
     if (parts.length >= 2) {
       let hours = parseInt(parts[0], 10);
@@ -48,7 +46,7 @@ export default function Home() {
       if (isNaN(hours)) return trimmed;
 
       const ampm = hours >= 12 ? 'PM' : 'AM';
-      hours = hours % 12 || 12; // Ang 0 mahimong 12 (Midnight), ang 12 magpabiling 12 (Noon)
+      hours = hours % 12 || 12;
       const paddedHours = String(hours).padStart(2, '0');
       return `${paddedHours}:${minutes} ${ampm}`;
     }
@@ -84,7 +82,7 @@ export default function Home() {
     return () => clearInterval(timer);
   }, []);
 
-  // Fetch initial data (Concurrent queries)
+  // Fetch initial data
   const fetchData = async () => {
     if (!supabase) return;
 
@@ -293,7 +291,7 @@ export default function Home() {
         }
 
         /* ------------------------------------------------------------- */
-        /* HOVER EFFECTS: COURSE CARDS (2ND PICTURE)                     */
+        /* HOVER EFFECTS: COURSE CARDS                                   */
         /* ------------------------------------------------------------- */
         .course-card-hover {
           transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s ease, border-color 0.25s ease !important;
@@ -308,7 +306,7 @@ export default function Home() {
         }
 
         /* ------------------------------------------------------------- */
-        /* HOVER EFFECTS: CAMPUS EVENT CARDS (3RD PICTURE)               */
+        /* HOVER EFFECTS: CAMPUS EVENT CARDS                             */
         /* ------------------------------------------------------------- */
         .event-card-hover {
           background-color: #ffffff;
@@ -318,7 +316,7 @@ export default function Home() {
           box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
           display: flex;
           flex-direction: column;
-          justifyContent: space-between;
+          justify-content: space-between;
           transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s ease, border-color 0.25s ease;
           cursor: pointer;
           will-change: transform, box-shadow;
@@ -339,7 +337,7 @@ export default function Home() {
         }
 
         /* ------------------------------------------------------------- */
-        /* HOVER EFFECTS: OFFICER CARDS (VIDEO)                          */
+        /* HOVER EFFECTS: OFFICER CARDS                                  */
         /* ------------------------------------------------------------- */
         .officers-grid {
           display: grid;
@@ -359,7 +357,7 @@ export default function Home() {
           display: flex;
           flex-direction: column;
           align-items: center;
-          justifyContent: space-between;
+          justify-content: space-between;
           cursor: pointer;
         }
 
@@ -509,23 +507,38 @@ export default function Home() {
             <span>📅 {currentDate || 'Nov 6, 2026'}</span>
           </div>
 
+          {/* OFFICIAL CEC PORTAL PILL BADGE NGA MAY BERDENG SHIELD-CHECK ICON */}
           <div
             style={{
               display: 'inline-flex',
               alignItems: 'center',
-              gap: '6px',
+              gap: '7px',
               backgroundColor: '#ffffff',
-              border: '1px solid #bbf7d0',
+              border: '1.5px solid #bbf7d0',
               borderRadius: '9999px',
               padding: '6px 14px',
-              fontSize: '0.68rem',
+              fontSize: '0.72rem',
               fontWeight: 800,
               color: '#15803d',
-              boxShadow: '0 1px 2px rgba(21, 128, 61, 0.05)',
+              boxShadow: '0 2px 6px rgba(21, 128, 61, 0.06)',
               whiteSpace: 'nowrap',
             }}
           >
-            Official CEC Portal
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="#16a34a"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              style={{ flexShrink: 0 }}
+            >
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+              <path d="m9 12 2 2 4-4" />
+            </svg>
+            <span>Official CEC Portal</span>
           </div>
         </div>
 
@@ -1039,7 +1052,7 @@ export default function Home() {
           </div>
         </section>
 
-        {/* Live Course Analytics Grid (2ND PICTURE - INTERACTIVE HOVER CARDS) */}
+        {/* Live Course Analytics Grid */}
         <section className={styles.analyticsSection}>
           <div className={styles.analyticsHeader}>
             <div
@@ -1162,7 +1175,7 @@ export default function Home() {
           </div>
         </section>
 
-        {/* UPCOMING & OFFICIAL CAMPUS EVENTS (3RD PICTURE - WITH AM/PM FORMATTING) */}
+        {/* UPCOMING & OFFICIAL CAMPUS EVENTS */}
         <section
           className={styles.analyticsSection}
           id="events-section"
@@ -1312,7 +1325,6 @@ export default function Home() {
                           </div>
                         )}
 
-                        {/* TIME ROW: Naa nay AM / PM */}
                         <div
                           style={{
                             fontSize: '0.76rem',
@@ -1380,7 +1392,7 @@ export default function Home() {
           )}
         </section>
 
-        {/* LEADERSHIP & FACULTY SECTION (VIDEO HOVER DEMO) */}
+        {/* LEADERSHIP & FACULTY SECTION */}
         <section
           className={styles.analyticsSection}
           style={{ marginTop: '48px', textAlign: 'center' }}
