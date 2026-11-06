@@ -75,7 +75,6 @@ export default function StudentDashboard() {
     }, 4500);
   };
 
-  // Auto-dismiss welcome toast pagkatapos ng 5 segundo
   useEffect(() => {
     const welcomeTimer = setTimeout(() => {
       setShowWelcomeToast(false);
@@ -147,7 +146,6 @@ export default function StudentDashboard() {
     fetchStudentData();
   }, []);
 
-  // Pagkuha ng Datos mula sa Supabase
   const fetchStudentData = async (isManualRefresh = false) => {
     if (isManualRefresh) {
       setRefreshing(true);
@@ -1193,7 +1191,7 @@ export default function StudentDashboard() {
             </div>
           )}
 
-          {/* TAB 2: ATTENDANCE (MAY GUMAGANANG REFRESH BUTTON) */}
+          {/* TAB 2: ATTENDANCE */}
           {activeTab === 'attendance' && (
             <div style={{ maxWidth: '980px', margin: '0 auto', width: '100%' }}>
               <div style={{ display: 'inline-block', backgroundColor: '#f0fdf4', color: '#15803d', border: '1px solid #bbf7d0', padding: '4px 14px', borderRadius: '9999px', fontSize: '0.72rem', fontWeight: 900, textTransform: 'uppercase', marginBottom: '8px' }}>
@@ -1376,12 +1374,11 @@ export default function StudentDashboard() {
             </div>
           )}
 
-          {/* TAB 3: EVENTS (MAY GREEN PILL BADGE NA MAY CALENDAR ICON) */}
+          {/* TAB 3: EVENTS (GI-UPDATE NGA PLACEHOLDER ICON SUSAMA SA IKA-2 NGA HULAGWAY) */}
           {activeTab === 'events' && (
             <div style={{ maxWidth: '980px', margin: '0 auto', width: '100%' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px', flexWrap: 'wrap', gap: '14px' }}>
                 <div>
-                  {/* GREEN BADGE NA MAY CALENDAR ICON GAYA NG NASA UNANG LARAWAN */}
                   <div
                     style={{
                       display: 'inline-flex',
@@ -1425,7 +1422,7 @@ export default function StudentDashboard() {
                   </p>
                 </div>
 
-                {/* Counter Box sa Taas */}
+                {/* Counter Box */}
                 <div
                   style={{
                     backgroundColor: '#ffffff',
@@ -1455,7 +1452,7 @@ export default function StudentDashboard() {
                 </div>
               </div>
 
-              {/* Filter Pills & Search Input */}
+              {/* Filter Pills & Search */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
                 <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                   <button
@@ -1555,7 +1552,7 @@ export default function StudentDashboard() {
                 </div>
               </div>
 
-              {/* Event Cards */}
+              {/* Event Cards Listing */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
                 {filteredOrgEvents.length === 0 ? (
                   <div style={{ textAlign: 'center', padding: '40px', backgroundColor: '#ffffff', borderRadius: '20px', border: '1px solid #e2e8f0', color: '#94a3b8' }}>
@@ -1575,13 +1572,37 @@ export default function StudentDashboard() {
                           boxShadow: '0 2px 8px rgba(0,0,0,0.03)',
                         }}
                       >
+                        {/* KUNG MAY PIC: IPAPAKITA ANG LARAWAN; KUNG WALA: IPAPAKITA ANG PLACEHOLDER ICON (2ND PICTURE) */}
                         {ev.image_url ? (
                           <div style={{ width: '100%', height: '170px', overflow: 'hidden' }}>
                             <img src={ev.image_url} alt={ev.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                           </div>
                         ) : (
-                          <div style={{ width: '100%', height: '90px', backgroundColor: '#f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'center', borderBottom: '1px solid #f1f5f9' }}>
-                            <img src="/logo.png" alt="Campus Logo" style={{ width: '45px', height: '45px', objectFit: 'contain' }} onError={(e) => (e.currentTarget.style.display = 'none')} />
+                          <div
+                            style={{
+                              width: '100%',
+                              height: '150px',
+                              backgroundColor: '#f8fafc',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              borderBottom: '1px solid #f1f5f9',
+                            }}
+                          >
+                            <svg
+                              width="52"
+                              height="52"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="#cbd5e1"
+                              strokeWidth="1.6"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            >
+                              <rect x="3" y="3" width="18" height="18" rx="4" ry="4" />
+                              <circle cx="8.5" cy="8.5" r="1.5" fill="#cbd5e1" stroke="none" />
+                              <polyline points="21 15 16 10 5 21" />
+                            </svg>
                           </div>
                         )}
 
@@ -1851,7 +1872,7 @@ export default function StudentDashboard() {
             </div>
           )}
 
-          {/* TAB 6: PROFILE (PANGALAWANG LARAWAN - PINALITAN ANG SCANNER PRIVILEGE NG STUDENT) */}
+          {/* TAB 6: PROFILE */}
           {activeTab === 'profile' && (
             <div style={{ maxWidth: '640px', margin: '0 auto', width: '100%' }}>
               <div style={{ textAlign: 'center', marginBottom: '20px' }}>
@@ -1933,7 +1954,7 @@ export default function StudentDashboard() {
                     <span style={{ fontWeight: 800, color: '#0f172a', wordBreak: 'break-all' }}>{profile.email}</span>
                   </div>
 
-                  {/* PINALITAN ANG "Scanner Privilege / STANDARD MEMBER" NG "Student / STUDENT" */}
+                  {/* Student Status */}
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '4px' }}>
                     <span style={{ color: '#64748b', fontWeight: 700 }}>Student</span>
                     <span style={{ backgroundColor: '#dcfce7', color: '#15803d', borderRadius: '6px', padding: '3px 10px', fontSize: '0.72rem', fontWeight: 900, border: '1px solid #bbf7d0' }}>
@@ -1981,7 +2002,7 @@ export default function StudentDashboard() {
             </div>
           )}
 
-          {/* TAB 7: ABOUT (KUMPLETONG DATI AT ORIGINAL NA CODE NA WALANG BAWAS) */}
+          {/* TAB 7: ABOUT */}
           {activeTab === 'about' && (
             <div style={{ maxWidth: '980px', margin: '0 auto', width: '100%' }}>
               <section style={{ textAlign: 'center', marginBottom: '32px' }}>
@@ -2078,7 +2099,7 @@ export default function StudentDashboard() {
                 </p>
               </section>
 
-              {/* Who Uses CECTRACK (IBINALIK NA BUO) */}
+              {/* Who Uses CECTRACK */}
               <section style={{ marginBottom: '40px' }}>
                 <div style={{ textAlign: 'center', marginBottom: '24px' }}>
                   <h2 style={{ fontSize: '1.65rem', fontWeight: 900, color: '#0f172a', margin: '0 0 6px 0' }}>
@@ -2146,7 +2167,7 @@ export default function StudentDashboard() {
                 </div>
               </section>
 
-              {/* Developer Profile (IBINALIK NA BUO) */}
+              {/* Developer Profile */}
               <section
                 style={{
                   background: 'linear-gradient(145deg, #064e3b 0%, #022c22 100%)',
@@ -2345,7 +2366,7 @@ export default function StudentDashboard() {
         </div>
       )}
 
-      {/* CHANGE PASSWORD MODAL (MAY OPISYAL NA LOGO) */}
+      {/* CHANGE PASSWORD MODAL */}
       {isChangePasswordOpen && (
         <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(15, 23, 42, 0.65)', backdropFilter: 'blur(4px)', zIndex: 120, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
           <div style={{ backgroundColor: '#ffffff', width: '100%', maxWidth: '400px', borderRadius: '24px', padding: '26px 24px', boxShadow: '0 20px 40px rgba(0,0,0,0.2)', position: 'relative' }}>
