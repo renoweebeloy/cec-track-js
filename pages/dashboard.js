@@ -12,6 +12,7 @@ export default function StudentDashboard() {
   const [activeTab, setActiveTab] = useState('my-id');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [downloadingId, setDownloadingId] = useState(false);
 
@@ -46,6 +47,11 @@ export default function StudentDashboard() {
   const [officersList, setOfficersList] = useState([]);
   const [attendanceFilter, setAttendanceFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
+  
+  // Organization Events Filters & Search (2nd Picture)
+  const [eventTabFilter, setEventTabFilter] = useState('all'); // 'all' | 'active' | 'inactive'
+  const [eventTabSearch, setEventTabSearch] = useState('');
+
   const [notification, setNotification] = useState({ type: '', message: '' });
 
   // 12-Hour AM/PM Formatter
@@ -69,7 +75,7 @@ export default function StudentDashboard() {
     }, 4500);
   };
 
-  // Auto-dismiss welcome toast pagkatapos ng 5 segundo
+  // Auto-dismiss welcome toast pagkahuman sa 5 segundos
   useEffect(() => {
     const welcomeTimer = setTimeout(() => {
       setShowWelcomeToast(false);
@@ -141,20 +147,29 @@ export default function StudentDashboard() {
     fetchStudentData();
   }, []);
 
-  const fetchStudentData = async () => {
-    setLoading(true);
+  // Sumpay sa Database & Pagsusi sa Data
+  const fetchStudentData = async (isManualRefresh = false) => {
+    if (isManualRefresh) {
+      setRefreshing(true);
+    } else {
+      setLoading(true);
+    }
+
     try {
       if (!supabase) return;
 
       let userEmail = null;
+      let cachedId = null;
+
       try {
-        userEmail = sessionStorage.getItem('cec_user_email');
+        userEmail = sessionStorage.getItem('cec_user_email') || localStorage.getItem('cec_user_email');
+        cachedId = sessionStorage.getItem('cec_user_school_id') || localStorage.getItem('cec_user_school_id');
       } catch (e) {}
 
       const { data: authData } = await supabase.auth.getUser();
       if (authData?.user?.email) userEmail = authData.user.email;
 
-      let currentStudentId = profile.school_id;
+      let currentStudentId = cachedId || profile.school_id;
 
       if (userEmail) {
         const { data: userProfile } = await supabase
@@ -184,7 +199,7 @@ export default function StudentDashboard() {
         }
       }
 
-      // 1. Events
+      // 1. Kuhaa ang Events
       const { data: eventsData } = await supabase
         .from('events')
         .select('*')
@@ -194,7 +209,7 @@ export default function StudentDashboard() {
         setEvents(eventsData);
       }
 
-      // 2. Attendance
+      // 2. Kuhaa ang Attendance sa Estudyante
       const { data: studentLogs } = await supabase
         .from('attendance')
         .select('*')
@@ -232,7 +247,7 @@ export default function StudentDashboard() {
         setAttendanceLogs([]);
       }
 
-      // 3. Officers
+      // 3. Kuhaa ang Officers
       const { data: officersData } = await supabase
         .from('officers')
         .select('*')
@@ -241,10 +256,18 @@ export default function StudentDashboard() {
       if (officersData) {
         setOfficersList(officersData);
       }
+
+      if (isManualRefresh) {
+        showNotify('success', 'Records updated successfully!');
+      }
     } catch (err) {
       console.error('Error fetching dashboard records:', err);
+      if (isManualRefresh) {
+        showNotify('error', 'Failed to refresh records. Please check your connection.');
+      }
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
@@ -399,6 +422,7 @@ export default function StudentDashboard() {
     router.replace('/');
   };
 
+  // Calculations sa Attendance
   const totalEventsCount = attendanceLogs.length;
   const totalPresentCount = attendanceLogs.filter((l) => l.status === 'PRESENT').length;
   const totalAbsencesCount = attendanceLogs.filter((l) => l.status === 'ABSENT').length;
@@ -420,7 +444,27 @@ export default function StudentDashboard() {
       );
     });
 
-  // STRUCTURED PAYLOAD + HIGH ECC PARA SA PINONG QR PATTERN
+  // Calculations & Filtering sa Organization Events Tab (2nd Picture)
+  const totalOrgEvents = events.length;
+  const activeOrgEvents = events.filter((e) => e.status === 'active').length;
+  const inactiveOrgEvents = Math.max(0, totalOrgEvents - activeOrgEvents);
+
+  const cleanEventSearch = eventTabSearch.trim().toLowerCase();
+  const filteredOrgEvents = events
+    .filter((ev) => {
+      if (eventTabFilter === 'active') return ev.status === 'active';
+      if (eventTabFilter === 'inactive') return ev.status !== 'active';
+      return true;
+    })
+    .filter((ev) => {
+      if (!cleanEventSearch) return true;
+      return (
+        (ev.title || '').toLowerCase().includes(cleanEventSearch) ||
+        (ev.location || '').toLowerCase().includes(cleanEventSearch)
+      );
+    });
+
+  // QR Payload Setup
   const qrPayload = JSON.stringify({
     school_id: profile.school_id,
     full_name: profile.full_name,
@@ -509,6 +553,7 @@ export default function StudentDashboard() {
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <button
+            type="button"
             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
             style={{
               background: '#f1f5f9',
@@ -653,6 +698,7 @@ export default function StudentDashboard() {
             Welcome to the Student Portal!
           </span>
           <button
+            type="button"
             onClick={() => setShowWelcomeToast(false)}
             style={{
               background: 'none',
@@ -695,6 +741,7 @@ export default function StudentDashboard() {
               </div>
               {isSidebarOpen && (
                 <button
+                  type="button"
                   onClick={() => setIsSidebarOpen(false)}
                   style={{ background: 'none', border: 'none', fontSize: '1.1rem', fontWeight: 900, color: '#64748b', cursor: 'pointer', padding: '4px' }}
                 >
@@ -785,6 +832,7 @@ export default function StudentDashboard() {
                 const isActive = activeTab === tab.id;
                 return (
                   <button
+                    type="button"
                     key={tab.id}
                     onClick={() => {
                       setActiveTab(tab.id);
@@ -818,6 +866,7 @@ export default function StudentDashboard() {
 
           <div style={{ paddingTop: '16px' }}>
             <button
+              type="button"
               onClick={() => setIsLogoutModalOpen(true)}
               style={{
                 display: 'flex',
@@ -857,9 +906,13 @@ export default function StudentDashboard() {
                 border: `1px solid ${notification.type === 'error' ? '#fee2e2' : '#bbf7d0'}`,
                 padding: '10px 16px',
                 borderRadius: '12px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
               }}
             >
-              {notification.message}
+              <span>{notification.type === 'error' ? '⚠️' : '✓'}</span>
+              <span>{notification.message}</span>
             </div>
           )}
 
@@ -875,6 +928,7 @@ export default function StudentDashboard() {
                 </div>
                 {profile.avatar_url && (
                   <button
+                    type="button"
                     onClick={handleDownloadIdCard}
                     disabled={downloadingId}
                     style={{
@@ -907,8 +961,7 @@ export default function StudentDashboard() {
 
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))', gap: '24px', alignItems: 'start', width: '100%' }}>
                 <div style={{ maxWidth: '330px', margin: '0 auto', width: '100%' }}>
-                  
-                  {/* DIGITAL ID CARD (ACCURATE GREEN GRADIENT & PROPORTION) */}
+                  {/* DIGITAL ID CARD */}
                   <div
                     ref={idCardRef}
                     style={{
@@ -946,7 +999,7 @@ export default function StudentDashboard() {
                       </span>
                     </div>
 
-                    {/* Student Photo Frame (Portrait with thick white border) */}
+                    {/* Student Photo Frame */}
                     <div
                       onClick={() => fileInputRef.current?.click()}
                       style={{
@@ -1017,7 +1070,7 @@ export default function StudentDashboard() {
                       {profile.school_id}
                     </div>
 
-                    {/* DENSE HIGH-DETAIL QR CODE CONTAINER */}
+                    {/* QR CODE CONTAINER */}
                     <div
                       style={{
                         backgroundColor: '#ffffff',
@@ -1053,7 +1106,6 @@ export default function StudentDashboard() {
                       )}
                     </div>
 
-                    {/* SCAN FOR ATTENDANCE */}
                     <div
                       style={{
                         fontSize: '0.72rem',
@@ -1067,7 +1119,6 @@ export default function StudentDashboard() {
                       SCAN FOR ATTENDANCE
                     </div>
 
-                    {/* Divider Line */}
                     <div
                       style={{
                         width: '84%',
@@ -1077,7 +1128,6 @@ export default function StudentDashboard() {
                       }}
                     />
 
-                    {/* CATEEL EXTENSION CAMPUS */}
                     <div
                       style={{
                         fontSize: '0.68rem',
@@ -1091,7 +1141,6 @@ export default function StudentDashboard() {
                     </div>
                   </div>
 
-                  {/* Photo Change Action sa Ilalim */}
                   <div style={{ textAlign: 'center', marginTop: '12px' }}>
                     <button
                       type="button"
@@ -1151,7 +1200,7 @@ export default function StudentDashboard() {
             </div>
           )}
 
-          {/* TAB 2: ATTENDANCE */}
+          {/* TAB 2: ATTENDANCE (1ST PICTURE - WORKING REFRESH BUTTON) */}
           {activeTab === 'attendance' && (
             <div style={{ maxWidth: '980px', margin: '0 auto', width: '100%' }}>
               <div style={{ display: 'inline-block', backgroundColor: '#f0fdf4', color: '#15803d', border: '1px solid #bbf7d0', padding: '4px 14px', borderRadius: '9999px', fontSize: '0.72rem', fontWeight: 900, textTransform: 'uppercase', marginBottom: '8px' }}>
@@ -1167,25 +1216,49 @@ export default function StudentDashboard() {
                     Track your attendance participation and status.
                   </p>
                 </div>
+
+                {/* WORKING REFRESH RECORDS BUTTON */}
                 <button
-                  onClick={fetchStudentData}
+                  type="button"
+                  onClick={() => fetchStudentData(true)}
+                  disabled={refreshing}
                   style={{
                     backgroundColor: '#ffffff',
-                    border: '1px solid #e2e8f0',
-                    borderRadius: '8px',
-                    padding: '8px 16px',
+                    border: '1.5px solid #cbd5e1',
+                    borderRadius: '10px',
+                    padding: '8px 18px',
                     fontSize: '0.82rem',
-                    fontWeight: 700,
-                    color: '#334155',
-                    cursor: 'pointer',
+                    fontWeight: 800,
+                    color: '#1e293b',
+                    cursor: refreshing ? 'not-allowed' : 'pointer',
                     touchAction: 'manipulation',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
                   }}
                 >
-                  Refresh Records
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    style={{
+                      transform: refreshing ? 'rotate(360deg)' : 'none',
+                      transition: 'transform 0.8s linear',
+                    }}
+                  >
+                    <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
+                  </svg>
+                  <span>{refreshing ? 'Updating Records...' : 'Refresh Records'}</span>
                 </button>
               </div>
 
-              {/* STATS ROW */}
+              {/* STATS ROW (1ST PICTURE) */}
               <div className="stats-grid-responsive" style={{ display: 'grid', marginBottom: '20px' }}>
                 <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '16px' }}>
                   <span style={{ fontSize: '0.68rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase' }}>TOTAL EVENTS</span>
@@ -1213,16 +1286,17 @@ export default function StudentDashboard() {
                 <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
                   {['all', 'present', 'absent'].map((filterKey) => (
                     <button
+                      type="button"
                       key={filterKey}
                       onClick={() => setAttendanceFilter(filterKey)}
                       style={{
-                        padding: '6px 12px',
-                        borderRadius: '8px',
+                        padding: '6px 14px',
+                        borderRadius: '9999px',
                         border: 'none',
                         fontSize: '0.78rem',
                         fontWeight: 800,
                         cursor: 'pointer',
-                        backgroundColor: attendanceFilter === filterKey ? '#15803d' : '#f1f5f9',
+                        backgroundColor: attendanceFilter === filterKey ? '#047857' : '#f1f5f9',
                         color: attendanceFilter === filterKey ? '#ffffff' : '#475569',
                         textTransform: 'capitalize',
                         touchAction: 'manipulation',
@@ -1241,16 +1315,17 @@ export default function StudentDashboard() {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   style={{
-                    padding: '8px 12px',
-                    borderRadius: '8px',
-                    border: '1px solid #cbd5e1',
-                    fontSize: '0.8rem',
-                    width: '160px',
+                    padding: '8px 14px',
+                    borderRadius: '10px',
+                    border: '1.5px solid #cbd5e1',
+                    fontSize: '0.82rem',
+                    width: '180px',
+                    outline: 'none',
                   }}
                 />
               </div>
 
-              {/* Table Wrapper */}
+              {/* Attendance Table */}
               <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '16px', overflowX: 'auto', width: '100%' }}>
                 <table style={{ width: '100%', minWidth: '600px', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.82rem' }}>
                   <thead>
@@ -1287,7 +1362,7 @@ export default function StudentDashboard() {
                               <span
                                 style={{
                                   display: 'inline-block',
-                                  padding: '4px 12px',
+                                  padding: '4px 14px',
                                   borderRadius: '9999px',
                                   fontSize: '0.72rem',
                                   fontWeight: 900,
@@ -1309,34 +1384,179 @@ export default function StudentDashboard() {
             </div>
           )}
 
-          {/* TAB 3: EVENTS */}
+          {/* TAB 3: EVENTS (2ND PICTURE - ORGANIZATION EVENTS EXACT DESIGN) */}
           {activeTab === 'events' && (
             <div style={{ maxWidth: '980px', margin: '0 auto', width: '100%' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px', flexWrap: 'wrap', gap: '8px' }}>
+              {/* Header Row uban ang Stats Box sa Tuo */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px', flexWrap: 'wrap', gap: '14px' }}>
                 <div>
-                  <div style={{ display: 'inline-block', backgroundColor: '#f0fdf4', color: '#15803d', border: '1px solid #bbf7d0', padding: '4px 14px', borderRadius: '9999px', fontSize: '0.72rem', fontWeight: 900, textTransform: 'uppercase', marginBottom: '8px' }}>
-                    OFFICIAL ORGANIZATION ACTIVITIES
+                  <div
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      backgroundColor: '#fff7ed',
+                      color: '#ea580c',
+                      border: '1px solid #ffedd5',
+                      padding: '4px 14px',
+                      borderRadius: '9999px',
+                      fontSize: '0.72rem',
+                      fontWeight: 900,
+                      textTransform: 'uppercase',
+                      marginBottom: '8px',
+                    }}
+                  >
+                    <span>📅</span>
+                    <span>OFFICIAL ORGANIZATION ACTIVITIES</span>
                   </div>
-                  <h1 style={{ fontSize: '1.65rem', fontWeight: 900, color: '#0f172a', margin: '0 0 4px 0' }}>
+
+                  <h1 style={{ fontSize: '1.9rem', fontWeight: 900, color: '#0f172a', margin: '0 0 4px 0', letterSpacing: '-0.02em' }}>
                     Organization Events
                   </h1>
-                  <p style={{ fontSize: '0.85rem', color: '#15803d', margin: 0, fontWeight: 700 }}>
-                    Explore upcoming assemblies and official activities.
+                  <p style={{ fontSize: '0.86rem', color: '#64748b', margin: 0, fontWeight: 500 }}>
+                    Explore upcoming assemblies, past workshops, seminars, and official activities.
                   </p>
                 </div>
 
-                <div style={{ fontSize: '0.85rem', fontWeight: 800, color: '#475569' }}>
-                  Total: {events.length} <span style={{ color: '#15803d', marginLeft: '6px' }}>Active: {events.filter((e) => e.status === 'active').length}</span>
+                {/* Right Top Counter Box (2nd Picture) */}
+                <div
+                  style={{
+                    backgroundColor: '#ffffff',
+                    border: '1.5px solid #e2e8f0',
+                    borderRadius: '16px',
+                    padding: '8px 18px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '16px',
+                    boxShadow: '0 2px 6px rgba(0,0,0,0.03)',
+                  }}
+                >
+                  <div style={{ textAlign: 'center' }}>
+                    <span style={{ fontSize: '0.62rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', display: 'block' }}>TOTAL</span>
+                    <span style={{ fontSize: '1.15rem', fontWeight: 900, color: '#0f172a' }}>{totalOrgEvents}</span>
+                  </div>
+                  <div style={{ width: '1px', height: '24px', backgroundColor: '#f1f5f9' }} />
+                  <div style={{ textAlign: 'center' }}>
+                    <span style={{ fontSize: '0.62rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', display: 'block' }}>ACTIVE</span>
+                    <span style={{ fontSize: '1.15rem', fontWeight: 900, color: '#16a34a' }}>{activeOrgEvents}</span>
+                  </div>
+                  <div style={{ width: '1px', height: '24px', backgroundColor: '#f1f5f9' }} />
+                  <div style={{ textAlign: 'center' }}>
+                    <span style={{ fontSize: '0.62rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', display: 'block' }}>INACTIVE</span>
+                    <span style={{ fontSize: '1.15rem', fontWeight: 900, color: '#475569' }}>{inactiveOrgEvents}</span>
+                  </div>
                 </div>
               </div>
 
+              {/* Filter Pills & Search Bar (2nd Picture) */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                  <button
+                    type="button"
+                    onClick={() => setEventTabFilter('all')}
+                    style={{
+                      padding: '7px 16px',
+                      borderRadius: '9999px',
+                      border: 'none',
+                      fontSize: '0.78rem',
+                      fontWeight: 800,
+                      cursor: 'pointer',
+                      backgroundColor: eventTabFilter === 'all' ? '#00a86b' : '#f1f5f9',
+                      color: eventTabFilter === 'all' ? '#ffffff' : '#64748b',
+                      transition: 'all 0.15s ease',
+                    }}
+                  >
+                    ALL EVENTS ({totalOrgEvents})
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setEventTabFilter('active')}
+                    style={{
+                      padding: '7px 16px',
+                      borderRadius: '9999px',
+                      border: 'none',
+                      fontSize: '0.78rem',
+                      fontWeight: 800,
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      backgroundColor: eventTabFilter === 'active' ? '#00a86b' : '#f1f5f9',
+                      color: eventTabFilter === 'active' ? '#ffffff' : '#64748b',
+                      transition: 'all 0.15s ease',
+                    }}
+                  >
+                    <span style={{ width: '7px', height: '7px', borderRadius: '50%', backgroundColor: eventTabFilter === 'active' ? '#ffffff' : '#16a34a' }} />
+                    <span>ACTIVE ({activeOrgEvents})</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setEventTabFilter('inactive')}
+                    style={{
+                      padding: '7px 16px',
+                      borderRadius: '9999px',
+                      border: 'none',
+                      fontSize: '0.78rem',
+                      fontWeight: 800,
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      backgroundColor: eventTabFilter === 'inactive' ? '#00a86b' : '#f1f5f9',
+                      color: eventTabFilter === 'inactive' ? '#ffffff' : '#64748b',
+                      transition: 'all 0.15s ease',
+                    }}
+                  >
+                    <span style={{ width: '7px', height: '7px', borderRadius: '50%', backgroundColor: eventTabFilter === 'inactive' ? '#ffffff' : '#94a3b8' }} />
+                    <span>INACTIVE ({inactiveOrgEvents})</span>
+                  </button>
+                </div>
+
+                {/* Search Bar uban ang Magnifying Glass Icon */}
+                <div style={{ position: 'relative', width: '260px', maxWidth: '100%' }}>
+                  <svg
+                    width="15"
+                    height="15"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="#94a3b8"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)' }}
+                  >
+                    <circle cx="11" cy="11" r="8" />
+                    <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                  </svg>
+                  <input
+                    type="text"
+                    placeholder="Search events by title or location.."
+                    value={eventTabSearch}
+                    onChange={(e) => setEventTabSearch(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '9px 14px 9px 36px',
+                      borderRadius: '9999px',
+                      border: '1.5px solid #cbd5e1',
+                      fontSize: '0.8rem',
+                      outline: 'none',
+                      boxSizing: 'border-box',
+                      backgroundColor: '#ffffff',
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* Event Cards Listing */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
-                {events.length === 0 ? (
+                {filteredOrgEvents.length === 0 ? (
                   <div style={{ textAlign: 'center', padding: '40px', backgroundColor: '#ffffff', borderRadius: '20px', border: '1px solid #e2e8f0', color: '#94a3b8' }}>
-                    No official events scheduled at this time.
+                    No events found matching your filter criteria.
                   </div>
                 ) : (
-                  events.map((ev) => {
+                  filteredOrgEvents.map((ev) => {
                     const isActive = ev.status === 'active';
                     return (
                       <div
@@ -1349,9 +1569,13 @@ export default function StudentDashboard() {
                           boxShadow: '0 2px 8px rgba(0,0,0,0.03)',
                         }}
                       >
-                        {ev.image_url && (
+                        {ev.image_url ? (
                           <div style={{ width: '100%', height: '170px', overflow: 'hidden' }}>
                             <img src={ev.image_url} alt={ev.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          </div>
+                        ) : (
+                          <div style={{ width: '100%', height: '90px', backgroundColor: '#f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'center', borderBottom: '1px solid #f1f5f9' }}>
+                            <img src="/logo.png" alt="Campus Logo" style={{ width: '45px', height: '45px', objectFit: 'contain' }} onError={(e) => (e.currentTarget.style.display = 'none')} />
                           </div>
                         )}
 
@@ -1368,15 +1592,15 @@ export default function StudentDashboard() {
                                 fontWeight: 900,
                               }}
                             >
-                              {isActive ? '● ACTIVE (OPEN)' : 'INACTIVE (CLOSED)'}
+                              {isActive ? '● ACTIVE (OPEN)' : 'CLOSED'}
                             </span>
                             <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#94a3b8' }}>{ev.date}</span>
                           </div>
 
-                          <h3 style={{ fontSize: '1.15rem', fontWeight: 900, color: '#0f172a', margin: '0 0 4px 0' }}>{ev.title}</h3>
+                          <h3 style={{ fontSize: '1.18rem', fontWeight: 900, color: '#0f172a', margin: '0 0 4px 0' }}>{ev.title}</h3>
                           <div style={{ fontSize: '0.8rem', color: '#15803d', fontWeight: 800 }}>📍 {ev.location || 'FaCET Facade'}</div>
                           <div style={{ fontSize: '0.78rem', color: '#64748b', fontWeight: 700, margin: '6px 0 10px 0' }}>
-                            In: {formatTime12Hour(ev.time_in)} Out: {formatTime12Hour(ev.time_out)}
+                            In: {formatTime12Hour(ev.time_in)} • Out: {formatTime12Hour(ev.time_out)}
                           </div>
                           <p style={{ margin: 0, fontSize: '0.82rem', color: '#64748b', lineHeight: 1.5 }}>
                             {ev.description || 'Official general assembly and campus-wide attendance tracking.'}
@@ -1498,7 +1722,9 @@ export default function StudentDashboard() {
                 </div>
 
                 <button
-                  onClick={fetchStudentData}
+                  type="button"
+                  onClick={() => fetchStudentData(true)}
+                  disabled={refreshing}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
@@ -1518,7 +1744,7 @@ export default function StudentDashboard() {
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
                   </svg>
-                  <span>Refresh</span>
+                  <span>{refreshing ? 'Refreshing...' : 'Refresh'}</span>
                 </button>
               </div>
 
@@ -1619,7 +1845,7 @@ export default function StudentDashboard() {
             </div>
           )}
 
-          {/* TAB 6: PROFILE */}
+          {/* TAB 6: PROFILE (3RD PICTURE - LOGO / SHIELD DETAILS) */}
           {activeTab === 'profile' && (
             <div style={{ maxWidth: '640px', margin: '0 auto', width: '100%' }}>
               <div style={{ textAlign: 'center', marginBottom: '20px' }}>
@@ -1651,13 +1877,40 @@ export default function StudentDashboard() {
                 </p>
               </div>
 
-              {/* VERIFIED STUDENT DETAILS CARD */}
+              {/* VERIFIED STUDENT DETAILS CARD (3RD PICTURE EXACT LOGO/SHIELD) */}
               <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '20px', padding: '20px', marginBottom: '18px', boxShadow: '0 2px 6px rgba(0,0,0,0.02)', width: '100%', boxSizing: 'border-box' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #f1f5f9', paddingBottom: '12px', marginBottom: '14px', flexWrap: 'wrap', gap: '6px' }}>
-                  <span style={{ fontSize: '0.78rem', fontWeight: 900, color: '#0f172a', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                    VERIFIED STUDENT DETAILS
-                  </span>
-                  <span style={{ backgroundColor: '#f0fdf4', color: '#15803d', border: '1px solid #bbf7d0', borderRadius: '9999px', padding: '3px 10px', fontSize: '0.68rem', fontWeight: 900, textTransform: 'uppercase' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #f1f5f9', paddingBottom: '12px', marginBottom: '14px', flexWrap: 'wrap', gap: '8px' }}>
+                  {/* Left: Shield Check Icon + Title */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                      <path d="m9 12 2 2 4-4" />
+                    </svg>
+                    <span style={{ fontSize: '0.82rem', fontWeight: 900, color: '#064e3b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                      VERIFIED STUDENT DETAILS
+                    </span>
+                  </div>
+
+                  {/* Right: Official Record Pill uban ang Shield Check */}
+                  <span
+                    style={{
+                      backgroundColor: '#f0fdf4',
+                      color: '#15803d',
+                      border: '1.5px solid #bbf7d0',
+                      borderRadius: '9999px',
+                      padding: '4px 12px',
+                      fontSize: '0.72rem',
+                      fontWeight: 900,
+                      textTransform: 'uppercase',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                    }}
+                  >
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                      <path d="m9 12 2 2 4-4" />
+                    </svg>
                     OFFICIAL RECORD
                   </span>
                 </div>
@@ -1818,74 +2071,6 @@ export default function StudentDashboard() {
                 </p>
               </section>
 
-              {/* Who Uses CECTRACK */}
-              <section style={{ marginBottom: '40px' }}>
-                <div style={{ textAlign: 'center', marginBottom: '24px' }}>
-                  <h2 style={{ fontSize: '1.65rem', fontWeight: 900, color: '#0f172a', margin: '0 0 6px 0' }}>
-                    Who Uses CECTRACK?
-                  </h2>
-                  <p style={{ fontSize: '0.82rem', color: '#64748b', margin: 0 }}>
-                    Tailored workspaces engineered for every member of the academic community.
-                  </p>
-                </div>
-
-                <div
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
-                    gap: '16px',
-                  }}
-                >
-                  <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '18px', padding: '20px' }}>
-                    <div style={{ width: '38px', height: '38px', borderRadius: '12px', backgroundColor: '#eff6ff', color: '#2563eb', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem', marginBottom: '10px' }}>
-                      👤
-                    </div>
-                    <h3 style={{ fontSize: '0.95rem', fontWeight: 900, color: '#0f172a', margin: '0 0 6px 0' }}>
-                      Students &amp; Members
-                    </h3>
-                    <p style={{ fontSize: '0.78rem', color: '#64748b', lineHeight: 1.5, margin: 0 }}>
-                      Access personalized digital ID badges, view attendance history, explore upcoming assemblies, and verify compliance records in real time.
-                    </p>
-                  </div>
-
-                  <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '18px', padding: '20px' }}>
-                    <div style={{ width: '38px', height: '38px', borderRadius: '12px', backgroundColor: '#f0fdf4', color: '#16a34a', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem', marginBottom: '10px' }}>
-                      📷
-                    </div>
-                    <h3 style={{ fontSize: '0.95rem', fontWeight: 900, color: '#0f172a', margin: '0 0 6px 0' }}>
-                      Attendance Officers
-                    </h3>
-                    <p style={{ fontSize: '0.78rem', color: '#64748b', lineHeight: 1.5, margin: 0 }}>
-                      High-speed event check-in using mobile camera scanning, photo verification, and automated duplicate check-in prevention.
-                    </p>
-                  </div>
-
-                  <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '18px', padding: '20px' }}>
-                    <div style={{ width: '38px', height: '38px', borderRadius: '12px', backgroundColor: '#fefce8', color: '#ca8a04', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem', marginBottom: '10px' }}>
-                      💼
-                    </div>
-                    <h3 style={{ fontSize: '0.95rem', fontWeight: 900, color: '#0f172a', margin: '0 0 6px 0' }}>
-                      Department Heads
-                    </h3>
-                    <p style={{ fontSize: '0.78rem', color: '#64748b', lineHeight: 1.5, margin: 0 }}>
-                      Manage member rosters across BSCRIM, BSBA, BSA, BEED, and BSAM programs, and monitor general assembly participation rates.
-                    </p>
-                  </div>
-
-                  <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '18px', padding: '20px' }}>
-                    <div style={{ width: '38px', height: '38px', borderRadius: '12px', backgroundColor: '#faf5ff', color: '#9333ea', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem', marginBottom: '10px' }}>
-                      🏛️
-                    </div>
-                    <h3 style={{ fontSize: '0.95rem', fontWeight: 900, color: '#0f172a', margin: '0 0 6px 0' }}>
-                      Executive Officers
-                    </h3>
-                    <p style={{ fontSize: '0.78rem', color: '#64748b', lineHeight: 1.5, margin: 0 }}>
-                      Publish official events with custom banners, oversee student enrollment whitelists, and export verified attendance records.
-                    </p>
-                  </div>
-                </div>
-              </section>
-
               {/* Developer Profile */}
               <section
                 style={{
@@ -1956,18 +2141,6 @@ export default function StudentDashboard() {
                   </div>
                 </div>
 
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                  <span style={{ backgroundColor: 'rgba(52, 211, 153, 0.15)', color: '#6ee7b7', border: '1px solid rgba(52, 211, 153, 0.35)', padding: '5px 12px', borderRadius: '9999px', fontSize: '0.72rem', fontWeight: 800 }}>
-                    Developer
-                  </span>
-                  <span style={{ backgroundColor: 'rgba(56, 189, 248, 0.15)', color: '#7dd3fc', border: '1px solid rgba(56, 189, 248, 0.35)', padding: '5px 12px', borderRadius: '9999px', fontSize: '0.72rem', fontWeight: 800 }}>
-                    💻 Full-Stack Web &amp; Database Systems
-                  </span>
-                  <span style={{ backgroundColor: 'rgba(251, 191, 36, 0.15)', color: '#fde68a', border: '1px solid rgba(251, 191, 36, 0.35)', padding: '5px 12px', borderRadius: '9999px', fontSize: '0.72rem', fontWeight: 800 }}>
-                    📍 Davao Oriental State University Main Campus
-                  </span>
-                </div>
-
                 <p
                   style={{
                     fontSize: '0.85rem',
@@ -1978,7 +2151,7 @@ export default function StudentDashboard() {
                     paddingTop: '14px',
                   }}
                 >
-                  CECTRACK was conceptualized and developed by <strong>Renowee Beloy</strong> from the <strong>Faculty of Computing, Engineering, and Technology (FaCET)</strong> as a specialized institutional software initiative for Davao Oriental State University. Engineered to resolve manual attendance bottlenecks, it replaces tedious paper logs with reliable digital identification, camera-based QR scanning, and automated attendance reporting.
+                  CECTRACK was conceptualized and developed by <strong>Renowee Beloy</strong> from the <strong>Faculty of Computing, Engineering, and Technology (FaCET)</strong> as a specialized institutional software initiative for Davao Oriental State University.
                 </p>
               </section>
             </div>
@@ -1986,7 +2159,7 @@ export default function StudentDashboard() {
         </main>
       </div>
 
-      {/* SIGN OUT / LOGOUT CONFIRMATION MODAL (TEXT ONLY) */}
+      {/* SIGN OUT CONFIRMATION MODAL */}
       {isLogoutModalOpen && (
         <div
           style={{
@@ -2015,6 +2188,7 @@ export default function StudentDashboard() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
               <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 900, color: '#0f172a' }}>Sign Out</h3>
               <button
+                type="button"
                 onClick={() => setIsLogoutModalOpen(false)}
                 style={{
                   background: 'none',
@@ -2029,7 +2203,6 @@ export default function StudentDashboard() {
               </button>
             </div>
 
-            {/* TEKSTO LAMANG (WALA NANG LOGO/ICON) */}
             <p
               style={{
                 textAlign: 'center',
@@ -2043,7 +2216,6 @@ export default function StudentDashboard() {
               Are you sure you want to log out of the Student Portal?
             </p>
 
-            {/* Modal Buttons */}
             <div style={{ display: 'flex', gap: '10px' }}>
               <button
                 type="button"
@@ -2086,60 +2258,108 @@ export default function StudentDashboard() {
         </div>
       )}
 
-      {/* CHANGE PASSWORD MODAL */}
+      {/* CHANGE PASSWORD MODAL (4TH & 5TH PICTURES - UBAN ANG CAMPUS LOGO) */}
       {isChangePasswordOpen && (
         <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(15, 23, 42, 0.65)', backdropFilter: 'blur(4px)', zIndex: 120, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
-          <div style={{ backgroundColor: '#ffffff', width: '100%', maxWidth: '400px', borderRadius: '22px', padding: '24px', boxShadow: '0 20px 40px rgba(0,0,0,0.2)' }}>
-            <h3 style={{ fontSize: '1.2rem', fontWeight: 900, color: '#0f172a', margin: '0 0 4px 0' }}>
+          <div style={{ backgroundColor: '#ffffff', width: '100%', maxWidth: '400px', borderRadius: '24px', padding: '26px 24px', boxShadow: '0 20px 40px rgba(0,0,0,0.2)', position: 'relative' }}>
+            
+            {/* 5TH PICTURE: OFFICIAL LOGO CONTAINER (ROUNDED WITH LIGHT GREEN BORDER) */}
+            <div
+              style={{
+                width: '60px',
+                height: '60px',
+                margin: '0 auto 14px auto',
+                borderRadius: '18px',
+                backgroundColor: '#f0fdf4',
+                border: '1.5px solid #bbf7d0',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxShadow: '0 4px 12px rgba(22, 163, 74, 0.12)',
+              }}
+            >
+              <img
+                src="/logo.png"
+                alt="CEC Logo"
+                style={{ width: '44px', height: '44px', objectFit: 'contain' }}
+                onError={(e) => {
+                  e.currentTarget.style.display = 'none';
+                }}
+              />
+            </div>
+
+            <h3 style={{ fontSize: '1.25rem', fontWeight: 900, color: '#0f172a', margin: '0 0 4px 0', textAlign: 'center' }}>
               Change Password
             </h3>
-            <p style={{ fontSize: '0.8rem', color: '#64748b', margin: '0 0 16px 0' }}>
+            <p style={{ fontSize: '0.8rem', color: '#64748b', margin: '0 0 18px 0', textAlign: 'center' }}>
               Create a new secure password for your portal account.
             </p>
 
-            <form onSubmit={handleChangePassword} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <form onSubmit={handleChangePassword} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               <div>
-                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: '#334155', marginBottom: '4px' }}>New Password</label>
+                <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 800, color: '#334155', marginBottom: '5px' }}>New Password</label>
                 <input
                   type="password"
                   placeholder="At least 6 characters"
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
-                  style={{ width: '100%', padding: '10px 12px', borderRadius: '10px', border: '1px solid #cbd5e1', fontSize: '0.9rem', boxSizing: 'border-box' }}
+                  style={{ width: '100%', padding: '11px 14px', borderRadius: '12px', border: '1.5px solid #cbd5e1', fontSize: '0.9rem', boxSizing: 'border-box', outline: 'none' }}
                   required
                 />
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: '#334155', marginBottom: '4px' }}>Confirm New Password</label>
+                <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 800, color: '#334155', marginBottom: '5px' }}>Confirm New Password</label>
                 <input
                   type="password"
                   placeholder="Re-enter new password"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
-                  style={{ width: '100%', padding: '10px 12px', borderRadius: '10px', border: '1px solid #cbd5e1', fontSize: '0.9rem', boxSizing: 'border-box' }}
+                  style={{ width: '100%', padding: '11px 14px', borderRadius: '12px', border: '1.5px solid #cbd5e1', fontSize: '0.9rem', boxSizing: 'border-box', outline: 'none' }}
                   required
                 />
               </div>
 
               {passwordMsg.text && (
-                <div style={{ fontSize: '0.8rem', color: passwordMsg.type === 'error' ? '#b91c1c' : '#15803d', backgroundColor: passwordMsg.type === 'error' ? '#fef2f2' : '#f0fdf4', padding: '8px 12px', borderRadius: '8px' }}>
+                <div style={{ fontSize: '0.8rem', color: passwordMsg.type === 'error' ? '#b91c1c' : '#15803d', backgroundColor: passwordMsg.type === 'error' ? '#fef2f2' : '#f0fdf4', padding: '10px 12px', borderRadius: '10px', border: `1px solid ${passwordMsg.type === 'error' ? '#fecaca' : '#bbf7d0'}` }}>
                   {passwordMsg.text}
                 </div>
               )}
 
-              <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
+              <div style={{ display: 'flex', gap: '10px', marginTop: '6px' }}>
                 <button
                   type="submit"
                   disabled={passwordLoading}
-                  style={{ flex: 1, padding: '10px', backgroundColor: '#15803d', color: '#ffffff', border: 'none', borderRadius: '10px', fontWeight: 800, fontSize: '0.88rem', cursor: 'pointer', touchAction: 'manipulation' }}
+                  style={{
+                    flex: 1,
+                    padding: '12px',
+                    backgroundColor: '#15803d',
+                    color: '#ffffff',
+                    border: 'none',
+                    borderRadius: '12px',
+                    fontWeight: 900,
+                    fontSize: '0.9rem',
+                    cursor: passwordLoading ? 'not-allowed' : 'pointer',
+                    boxShadow: '0 4px 12px rgba(21, 128, 61, 0.25)',
+                    touchAction: 'manipulation',
+                  }}
                 >
                   {passwordLoading ? 'Saving...' : 'Save Password'}
                 </button>
                 <button
                   type="button"
                   onClick={() => setIsChangePasswordOpen(false)}
-                  style={{ padding: '10px 16px', backgroundColor: '#f1f5f9', color: '#475569', border: 'none', borderRadius: '10px', fontWeight: 800, fontSize: '0.88rem', cursor: 'pointer', touchAction: 'manipulation' }}
+                  style={{
+                    padding: '12px 18px',
+                    backgroundColor: '#f1f5f9',
+                    color: '#475569',
+                    border: 'none',
+                    borderRadius: '12px',
+                    fontWeight: 800,
+                    fontSize: '0.9rem',
+                    cursor: 'pointer',
+                    touchAction: 'manipulation',
+                  }}
                 >
                   Cancel
                 </button>
