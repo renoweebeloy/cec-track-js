@@ -30,6 +30,32 @@ export default function Home() {
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchResult, setSearchResult] = useState(null);
 
+  // Helper Function: I-convert ang 24-hr time ngadto sa 12-hr format nga naay AM / PM
+  const formatTimeWithAmPm = (timeStr) => {
+    if (!timeStr) return '';
+    const trimmed = String(timeStr).trim();
+
+    // Kon daan nang naay AM o PM, ibalik lang kini
+    if (/am|pm/i.test(trimmed)) {
+      return trimmed.toUpperCase();
+    }
+
+    // Kon "08:00" o "12:00:00" ang format gikan sa database / input type="time"
+    const parts = trimmed.split(':');
+    if (parts.length >= 2) {
+      let hours = parseInt(parts[0], 10);
+      const minutes = parts[1].slice(0, 2);
+      if (isNaN(hours)) return trimmed;
+
+      const ampm = hours >= 12 ? 'PM' : 'AM';
+      hours = hours % 12 || 12; // Ang 0 mahimong 12 (Midnight), ang 12 magpabiling 12 (Noon)
+      const paddedHours = String(hours).padStart(2, '0');
+      return `${paddedHours}:${minutes} ${ampm}`;
+    }
+
+    return trimmed;
+  };
+
   // Philippine Standard Time Clock
   useEffect(() => {
     const updateClock = () => {
@@ -266,6 +292,55 @@ export default function Home() {
           width: 100%;
         }
 
+        /* ------------------------------------------------------------- */
+        /* HOVER EFFECTS: COURSE CARDS (2ND PICTURE)                     */
+        /* ------------------------------------------------------------- */
+        .course-card-hover {
+          transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s ease, border-color 0.25s ease !important;
+          cursor: pointer;
+          will-change: transform, box-shadow;
+        }
+
+        .course-card-hover:hover {
+          transform: translateY(-5px);
+          box-shadow: 0 12px 26px rgba(21, 128, 61, 0.12) !important;
+          border-color: #86efac !important;
+        }
+
+        /* ------------------------------------------------------------- */
+        /* HOVER EFFECTS: CAMPUS EVENT CARDS (3RD PICTURE)               */
+        /* ------------------------------------------------------------- */
+        .event-card-hover {
+          background-color: #ffffff;
+          border: 1px solid #e2e8f0;
+          border-radius: 18px;
+          overflow: hidden;
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+          display: flex;
+          flex-direction: column;
+          justifyContent: space-between;
+          transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s ease, border-color 0.25s ease;
+          cursor: pointer;
+          will-change: transform, box-shadow;
+        }
+
+        .event-card-hover:hover {
+          transform: translateY(-5px);
+          box-shadow: 0 14px 28px rgba(21, 128, 61, 0.12);
+          border-color: #86efac;
+        }
+
+        .event-card-hover:hover .event-img-zoom {
+          transform: scale(1.04);
+        }
+
+        .event-img-zoom {
+          transition: transform 0.35s ease;
+        }
+
+        /* ------------------------------------------------------------- */
+        /* HOVER EFFECTS: OFFICER CARDS (VIDEO)                          */
+        /* ------------------------------------------------------------- */
         .officers-grid {
           display: grid;
           grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
@@ -280,17 +355,18 @@ export default function Home() {
           padding: 20px 16px;
           text-align: center;
           box-shadow: 0 4px 14px rgba(0, 0, 0, 0.03);
-          transition: transform 0.2s ease, box-shadow 0.2s ease;
+          transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s ease, border-color 0.25s ease;
           display: flex;
           flex-direction: column;
           align-items: center;
-          justify-content: space-between;
+          justifyContent: space-between;
+          cursor: pointer;
         }
 
         .officer-card:hover {
-          transform: translateY(-4px);
-          box-shadow: 0 10px 24px rgba(21, 128, 61, 0.08);
-          border-color: #bbf7d0;
+          transform: translateY(-5px);
+          box-shadow: 0 12px 26px rgba(21, 128, 61, 0.12);
+          border-color: #86efac;
         }
 
         @media (max-width: 600px) {
@@ -430,7 +506,7 @@ export default function Home() {
             <span style={{ color: '#cbd5e1' }}>|</span>
             <span>🕒 {currentTime || 'Loading...'}</span>
             <span style={{ color: '#cbd5e1' }}>|</span>
-            <span>📅 {currentDate || 'Oct 21, 2026'}</span>
+            <span>📅 {currentDate || 'Nov 6, 2026'}</span>
           </div>
 
           <div
@@ -963,7 +1039,7 @@ export default function Home() {
           </div>
         </section>
 
-        {/* Live Course Analytics Grid */}
+        {/* Live Course Analytics Grid (2ND PICTURE - INTERACTIVE HOVER CARDS) */}
         <section className={styles.analyticsSection}>
           <div className={styles.analyticsHeader}>
             <div
@@ -1001,7 +1077,7 @@ export default function Home() {
 
           <div className={styles.courseGrid}>
             {/* BSBA */}
-            <div className={styles.courseCard}>
+            <div className={`${styles.courseCard} course-card-hover`}>
               <div className={styles.cardTop}>
                 <span className={`${styles.badge} ${styles.bsbaBadge}`}>BSBA</span>
               </div>
@@ -1015,8 +1091,8 @@ export default function Home() {
               </div>
             </div>
 
-            {/* BSCRIM (UPDATED TO RED) */}
-            <div className={styles.courseCard}>
+            {/* BSCRIM */}
+            <div className={`${styles.courseCard} course-card-hover`}>
               <div className={styles.cardTop}>
                 <span
                   className={`${styles.badge} ${styles.bscrimBadge}`}
@@ -1040,7 +1116,7 @@ export default function Home() {
             </div>
 
             {/* BSA */}
-            <div className={styles.courseCard}>
+            <div className={`${styles.courseCard} course-card-hover`}>
               <div className={styles.cardTop}>
                 <span className={`${styles.badge} ${styles.bsaBadge}`}>BSA</span>
               </div>
@@ -1055,7 +1131,7 @@ export default function Home() {
             </div>
 
             {/* BEED */}
-            <div className={styles.courseCard}>
+            <div className={`${styles.courseCard} course-card-hover`}>
               <div className={styles.cardTop}>
                 <span className={`${styles.badge} ${styles.beedBadge}`}>BEED</span>
               </div>
@@ -1070,7 +1146,7 @@ export default function Home() {
             </div>
 
             {/* BSAM */}
-            <div className={styles.courseCard}>
+            <div className={`${styles.courseCard} course-card-hover`}>
               <div className={styles.cardTop}>
                 <span className={`${styles.badge} ${styles.bsamBadge}`}>BSAM</span>
               </div>
@@ -1086,7 +1162,7 @@ export default function Home() {
           </div>
         </section>
 
-        {/* UPCOMING & OFFICIAL CAMPUS EVENTS */}
+        {/* UPCOMING & OFFICIAL CAMPUS EVENTS (3RD PICTURE - WITH AM/PM FORMATTING) */}
         <section
           className={styles.analyticsSection}
           id="events-section"
@@ -1144,19 +1220,7 @@ export default function Home() {
               {events.map((ev) => {
                 const isActive = ev.status === 'active';
                 return (
-                  <div
-                    key={ev.id}
-                    style={{
-                      backgroundColor: '#ffffff',
-                      border: '1px solid #e2e8f0',
-                      borderRadius: '18px',
-                      overflow: 'hidden',
-                      boxShadow: '0 4px 12px rgba(0,0,0,0.03)',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      justifyContent: 'space-between',
-                    }}
-                  >
+                  <div key={ev.id} className="event-card-hover">
                     {ev.image_url ? (
                       <div
                         style={{
@@ -1169,6 +1233,7 @@ export default function Home() {
                         <img
                           src={ev.image_url}
                           alt={ev.title}
+                          className="event-img-zoom"
                           style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                         />
                       </div>
@@ -1247,18 +1312,28 @@ export default function Home() {
                           </div>
                         )}
 
+                        {/* TIME ROW: Naa nay AM / PM */}
                         <div
                           style={{
-                            fontSize: '0.74rem',
-                            color: '#64748b',
+                            fontSize: '0.76rem',
+                            color: '#475569',
                             display: 'flex',
-                            gap: '10px',
-                            fontWeight: 700,
+                            alignItems: 'center',
+                            gap: '12px',
+                            fontWeight: 800,
                             marginBottom: '8px',
+                            flexWrap: 'wrap',
                           }}
                         >
-                          <span>In: {ev.time_in || '08:00'}</span>
-                          <span>Out: {ev.time_out || '17:00'}</span>
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                            <span style={{ color: '#15803d', fontWeight: 900 }}>In:</span>{' '}
+                            {formatTimeWithAmPm(ev.time_in) || '08:00 AM'}
+                          </span>
+                          <span style={{ color: '#cbd5e1' }}>•</span>
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                            <span style={{ color: '#b91c1c', fontWeight: 900 }}>Out:</span>{' '}
+                            {formatTimeWithAmPm(ev.time_out) || '12:00 PM'}
+                          </span>
                         </div>
 
                         <p
@@ -1305,7 +1380,7 @@ export default function Home() {
           )}
         </section>
 
-        {/* LEADERSHIP & FACULTY SECTION */}
+        {/* LEADERSHIP & FACULTY SECTION (VIDEO HOVER DEMO) */}
         <section
           className={styles.analyticsSection}
           style={{ marginTop: '48px', textAlign: 'center' }}
