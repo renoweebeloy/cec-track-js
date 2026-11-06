@@ -47,8 +47,8 @@ export default function StudentDashboard() {
   const [officersList, setOfficersList] = useState([]);
   const [attendanceFilter, setAttendanceFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
-  
-  // Organization Events Filters & Search (2nd Picture)
+
+  // Organization Events Filters & Search
   const [eventTabFilter, setEventTabFilter] = useState('all'); // 'all' | 'active' | 'inactive'
   const [eventTabSearch, setEventTabSearch] = useState('');
 
@@ -75,7 +75,7 @@ export default function StudentDashboard() {
     }, 4500);
   };
 
-  // Auto-dismiss welcome toast pagkahuman sa 5 segundos
+  // Auto-dismiss welcome toast pagkatapos ng 5 segundo
   useEffect(() => {
     const welcomeTimer = setTimeout(() => {
       setShowWelcomeToast(false);
@@ -147,7 +147,7 @@ export default function StudentDashboard() {
     fetchStudentData();
   }, []);
 
-  // Sumpay sa Database & Pagsusi sa Data
+  // Pagkuha ng Datos mula sa Supabase
   const fetchStudentData = async (isManualRefresh = false) => {
     if (isManualRefresh) {
       setRefreshing(true);
@@ -199,7 +199,7 @@ export default function StudentDashboard() {
         }
       }
 
-      // 1. Kuhaa ang Events
+      // 1. Events
       const { data: eventsData } = await supabase
         .from('events')
         .select('*')
@@ -209,7 +209,7 @@ export default function StudentDashboard() {
         setEvents(eventsData);
       }
 
-      // 2. Kuhaa ang Attendance sa Estudyante
+      // 2. Attendance
       const { data: studentLogs } = await supabase
         .from('attendance')
         .select('*')
@@ -247,7 +247,7 @@ export default function StudentDashboard() {
         setAttendanceLogs([]);
       }
 
-      // 3. Kuhaa ang Officers
+      // 3. Officers
       const { data: officersData } = await supabase
         .from('officers')
         .select('*')
@@ -276,7 +276,7 @@ export default function StudentDashboard() {
     if (!file) return;
 
     if (!file.type.startsWith('image/')) {
-      alert('Palihug pagpili og saktong litrato (PNG, JPG, o JPEG).');
+      alert('Pumili ng tamang larawan (PNG, JPG, o JPEG).');
       return;
     }
 
@@ -318,7 +318,7 @@ export default function StudentDashboard() {
             .eq('school_id', profile.school_id);
 
           if (dbError) {
-            alert('Wala ma-sync ang litrato sa database: ' + dbError.message);
+            alert('Hindi na-sync ang litrato sa database: ' + dbError.message);
           } else {
             showNotify('success', 'Profile photo updated & Attendance QR Code generated successfully!');
           }
@@ -377,12 +377,12 @@ export default function StudentDashboard() {
     setPasswordMsg({ type: '', text: '' });
 
     if (newPassword.length < 6) {
-      setPasswordMsg({ type: 'error', text: 'Ang password kinahanglang labing menos 6 ka letra/numero.' });
+      setPasswordMsg({ type: 'error', text: 'Ang password ay dapat hindi bababa sa 6 na karakter.' });
       return;
     }
 
     if (newPassword !== confirmPassword) {
-      setPasswordMsg({ type: 'error', text: 'Wala magkatugma ang bag-ong password.' });
+      setPasswordMsg({ type: 'error', text: 'Hindi nagtutugma ang bagong password.' });
       return;
     }
 
@@ -399,7 +399,7 @@ export default function StudentDashboard() {
 
       if (error) throw new Error(error.message);
 
-      setPasswordMsg({ type: 'success', text: 'Malampusong nabag-o ang imong password!' });
+      setPasswordMsg({ type: 'success', text: 'Matagumpay na nabago ang iyong password!' });
       setTimeout(() => {
         setIsChangePasswordOpen(false);
         setNewPassword('');
@@ -422,7 +422,7 @@ export default function StudentDashboard() {
     router.replace('/');
   };
 
-  // Calculations sa Attendance
+  // Kalkulasyon sa Attendance
   const totalEventsCount = attendanceLogs.length;
   const totalPresentCount = attendanceLogs.filter((l) => l.status === 'PRESENT').length;
   const totalAbsencesCount = attendanceLogs.filter((l) => l.status === 'ABSENT').length;
@@ -444,7 +444,7 @@ export default function StudentDashboard() {
       );
     });
 
-  // Calculations & Filtering sa Organization Events Tab (2nd Picture)
+  // Organization Events
   const totalOrgEvents = events.length;
   const activeOrgEvents = events.filter((e) => e.status === 'active').length;
   const inactiveOrgEvents = Math.max(0, totalOrgEvents - activeOrgEvents);
@@ -464,7 +464,7 @@ export default function StudentDashboard() {
       );
     });
 
-  // QR Payload Setup
+  // QR Code Payload
   const qrPayload = JSON.stringify({
     school_id: profile.school_id,
     full_name: profile.full_name,
@@ -659,7 +659,7 @@ export default function StudentDashboard() {
         />
       )}
 
-      {/* GREEN WELCOME TO STUDENT PORTAL TOAST BANNER */}
+      {/* WELCOME BANNER */}
       {showWelcomeToast && (
         <div
           style={{
@@ -961,7 +961,6 @@ export default function StudentDashboard() {
 
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))', gap: '24px', alignItems: 'start', width: '100%' }}>
                 <div style={{ maxWidth: '330px', margin: '0 auto', width: '100%' }}>
-                  {/* DIGITAL ID CARD */}
                   <div
                     ref={idCardRef}
                     style={{
@@ -977,7 +976,6 @@ export default function StudentDashboard() {
                       boxSizing: 'border-box',
                     }}
                   >
-                    {/* Top Pill Header */}
                     <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '14px' }}>
                       <span
                         style={{
@@ -999,7 +997,6 @@ export default function StudentDashboard() {
                       </span>
                     </div>
 
-                    {/* Student Photo Frame */}
                     <div
                       onClick={() => fileInputRef.current?.click()}
                       style={{
@@ -1025,7 +1022,6 @@ export default function StudentDashboard() {
                       )}
                     </div>
 
-                    {/* Full Name */}
                     <h2
                       style={{
                         fontSize: '1.28rem',
@@ -1038,7 +1034,6 @@ export default function StudentDashboard() {
                       {profile.full_name}
                     </h2>
 
-                    {/* Student ID Label */}
                     <div
                       style={{
                         fontSize: '0.65rem',
@@ -1052,7 +1047,6 @@ export default function StudentDashboard() {
                       STUDENT ID
                     </div>
 
-                    {/* White Pill Badge for ID Number */}
                     <div
                       style={{
                         display: 'inline-block',
@@ -1070,7 +1064,6 @@ export default function StudentDashboard() {
                       {profile.school_id}
                     </div>
 
-                    {/* QR CODE CONTAINER */}
                     <div
                       style={{
                         backgroundColor: '#ffffff',
@@ -1169,7 +1162,7 @@ export default function StudentDashboard() {
                   </div>
                 </div>
 
-                {/* Right Side Info Cards */}
+                {/* Info Cards */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', width: '100%' }}>
                   <div style={{ backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '18px', padding: '18px', display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
                     <div style={{ fontSize: '1.4rem', flexShrink: 0 }}>📱</div>
@@ -1200,7 +1193,7 @@ export default function StudentDashboard() {
             </div>
           )}
 
-          {/* TAB 2: ATTENDANCE (1ST PICTURE - WORKING REFRESH BUTTON) */}
+          {/* TAB 2: ATTENDANCE (MAY GUMAGANANG REFRESH BUTTON) */}
           {activeTab === 'attendance' && (
             <div style={{ maxWidth: '980px', margin: '0 auto', width: '100%' }}>
               <div style={{ display: 'inline-block', backgroundColor: '#f0fdf4', color: '#15803d', border: '1px solid #bbf7d0', padding: '4px 14px', borderRadius: '9999px', fontSize: '0.72rem', fontWeight: 900, textTransform: 'uppercase', marginBottom: '8px' }}>
@@ -1217,7 +1210,6 @@ export default function StudentDashboard() {
                   </p>
                 </div>
 
-                {/* WORKING REFRESH RECORDS BUTTON */}
                 <button
                   type="button"
                   onClick={() => fetchStudentData(true)}
@@ -1258,7 +1250,7 @@ export default function StudentDashboard() {
                 </button>
               </div>
 
-              {/* STATS ROW (1ST PICTURE) */}
+              {/* STATS ROW */}
               <div className="stats-grid-responsive" style={{ display: 'grid', marginBottom: '20px' }}>
                 <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '16px' }}>
                   <span style={{ fontSize: '0.68rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase' }}>TOTAL EVENTS</span>
@@ -1384,21 +1376,21 @@ export default function StudentDashboard() {
             </div>
           )}
 
-          {/* TAB 3: EVENTS (2ND PICTURE - ORGANIZATION EVENTS EXACT DESIGN) */}
+          {/* TAB 3: EVENTS (MAY GREEN PILL BADGE NA MAY CALENDAR ICON) */}
           {activeTab === 'events' && (
             <div style={{ maxWidth: '980px', margin: '0 auto', width: '100%' }}>
-              {/* Header Row uban ang Stats Box sa Tuo */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px', flexWrap: 'wrap', gap: '14px' }}>
                 <div>
+                  {/* GREEN BADGE NA MAY CALENDAR ICON GAYA NG NASA UNANG LARAWAN */}
                   <div
                     style={{
                       display: 'inline-flex',
                       alignItems: 'center',
-                      gap: '6px',
-                      backgroundColor: '#fff7ed',
-                      color: '#ea580c',
-                      border: '1px solid #ffedd5',
-                      padding: '4px 14px',
+                      gap: '7px',
+                      backgroundColor: '#f0fdf4',
+                      color: '#15803d',
+                      border: '1.5px solid #bbf7d0',
+                      padding: '5px 14px',
                       borderRadius: '9999px',
                       fontSize: '0.72rem',
                       fontWeight: 900,
@@ -1406,7 +1398,22 @@ export default function StudentDashboard() {
                       marginBottom: '8px',
                     }}
                   >
-                    <span>📅</span>
+                    <svg
+                      width="13"
+                      height="13"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="#15803d"
+                      strokeWidth="2.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      style={{ flexShrink: 0 }}
+                    >
+                      <rect x="3" y="4" width="18" height="18" rx="2" />
+                      <line x1="16" y1="2" x2="16" y2="6" />
+                      <line x1="8" y1="2" x2="8" y2="6" />
+                      <line x1="3" y1="10" x2="21" y2="10" />
+                    </svg>
                     <span>OFFICIAL ORGANIZATION ACTIVITIES</span>
                   </div>
 
@@ -1418,7 +1425,7 @@ export default function StudentDashboard() {
                   </p>
                 </div>
 
-                {/* Right Top Counter Box (2nd Picture) */}
+                {/* Counter Box sa Taas */}
                 <div
                   style={{
                     backgroundColor: '#ffffff',
@@ -1448,7 +1455,7 @@ export default function StudentDashboard() {
                 </div>
               </div>
 
-              {/* Filter Pills & Search Bar (2nd Picture) */}
+              {/* Filter Pills & Search Input */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
                 <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                   <button
@@ -1514,7 +1521,6 @@ export default function StudentDashboard() {
                   </button>
                 </div>
 
-                {/* Search Bar uban ang Magnifying Glass Icon */}
                 <div style={{ position: 'relative', width: '260px', maxWidth: '100%' }}>
                   <svg
                     width="15"
@@ -1549,7 +1555,7 @@ export default function StudentDashboard() {
                 </div>
               </div>
 
-              {/* Event Cards Listing */}
+              {/* Event Cards */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
                 {filteredOrgEvents.length === 0 ? (
                   <div style={{ textAlign: 'center', padding: '40px', backgroundColor: '#ffffff', borderRadius: '20px', border: '1px solid #e2e8f0', color: '#94a3b8' }}>
@@ -1845,7 +1851,7 @@ export default function StudentDashboard() {
             </div>
           )}
 
-          {/* TAB 6: PROFILE (3RD PICTURE - LOGO / SHIELD DETAILS) */}
+          {/* TAB 6: PROFILE (PANGALAWANG LARAWAN - PINALITAN ANG SCANNER PRIVILEGE NG STUDENT) */}
           {activeTab === 'profile' && (
             <div style={{ maxWidth: '640px', margin: '0 auto', width: '100%' }}>
               <div style={{ textAlign: 'center', marginBottom: '20px' }}>
@@ -1877,10 +1883,9 @@ export default function StudentDashboard() {
                 </p>
               </div>
 
-              {/* VERIFIED STUDENT DETAILS CARD (3RD PICTURE EXACT LOGO/SHIELD) */}
+              {/* VERIFIED STUDENT DETAILS CARD */}
               <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '20px', padding: '20px', marginBottom: '18px', boxShadow: '0 2px 6px rgba(0,0,0,0.02)', width: '100%', boxSizing: 'border-box' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #f1f5f9', paddingBottom: '12px', marginBottom: '14px', flexWrap: 'wrap', gap: '8px' }}>
-                  {/* Left: Shield Check Icon + Title */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
                       <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
@@ -1891,7 +1896,6 @@ export default function StudentDashboard() {
                     </span>
                   </div>
 
-                  {/* Right: Official Record Pill uban ang Shield Check */}
                   <span
                     style={{
                       backgroundColor: '#f0fdf4',
@@ -1928,12 +1932,15 @@ export default function StudentDashboard() {
                     <span style={{ color: '#64748b', fontWeight: 700 }}>Email Address</span>
                     <span style={{ fontWeight: 800, color: '#0f172a', wordBreak: 'break-all' }}>{profile.email}</span>
                   </div>
+
+                  {/* PINALITAN ANG "Scanner Privilege / STANDARD MEMBER" NG "Student / STUDENT" */}
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '4px' }}>
-                    <span style={{ color: '#64748b', fontWeight: 700 }}>Scanner Privilege</span>
-                    <span style={{ backgroundColor: profile.can_scan ? '#dcfce7' : '#f1f5f9', color: profile.can_scan ? '#15803d' : '#64748b', borderRadius: '6px', padding: '2px 8px', fontSize: '0.72rem', fontWeight: 800 }}>
-                      {profile.can_scan ? 'AUTHORIZED SCANNER' : 'STANDARD MEMBER'}
+                    <span style={{ color: '#64748b', fontWeight: 700 }}>Student</span>
+                    <span style={{ backgroundColor: '#dcfce7', color: '#15803d', borderRadius: '6px', padding: '3px 10px', fontSize: '0.72rem', fontWeight: 900, border: '1px solid #bbf7d0' }}>
+                      STUDENT
                     </span>
                   </div>
+
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '4px' }}>
                     <span style={{ color: '#64748b', fontWeight: 700 }}>Course &amp; Section</span>
                     <span style={{ fontWeight: 800, color: '#0f172a' }}>{profile.course} - {profile.section}</span>
@@ -1974,7 +1981,7 @@ export default function StudentDashboard() {
             </div>
           )}
 
-          {/* TAB 7: ABOUT */}
+          {/* TAB 7: ABOUT (KUMPLETONG DATI AT ORIGINAL NA CODE NA WALANG BAWAS) */}
           {activeTab === 'about' && (
             <div style={{ maxWidth: '980px', margin: '0 auto', width: '100%' }}>
               <section style={{ textAlign: 'center', marginBottom: '32px' }}>
@@ -2071,7 +2078,75 @@ export default function StudentDashboard() {
                 </p>
               </section>
 
-              {/* Developer Profile */}
+              {/* Who Uses CECTRACK (IBINALIK NA BUO) */}
+              <section style={{ marginBottom: '40px' }}>
+                <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+                  <h2 style={{ fontSize: '1.65rem', fontWeight: 900, color: '#0f172a', margin: '0 0 6px 0' }}>
+                    Who Uses CECTRACK?
+                  </h2>
+                  <p style={{ fontSize: '0.82rem', color: '#64748b', margin: 0 }}>
+                    Tailored workspaces engineered for every member of the academic community.
+                  </p>
+                </div>
+
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
+                    gap: '16px',
+                  }}
+                >
+                  <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '18px', padding: '20px' }}>
+                    <div style={{ width: '38px', height: '38px', borderRadius: '12px', backgroundColor: '#eff6ff', color: '#2563eb', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem', marginBottom: '10px' }}>
+                      👤
+                    </div>
+                    <h3 style={{ fontSize: '0.95rem', fontWeight: 900, color: '#0f172a', margin: '0 0 6px 0' }}>
+                      Students &amp; Members
+                    </h3>
+                    <p style={{ fontSize: '0.78rem', color: '#64748b', lineHeight: 1.5, margin: 0 }}>
+                      Access personalized digital ID badges, view attendance history, explore upcoming assemblies, and verify compliance records in real time.
+                    </p>
+                  </div>
+
+                  <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '18px', padding: '20px' }}>
+                    <div style={{ width: '38px', height: '38px', borderRadius: '12px', backgroundColor: '#f0fdf4', color: '#16a34a', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem', marginBottom: '10px' }}>
+                      📷
+                    </div>
+                    <h3 style={{ fontSize: '0.95rem', fontWeight: 900, color: '#0f172a', margin: '0 0 6px 0' }}>
+                      Attendance Officers
+                    </h3>
+                    <p style={{ fontSize: '0.78rem', color: '#64748b', lineHeight: 1.5, margin: 0 }}>
+                      High-speed event check-in using mobile camera scanning, photo verification, and automated duplicate check-in prevention.
+                    </p>
+                  </div>
+
+                  <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '18px', padding: '20px' }}>
+                    <div style={{ width: '38px', height: '38px', borderRadius: '12px', backgroundColor: '#fefce8', color: '#ca8a04', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem', marginBottom: '10px' }}>
+                      💼
+                    </div>
+                    <h3 style={{ fontSize: '0.95rem', fontWeight: 900, color: '#0f172a', margin: '0 0 6px 0' }}>
+                      Department Heads
+                    </h3>
+                    <p style={{ fontSize: '0.78rem', color: '#64748b', lineHeight: 1.5, margin: 0 }}>
+                      Manage member rosters across BSCRIM, BSBA, BSA, BEED, and BSAM programs, and monitor general assembly participation rates.
+                    </p>
+                  </div>
+
+                  <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '18px', padding: '20px' }}>
+                    <div style={{ width: '38px', height: '38px', borderRadius: '12px', backgroundColor: '#faf5ff', color: '#9333ea', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem', marginBottom: '10px' }}>
+                      🏛️
+                    </div>
+                    <h3 style={{ fontSize: '0.95rem', fontWeight: 900, color: '#0f172a', margin: '0 0 6px 0' }}>
+                      Executive Officers
+                    </h3>
+                    <p style={{ fontSize: '0.78rem', color: '#64748b', lineHeight: 1.5, margin: 0 }}>
+                      Publish official events with custom banners, oversee student enrollment whitelists, and export verified attendance records.
+                    </p>
+                  </div>
+                </div>
+              </section>
+
+              {/* Developer Profile (IBINALIK NA BUO) */}
               <section
                 style={{
                   background: 'linear-gradient(145deg, #064e3b 0%, #022c22 100%)',
@@ -2141,6 +2216,18 @@ export default function StudentDashboard() {
                   </div>
                 </div>
 
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                  <span style={{ backgroundColor: 'rgba(52, 211, 153, 0.15)', color: '#6ee7b7', border: '1px solid rgba(52, 211, 153, 0.35)', padding: '5px 12px', borderRadius: '9999px', fontSize: '0.72rem', fontWeight: 800 }}>
+                    Developer
+                  </span>
+                  <span style={{ backgroundColor: 'rgba(56, 189, 248, 0.15)', color: '#7dd3fc', border: '1px solid rgba(56, 189, 248, 0.35)', padding: '5px 12px', borderRadius: '9999px', fontSize: '0.72rem', fontWeight: 800 }}>
+                    💻 Full-Stack Web &amp; Database Systems
+                  </span>
+                  <span style={{ backgroundColor: 'rgba(251, 191, 36, 0.15)', color: '#fde68a', border: '1px solid rgba(251, 191, 36, 0.35)', padding: '5px 12px', borderRadius: '9999px', fontSize: '0.72rem', fontWeight: 800 }}>
+                    📍 Davao Oriental State University Main Campus
+                  </span>
+                </div>
+
                 <p
                   style={{
                     fontSize: '0.85rem',
@@ -2151,7 +2238,7 @@ export default function StudentDashboard() {
                     paddingTop: '14px',
                   }}
                 >
-                  CECTRACK was conceptualized and developed by <strong>Renowee Beloy</strong> from the <strong>Faculty of Computing, Engineering, and Technology (FaCET)</strong> as a specialized institutional software initiative for Davao Oriental State University.
+                  CECTRACK was conceptualized and developed by <strong>Renowee Beloy</strong> from the <strong>Faculty of Computing, Engineering, and Technology (FaCET)</strong> as a specialized institutional software initiative for Davao Oriental State University. Engineered to resolve manual attendance bottlenecks, it replaces tedious paper logs with reliable digital identification, camera-based QR scanning, and automated attendance reporting.
                 </p>
               </section>
             </div>
@@ -2258,12 +2345,10 @@ export default function StudentDashboard() {
         </div>
       )}
 
-      {/* CHANGE PASSWORD MODAL (4TH & 5TH PICTURES - UBAN ANG CAMPUS LOGO) */}
+      {/* CHANGE PASSWORD MODAL (MAY OPISYAL NA LOGO) */}
       {isChangePasswordOpen && (
         <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(15, 23, 42, 0.65)', backdropFilter: 'blur(4px)', zIndex: 120, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
           <div style={{ backgroundColor: '#ffffff', width: '100%', maxWidth: '400px', borderRadius: '24px', padding: '26px 24px', boxShadow: '0 20px 40px rgba(0,0,0,0.2)', position: 'relative' }}>
-            
-            {/* 5TH PICTURE: OFFICIAL LOGO CONTAINER (ROUNDED WITH LIGHT GREEN BORDER) */}
             <div
               style={{
                 width: '60px',
