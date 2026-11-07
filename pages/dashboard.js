@@ -277,7 +277,7 @@ export default function StudentDashboard() {
     if (!file) return;
 
     if (!file.type.startsWith('image/')) {
-      alert('Pumili ng tamang larawan (PNG, JPG, o JPEG).');
+      alert('Please select a valid image file (PNG, JPG, or JPEG).');
       return;
     }
 
@@ -319,7 +319,7 @@ export default function StudentDashboard() {
             .eq('school_id', profile.school_id);
 
           if (dbError) {
-            alert('Hindi na-sync ang litrato sa database: ' + dbError.message);
+            alert('Failed to sync profile photo to database: ' + dbError.message);
           } else {
             showNotify('success', 'Profile photo updated & Attendance QR Code generated successfully!');
           }
@@ -335,9 +335,7 @@ export default function StudentDashboard() {
     reader.readAsDataURL(file);
   };
 
-  // =========================================================================
-  // GIPALIG-ON NGA DOWNLOAD LOGIC (COMPATIBLE SA MESSENGER / IN-APP BROWSER)
-  // =========================================================================
+  // Download logic supporting Messenger / In-App Browser
   const handleDownloadIdCard = async () => {
     if (!idCardRef.current) return;
     setDownloadingId(true);
@@ -364,17 +362,14 @@ export default function StudentDashboard() {
       const imageUri = canvas.toDataURL('image/png');
       const fileName = `CEC-ID-${profile.school_id || 'Student'}.png`;
 
-      // 1. Susiha kung naa sa Facebook Messenger o In-App Browser
       const isMessengerApp =
         /FBAN|FBAV|Messenger|FB_IAB|Instagram|Line/i.test(navigator.userAgent || '');
 
-      // 2. I-convert ang canvas ngadto sa Blob alang sa Web Share API
       canvas.toBlob(async (blob) => {
         if (blob && navigator.canShare) {
           const file = new File([blob], fileName, { type: 'image/png' });
           if (navigator.canShare({ files: [file] })) {
             try {
-              // Motungha ang cellphone system share sheet (Save to Photos / Save Image)
               await navigator.share({
                 files: [file],
                 title: 'Official Student ID',
@@ -383,21 +378,17 @@ export default function StudentDashboard() {
               setDownloadingId(false);
               return;
             } catch (shareErr) {
-              // Kon gi-cancel sa user ang share dialog
               console.log('Native share dismissed or cancelled:', shareErr);
             }
           }
         }
 
-        // 3. Kon naa sa Messenger browser ug dili mo-download ang <a download>,
-        // ablihan ang Long-Press Save Modal aron ma-save sa Gallery
         if (isMessengerApp) {
           setIdModalData({ isOpen: true, url: imageUri });
           setDownloadingId(false);
           return;
         }
 
-        // 4. Kon normal nga browser (Chrome, Safari, Edge), normal nga direct download
         const downloadLink = document.createElement('a');
         downloadLink.download = fileName;
         downloadLink.href = imageUri;
@@ -418,12 +409,12 @@ export default function StudentDashboard() {
     setPasswordMsg({ type: '', text: '' });
 
     if (newPassword.length < 6) {
-      setPasswordMsg({ type: 'error', text: 'Ang password ay dapat hindi bababa sa 6 na karakter.' });
+      setPasswordMsg({ type: 'error', text: 'Password must be at least 6 characters long.' });
       return;
     }
 
     if (newPassword !== confirmPassword) {
-      setPasswordMsg({ type: 'error', text: 'Hindi nagtutugma ang bagong password.' });
+      setPasswordMsg({ type: 'error', text: 'New passwords do not match.' });
       return;
     }
 
@@ -440,7 +431,7 @@ export default function StudentDashboard() {
 
       if (error) throw new Error(error.message);
 
-      setPasswordMsg({ type: 'success', text: 'Matagumpay na nabago ang iyong password!' });
+      setPasswordMsg({ type: 'success', text: 'Password updated successfully!' });
       setTimeout(() => {
         setIsChangePasswordOpen(false);
         setNewPassword('');
@@ -463,7 +454,7 @@ export default function StudentDashboard() {
     router.replace('/');
   };
 
-  // Kalkulasyon sa Attendance
+  // Attendance stats
   const totalEventsCount = attendanceLogs.length;
   const totalPresentCount = attendanceLogs.filter((l) => l.status === 'PRESENT').length;
   const totalAbsencesCount = attendanceLogs.filter((l) => l.status === 'ABSENT').length;
@@ -485,7 +476,7 @@ export default function StudentDashboard() {
       );
     });
 
-  // Organization Events
+  // Organization Events stats
   const totalOrgEvents = events.length;
   const activeOrgEvents = events.filter((e) => e.status === 'active').length;
   const inactiveOrgEvents = Math.max(0, totalOrgEvents - activeOrgEvents);
@@ -1702,7 +1693,7 @@ export default function StudentDashboard() {
                 <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '20px', padding: '40px 20px', textAlign: 'center' }}>
                   <div style={{ fontSize: '2rem', marginBottom: '8px' }}>🏅</div>
                   <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 900, color: '#0f172a' }}>Officers Roster Coming Soon</h3>
-                  <p style={{ fontSize: '0.82rem', color: '#64748b', margin: '4px 0 0 0' }}>Wala pa&apos;y gidugang nga opisyales ang mga tagdumala.</p>
+                  <p style={{ fontSize: '0.82rem', color: '#64748b', margin: '4px 0 0 0' }}>No officers published yet by the administration.</p>
                 </div>
               ) : (
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '18px' }}>
@@ -2309,9 +2300,7 @@ export default function StudentDashboard() {
         </main>
       </div>
 
-      {/* ========================================================================= */}
-      {/* MODAL: MESSENGER IN-APP BROWSER ID PREVIEW & LONG-PRESS TO SAVE           */}
-      {/* ========================================================================= */}
+      {/* MODAL: MESSENGER IN-APP BROWSER ID PREVIEW & LONG-PRESS TO SAVE */}
       {idModalData.isOpen && (
         <div
           style={{
@@ -2364,15 +2353,15 @@ export default function StudentDashboard() {
               </button>
             </div>
 
-            {/* In-App Browser Instruction Banner */}
+            {/* In-App Browser Instruction Banner (Green Theme & English) */}
             <div
               style={{
-                backgroundColor: '#eff6ff',
-                border: '1.5px solid #bfdbfe',
+                backgroundColor: '#f0fdf4',
+                border: '1.5px solid #bbf7d0',
                 borderRadius: '12px',
                 padding: '10px 12px',
                 fontSize: '0.78rem',
-                color: '#1e40af',
+                color: '#15803d',
                 textAlign: 'left',
                 lineHeight: 1.45,
                 marginBottom: '14px',
@@ -2381,7 +2370,7 @@ export default function StudentDashboard() {
             >
               💡 <strong>Messenger Browser Notice:</strong>
               <br />
-              Pugngi ug dugay (<strong>Long-Press</strong>) ang litrato sa ubos, unya i-klik ang <strong>&quot;Save Image&quot;</strong> o <strong>&quot;Download Image&quot;</strong> aron ma-save kini sa imong Photos/Gallery.
+              Press and hold (<strong>Long-Press</strong>) the image below, then tap <strong>&quot;Save Image&quot;</strong> or <strong>&quot;Download Image&quot;</strong> to save it directly to your Photos/Gallery.
             </div>
 
             {/* Generated Image Preview for Long-Press Saving */}
@@ -2404,7 +2393,6 @@ export default function StudentDashboard() {
               <button
                 type="button"
                 onClick={() => {
-                  // Direct download link as additional attempt
                   const a = document.createElement('a');
                   a.href = idModalData.url;
                   a.download = `CEC-ID-${profile.school_id || 'Student'}.png`;
