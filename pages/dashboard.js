@@ -16,6 +16,9 @@ export default function StudentDashboard() {
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [downloadingId, setDownloadingId] = useState(false);
 
+  // Messenger / In-App Browser ID Save Modal State
+  const [idModalData, setIdModalData] = useState({ isOpen: false, url: '' });
+
   // Welcome Toast Banner State
   const [showWelcomeToast, setShowWelcomeToast] = useState(true);
 
@@ -332,6 +335,9 @@ export default function StudentDashboard() {
     reader.readAsDataURL(file);
   };
 
+  // =========================================================================
+  // GIPALIG-ON NGA DOWNLOAD LOGIC (COMPATIBLE SA MESSENGER / IN-APP BROWSER)
+  // =========================================================================
   const handleDownloadIdCard = async () => {
     if (!idCardRef.current) return;
     setDownloadingId(true);
@@ -356,17 +362,54 @@ export default function StudentDashboard() {
       });
 
       const imageUri = canvas.toDataURL('image/png');
-      const downloadLink = document.createElement('a');
-      downloadLink.download = `CEC-ID-${profile.school_id || 'Student'}.png`;
-      downloadLink.href = imageUri;
-      document.body.appendChild(downloadLink);
-      downloadLink.click();
-      document.body.removeChild(downloadLink);
+      const fileName = `CEC-ID-${profile.school_id || 'Student'}.png`;
+
+      // 1. Susiha kung naa sa Facebook Messenger o In-App Browser
+      const isMessengerApp =
+        /FBAN|FBAV|Messenger|FB_IAB|Instagram|Line/i.test(navigator.userAgent || '');
+
+      // 2. I-convert ang canvas ngadto sa Blob alang sa Web Share API
+      canvas.toBlob(async (blob) => {
+        if (blob && navigator.canShare) {
+          const file = new File([blob], fileName, { type: 'image/png' });
+          if (navigator.canShare({ files: [file] })) {
+            try {
+              // Motungha ang cellphone system share sheet (Save to Photos / Save Image)
+              await navigator.share({
+                files: [file],
+                title: 'Official Student ID',
+                text: `Official Student ID: ${profile.full_name} (${profile.school_id})`,
+              });
+              setDownloadingId(false);
+              return;
+            } catch (shareErr) {
+              // Kon gi-cancel sa user ang share dialog
+              console.log('Native share dismissed or cancelled:', shareErr);
+            }
+          }
+        }
+
+        // 3. Kon naa sa Messenger browser ug dili mo-download ang <a download>,
+        // ablihan ang Long-Press Save Modal aron ma-save sa Gallery
+        if (isMessengerApp) {
+          setIdModalData({ isOpen: true, url: imageUri });
+          setDownloadingId(false);
+          return;
+        }
+
+        // 4. Kon normal nga browser (Chrome, Safari, Edge), normal nga direct download
+        const downloadLink = document.createElement('a');
+        downloadLink.download = fileName;
+        downloadLink.href = imageUri;
+        document.body.appendChild(downloadLink);
+        downloadLink.click();
+        document.body.removeChild(downloadLink);
+        setDownloadingId(false);
+      }, 'image/png');
     } catch (err) {
       console.error('Error downloading ID card:', err);
-      window.print();
-    } finally {
       setDownloadingId(false);
+      window.print();
     }
   };
 
@@ -1374,7 +1417,7 @@ export default function StudentDashboard() {
             </div>
           )}
 
-          {/* TAB 3: EVENTS (GI-UPDATE NGA PLACEHOLDER ICON SUSAMA SA IKA-2 NGA HULAGWAY) */}
+          {/* TAB 3: EVENTS */}
           {activeTab === 'events' && (
             <div style={{ maxWidth: '980px', margin: '0 auto', width: '100%' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px', flexWrap: 'wrap', gap: '14px' }}>
@@ -1552,7 +1595,7 @@ export default function StudentDashboard() {
                 </div>
               </div>
 
-              {/* Event Cards Listing */}
+              {/* Event Cards */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
                 {filteredOrgEvents.length === 0 ? (
                   <div style={{ textAlign: 'center', padding: '40px', backgroundColor: '#ffffff', borderRadius: '20px', border: '1px solid #e2e8f0', color: '#94a3b8' }}>
@@ -1572,7 +1615,6 @@ export default function StudentDashboard() {
                           boxShadow: '0 2px 8px rgba(0,0,0,0.03)',
                         }}
                       >
-                        {/* KUNG MAY PIC: IPAPAKITA ANG LARAWAN; KUNG WALA: IPAPAKITA ANG PLACEHOLDER ICON (2ND PICTURE) */}
                         {ev.image_url ? (
                           <div style={{ width: '100%', height: '170px', overflow: 'hidden' }}>
                             <img src={ev.image_url} alt={ev.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
@@ -2266,6 +2308,145 @@ export default function StudentDashboard() {
           )}
         </main>
       </div>
+
+      {/* ========================================================================= */}
+      {/* MODAL: MESSENGER IN-APP BROWSER ID PREVIEW & LONG-PRESS TO SAVE           */}
+      {/* ========================================================================= */}
+      {idModalData.isOpen && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(15, 23, 42, 0.75)',
+            backdropFilter: 'blur(5px)',
+            zIndex: 140,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '16px',
+          }}
+        >
+          <div
+            style={{
+              backgroundColor: '#ffffff',
+              width: '100%',
+              maxWidth: '380px',
+              borderRadius: '24px',
+              padding: '24px 20px',
+              boxShadow: '0 25px 50px rgba(0,0,0,0.25)',
+              textAlign: 'center',
+              boxSizing: 'border-box',
+              maxHeight: '90vh',
+              overflowY: 'auto',
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ fontSize: '1.2rem' }}>📱</span>
+                <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 900, color: '#0f172a' }}>
+                  Save Your ID Image
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIdModalData({ isOpen: false, url: '' })}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  fontSize: '1.1rem',
+                  color: '#94a3b8',
+                  cursor: 'pointer',
+                  padding: '4px',
+                  fontWeight: 900,
+                }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* In-App Browser Instruction Banner */}
+            <div
+              style={{
+                backgroundColor: '#eff6ff',
+                border: '1.5px solid #bfdbfe',
+                borderRadius: '12px',
+                padding: '10px 12px',
+                fontSize: '0.78rem',
+                color: '#1e40af',
+                textAlign: 'left',
+                lineHeight: 1.45,
+                marginBottom: '14px',
+                fontWeight: 600,
+              }}
+            >
+              💡 <strong>Messenger Browser Notice:</strong>
+              <br />
+              Pugngi ug dugay (<strong>Long-Press</strong>) ang litrato sa ubos, unya i-klik ang <strong>&quot;Save Image&quot;</strong> o <strong>&quot;Download Image&quot;</strong> aron ma-save kini sa imong Photos/Gallery.
+            </div>
+
+            {/* Generated Image Preview for Long-Press Saving */}
+            <div style={{ marginBottom: '14px', borderRadius: '18px', overflow: 'hidden', boxShadow: '0 6px 16px rgba(0,0,0,0.08)' }}>
+              <img
+                src={idModalData.url}
+                alt="My Official ID"
+                style={{
+                  width: '100%',
+                  height: 'auto',
+                  display: 'block',
+                  userSelect: 'auto',
+                  WebkitUserSelect: 'auto',
+                  touchAction: 'auto',
+                }}
+              />
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <button
+                type="button"
+                onClick={() => {
+                  // Direct download link as additional attempt
+                  const a = document.createElement('a');
+                  a.href = idModalData.url;
+                  a.download = `CEC-ID-${profile.school_id || 'Student'}.png`;
+                  a.click();
+                }}
+                style={{
+                  width: '100%',
+                  padding: '11px',
+                  backgroundColor: '#15803d',
+                  color: '#ffffff',
+                  border: 'none',
+                  borderRadius: '12px',
+                  fontWeight: 900,
+                  fontSize: '0.85rem',
+                  cursor: 'pointer',
+                  boxShadow: '0 3px 10px rgba(21, 128, 61, 0.25)',
+                }}
+              >
+                📥 Try Direct Download Again
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setIdModalData({ isOpen: false, url: '' })}
+                style={{
+                  width: '100%',
+                  padding: '10px',
+                  backgroundColor: '#f1f5f9',
+                  color: '#475569',
+                  border: 'none',
+                  borderRadius: '12px',
+                  fontWeight: 800,
+                  fontSize: '0.82rem',
+                  cursor: 'pointer',
+                }}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* SIGN OUT CONFIRMATION MODAL */}
       {isLogoutModalOpen && (
