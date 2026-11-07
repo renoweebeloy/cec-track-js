@@ -17,7 +17,12 @@ export default function StudentDashboard() {
   const [downloadingId, setDownloadingId] = useState(false);
 
   // Messenger / In-App Browser ID Save Modal State
-  const [idModalData, setIdModalData] = useState({ isOpen: false, url: '' });
+  const [idModalData, setIdModalData] = useState({
+    isOpen: false,
+    url: '',
+    blob: null,
+    fileName: '',
+  });
 
   // Welcome Toast Banner State
   const [showWelcomeToast, setShowWelcomeToast] = useState(true);
@@ -52,7 +57,7 @@ export default function StudentDashboard() {
   const [searchQuery, setSearchQuery] = useState('');
 
   // Organization Events Filters & Search
-  const [eventTabFilter, setEventTabFilter] = useState('all'); // 'all' | 'active' | 'inactive'
+  const [eventTabFilter, setEventTabFilter] = useState('all');
   const [eventTabSearch, setEventTabSearch] = useState('');
 
   const [notification, setNotification] = useState({ type: '', message: '' });
@@ -335,7 +340,7 @@ export default function StudentDashboard() {
     reader.readAsDataURL(file);
   };
 
-  // Download logic supporting Messenger / In-App Browser
+  // Comprehensive Mobile / Messenger / Browser Download Engine
   const handleDownloadIdCard = async () => {
     if (!idCardRef.current) return;
     setDownloadingId(true);
@@ -359,14 +364,20 @@ export default function StudentDashboard() {
         borderRadius: 34,
       });
 
-      const imageUri = canvas.toDataURL('image/png');
       const fileName = `CEC-ID-${profile.school_id || 'Student'}.png`;
-
-      const isMessengerApp =
-        /FBAN|FBAV|Messenger|FB_IAB|Instagram|Line/i.test(navigator.userAgent || '');
+      const isMessengerApp = /FBAN|FBAV|Messenger|FB_IAB|Instagram|Line/i.test(navigator.userAgent || '');
 
       canvas.toBlob(async (blob) => {
-        if (blob && navigator.canShare) {
+        if (!blob) {
+          setDownloadingId(false);
+          return;
+        }
+
+        // Generate a true Blob URL (Crucial for Android/iOS Long-Press to work instead of failing on data URLs)
+        const blobUrl = URL.createObjectURL(blob);
+
+        // Attempt 1: Direct System Share Sheet (Supported in modern mobile browsers)
+        if (navigator.canShare) {
           const file = new File([blob], fileName, { type: 'image/png' });
           if (navigator.canShare({ files: [file] })) {
             try {
@@ -383,24 +394,64 @@ export default function StudentDashboard() {
           }
         }
 
+        // Attempt 2: If inside Messenger WebView, launch the dedicated Long-Press & External Browser Modal
         if (isMessengerApp) {
-          setIdModalData({ isOpen: true, url: imageUri });
+          setIdModalData({
+            isOpen: true,
+            url: blobUrl,
+            blob: blob,
+            fileName: fileName,
+          });
           setDownloadingId(false);
           return;
         }
 
+        // Attempt 3: Standard Browser Direct Download
         const downloadLink = document.createElement('a');
         downloadLink.download = fileName;
-        downloadLink.href = imageUri;
+        downloadLink.href = blobUrl;
         document.body.appendChild(downloadLink);
         downloadLink.click();
         document.body.removeChild(downloadLink);
         setDownloadingId(false);
       }, 'image/png');
     } catch (err) {
-      console.error('Error downloading ID card:', err);
+      console.error('Error generating ID card image:', err);
       setDownloadingId(false);
       window.print();
+    }
+  };
+
+  // External Browser Trigger for Android Messenger
+  const handleOpenInSystemBrowser = () => {
+    const isAndroid = /Android/i.test(navigator.userAgent || '');
+    const cleanUrl = window.location.href.replace(/^https?:\/\//, '');
+
+    if (isAndroid) {
+      // Direct Chrome Intent for Android: forces opening in real Chrome where downloads work 100%
+      window.location.href = `intent://${cleanUrl}#Intent;scheme=https;package=com.android.chrome;end`;
+    } else {
+      // iOS Guide
+      alert("To save on iPhone: Tap the ⋯ (three dots) icon at the top right of your Messenger screen, then tap 'Open in Safari'.");
+    }
+  };
+
+  // Re-trigger Native Share from within the Modal
+  const handleModalShare = async () => {
+    if (!idModalData.blob) return;
+    try {
+      const file = new File([idModalData.blob], idModalData.fileName, { type: 'image/png' });
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          files: [file],
+          title: 'Official Student ID',
+          text: `Official Student ID: ${profile.full_name} (${profile.school_id})`,
+        });
+      } else {
+        alert('Sharing is not supported on this device. Please use the Long-Press method or open in your browser.');
+      }
+    } catch (err) {
+      console.log('Share dismissed:', err);
     }
   };
 
@@ -513,7 +564,7 @@ export default function StudentDashboard() {
     <div style={{ minHeight: '100vh', backgroundColor: '#f8fafc', display: 'flex', flexDirection: 'column', overflowX: 'hidden', position: 'relative' }}>
       <Head>
         <title>Student Portal • CECTRACK</title>
-        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes" />
         <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" async />
       </Head>
 
@@ -565,6 +616,16 @@ export default function StudentDashboard() {
             grid-template-columns: repeat(3, 1fr) !important;
             gap: 18px !important;
           }
+        }
+
+        /* Unblock Mobile & In-App Browser Touch Actions for Long-Press Image Saving */
+        .touch-saveable-image {
+          -webkit-touch-callout: default !important;
+          -webkit-user-select: auto !important;
+          user-select: auto !important;
+          touch-action: manipulation !important;
+          pointer-events: auto !important;
+          cursor: pointer;
         }
       `}</style>
 
@@ -1586,7 +1647,7 @@ export default function StudentDashboard() {
                 </div>
               </div>
 
-              {/* Event Cards */}
+              {/* Event Cards Listing */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
                 {filteredOrgEvents.length === 0 ? (
                   <div style={{ textAlign: 'center', padding: '40px', backgroundColor: '#ffffff', borderRadius: '20px', border: '1px solid #e2e8f0', color: '#94a3b8' }}>
@@ -1987,7 +2048,6 @@ export default function StudentDashboard() {
                     <span style={{ fontWeight: 800, color: '#0f172a', wordBreak: 'break-all' }}>{profile.email}</span>
                   </div>
 
-                  {/* Student Status */}
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '4px' }}>
                     <span style={{ color: '#64748b', fontWeight: 700 }}>Student</span>
                     <span style={{ backgroundColor: '#dcfce7', color: '#15803d', borderRadius: '6px', padding: '3px 10px', fontSize: '0.72rem', fontWeight: 900, border: '1px solid #bbf7d0' }}>
@@ -2300,7 +2360,7 @@ export default function StudentDashboard() {
         </main>
       </div>
 
-      {/* MODAL: MESSENGER IN-APP BROWSER ID PREVIEW & LONG-PRESS TO SAVE */}
+      {/* MODAL: MESSENGER IN-APP BROWSER ID PREVIEW & DUAL SAVING ENGINE */}
       {idModalData.isOpen && (
         <div
           style={{
@@ -2338,7 +2398,7 @@ export default function StudentDashboard() {
               </div>
               <button
                 type="button"
-                onClick={() => setIdModalData({ isOpen: false, url: '' })}
+                onClick={() => setIdModalData({ isOpen: false, url: '', blob: null, fileName: '' })}
                 style={{
                   background: 'none',
                   border: 'none',
@@ -2353,13 +2413,13 @@ export default function StudentDashboard() {
               </button>
             </div>
 
-            {/* In-App Browser Instruction Banner (Green Theme & English) */}
+            {/* In-App Browser Instruction Banner (Strictly Green Theme & English) */}
             <div
               style={{
                 backgroundColor: '#f0fdf4',
                 border: '1.5px solid #bbf7d0',
                 borderRadius: '12px',
-                padding: '10px 12px',
+                padding: '12px 14px',
                 fontSize: '0.78rem',
                 color: '#15803d',
                 textAlign: 'left',
@@ -2370,34 +2430,41 @@ export default function StudentDashboard() {
             >
               💡 <strong>Messenger Browser Notice:</strong>
               <br />
-              Press and hold (<strong>Long-Press</strong>) the image below, then tap <strong>&quot;Save Image&quot;</strong> or <strong>&quot;Download Image&quot;</strong> to save it directly to your Photos/Gallery.
+              Direct file downloads are restricted inside the Messenger app.
+              <br />
+              <br />
+              <strong>Method 1:</strong> Press and hold (<strong>Long-Press</strong>) the card image below, then tap <strong>&quot;Save Image&quot;</strong> or <strong>&quot;Download Image&quot;</strong>[cite: 18].
+              <br />
+              <strong>Method 2:</strong> Tap <strong>&quot;Open in Chrome / Browser&quot;</strong> below to download the PNG file automatically[cite: 18].
             </div>
 
-            {/* Generated Image Preview for Long-Press Saving */}
+            {/* Touchable Link Wrapper around Image ensuring Native Context Menu */}
             <div style={{ marginBottom: '14px', borderRadius: '18px', overflow: 'hidden', boxShadow: '0 6px 16px rgba(0,0,0,0.08)' }}>
-              <img
-                src={idModalData.url}
-                alt="My Official ID"
-                style={{
-                  width: '100%',
-                  height: 'auto',
-                  display: 'block',
-                  userSelect: 'auto',
-                  WebkitUserSelect: 'auto',
-                  touchAction: 'auto',
-                }}
-              />
+              <a
+                href={idModalData.url}
+                download={idModalData.fileName}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ display: 'block', textDecoration: 'none' }}
+              >
+                <img
+                  src={idModalData.url}
+                  alt="My Official ID"
+                  className="touch-saveable-image"
+                  style={{
+                    width: '100%',
+                    height: 'auto',
+                    display: 'block',
+                  }}
+                />
+              </a>
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {/* Button: Open in Native Chrome / System Browser */}
               <button
                 type="button"
-                onClick={() => {
-                  const a = document.createElement('a');
-                  a.href = idModalData.url;
-                  a.download = `CEC-ID-${profile.school_id || 'Student'}.png`;
-                  a.click();
-                }}
+                onClick={handleOpenInSystemBrowser}
                 style={{
                   width: '100%',
                   padding: '11px',
@@ -2408,18 +2475,47 @@ export default function StudentDashboard() {
                   fontWeight: 900,
                   fontSize: '0.85rem',
                   cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
                   boxShadow: '0 3px 10px rgba(21, 128, 61, 0.25)',
                 }}
               >
-                📥 Try Direct Download Again
+                <span>🌐</span>
+                <span>Open in Chrome / Browser</span>
+              </button>
+
+              {/* Button: Native Device Share */}
+              <button
+                type="button"
+                onClick={handleModalShare}
+                style={{
+                  width: '100%',
+                  padding: '10px',
+                  backgroundColor: '#f0fdf4',
+                  color: '#15803d',
+                  border: '1.5px solid #bbf7d0',
+                  borderRadius: '12px',
+                  fontWeight: 800,
+                  fontSize: '0.82rem',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                }}
+              >
+                <span>📲</span>
+                <span>Save to Device Photos</span>
               </button>
 
               <button
                 type="button"
-                onClick={() => setIdModalData({ isOpen: false, url: '' })}
+                onClick={() => setIdModalData({ isOpen: false, url: '', blob: null, fileName: '' })}
                 style={{
                   width: '100%',
-                  padding: '10px',
+                  padding: '9px',
                   backgroundColor: '#f1f5f9',
                   color: '#475569',
                   border: 'none',
