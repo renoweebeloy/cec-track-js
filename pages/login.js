@@ -21,7 +21,7 @@ export default function Login() {
   const [hasAgreedTerms, setHasAgreedTerms] = useState(false);
 
   // ========================================================
-  // BULLETPROOF LOGIN HANDLER
+  // BULLETPROOF LOGIN HANDLER (FIXED NEW PASSWORD ENFORCEMENT)
   // ========================================================
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -34,39 +34,72 @@ export default function Login() {
 
     try {
       if (!supabase) {
-        throw new Error('Database connection failed.');
+        throw new Error('Database connection failed. Please check your internet connection.');
+      }
+
+      // 1. Fetch user profile by email
+      const { data: directProfile, error: fetchErr } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('email', cleanEmail)
+        .maybeSingle();
+
+      if (fetchErr) {
+        console.error('Error fetching user profile:', fetchErr);
+      }
+
+      if (!directProfile) {
+        throw new Error('Invalid email or password.');
+      }
+
+      // Check account status
+      if (directProfile.status && directProfile.status !== 'Active') {
+        throw new Error('Your account is currently inactive. Please contact the administrator.');
       }
 
       let authenticatedProfile = null;
 
-      // 1. Susiha pinaagi sa secure Bcrypt RPC sa Supabase
-      try {
-        const { data: rpcData, error: rpcErr } = await supabase.rpc('check_profile_login', {
-          user_email: cleanEmail,
-          input_password: cleanPassword,
-        });
+      // 2. Check if the account has already set a custom password
+      const isDefaultAccount =
+        directProfile.must_change_password === true ||
+        !directProfile.password ||
+        directProfile.password.trim() === directProfile.school_id?.trim();
 
-        if (!rpcErr && rpcData) {
-          authenticatedProfile = rpcData;
+      const enteredDefaultSchoolId =
+        directProfile.school_id &&
+        cleanPassword.toLowerCase() === directProfile.school_id.trim().toLowerCase();
+
+      // STRICT CHECK: If user entered their Student ID as password
+      if (enteredDefaultSchoolId) {
+        if (!isDefaultAccount) {
+          // BLOCK: Once a new password is set, the default Student ID CANNOT be used anymore!
+          throw new Error('You have already set a new password. Please log in using your new password instead of your Student ID.');
+        } else {
+          // Allow login ONLY if it is still a default/first-time account
+          authenticatedProfile = directProfile;
         }
-      } catch (rpcException) {
-        console.warn('RPC check bypassed, checking direct fallback...', rpcException);
       }
 
-      // 2. Direct Fallback: kon plain text pa o default school id ang password
+      // 3. Authenticate with custom updated password
       if (!authenticatedProfile) {
-        const { data: directProfile } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('email', cleanEmail)
-          .single();
+        // Direct plain-text match (the updated password saved from dashboard / password change)
+        if (directProfile.password && directProfile.password.trim() === cleanPassword) {
+          authenticatedProfile = directProfile;
+        }
 
-        if (directProfile && (directProfile.status === 'Active' || !directProfile.status)) {
-          if (
-            directProfile.password === cleanPassword ||
-            directProfile.school_id === cleanPassword
-          ) {
-            authenticatedProfile = directProfile;
+        // Secure Bcrypt RPC fallback if password was hashed
+        if (!authenticatedProfile) {
+          try {
+            const { data: rpcData, error: rpcErr } = await supabase.rpc('check_profile_login', {
+              user_email: cleanEmail,
+              input_password: cleanPassword,
+            });
+
+            if (!rpcErr && rpcData) {
+              authenticatedProfile = rpcData;
+            }
+          } catch (rpcException) {
+            console.warn('RPC check bypassed:', rpcException);
           }
         }
       }
@@ -75,7 +108,7 @@ export default function Login() {
         throw new Error('Invalid email or password.');
       }
 
-      // 3. I-save ang session data ug i-initialize ang 5-minute activity timer
+      // 4. Save session data
       const userRole = authenticatedProfile.role || 'student';
       sessionStorage.setItem('cec_role', userRole);
       sessionStorage.setItem('cec_user_email', authenticatedProfile.email);
@@ -84,7 +117,7 @@ export default function Login() {
       sessionStorage.setItem('cec_can_scan', authenticatedProfile.can_scan ? 'true' : 'false');
       localStorage.setItem('cec_last_active_time', Date.now().toString());
 
-      // 4. Role Routing
+      // 5. Role Routing
       if (userRole === 'admin') {
         router.push('/admin');
       } else if (authenticatedProfile.must_change_password) {
