@@ -81,29 +81,28 @@ export default function ForgotPassword() {
 
       if (resetErr) throw new Error(resetErr.message);
 
-      // 4. Send Verification Code via Google Apps Script (CORS-Safe Integration)
+      // 4. Send Verification Code via Google Apps Script (Direct CORS Integration)
       if (APPS_SCRIPT_URL) {
-        try {
-          const mailResponse = await fetch(APPS_SCRIPT_URL, {
-            method: 'POST',
-            headers: {
-              // Using text/plain avoids CORS preflight OPTIONS blocking by modern browsers
-              'Content-Type': 'text/plain;charset=utf-8',
-            },
-            body: JSON.stringify({
-              email: cleanEmail,
-              code: generatedCode,
-              name: profile.full_name || 'CEC Member',
-              type: 'reset',
-            }),
-          });
+        console.log('Sending OTP request to Google Apps Script...');
+        const mailResponse = await fetch(APPS_SCRIPT_URL, {
+          method: 'POST',
+          headers: {
+            // Using text/plain avoids browser CORS preflight blocking
+            'Content-Type': 'text/plain;charset=utf-8',
+          },
+          body: JSON.stringify({
+            email: cleanEmail,
+            code: generatedCode,
+            name: profile.full_name || 'CEC Member',
+            type: 'reset',
+          }),
+        });
 
-          const mailResult = await mailResponse.json().catch(() => null);
-          if (mailResult && mailResult.status === 'error') {
-            throw new Error(mailResult.message || 'Email delivery failed.');
-          }
-        } catch (fetchErr) {
-          console.warn('Apps Script notification note:', fetchErr);
+        const mailResult = await mailResponse.json().catch(() => null);
+        console.log('Google Apps Script response:', mailResult);
+
+        if (mailResult && mailResult.status === 'error') {
+          throw new Error('Apps Script Mailer Error: ' + mailResult.message);
         }
       }
 
@@ -112,8 +111,9 @@ export default function ForgotPassword() {
       setOtpCode('');
       setStep(2);
     } catch (err) {
+      console.error('Error in handleSendOtp:', err);
       setIsErrorMessage(true);
-      setStatusMessage(err.message || 'Failed to send verification code.');
+      setStatusMessage(err.message || 'Failed to send verification code. Please try again.');
     } finally {
       setLoading(false);
     }
