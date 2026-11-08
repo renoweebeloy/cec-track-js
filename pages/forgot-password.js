@@ -67,7 +67,7 @@ export default function ForgotPassword() {
 
       // 2. Generate random 6-digit OTP code
       const generatedCode = Math.floor(100000 + Math.random() * 900000).toString();
-      const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString(); // 10 minutes validity
+      const expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString(); // 10 minutes validity
 
       // 3. Save OTP record to Supabase
       const { error: resetErr } = await supabase.from('password_resets').insert([
