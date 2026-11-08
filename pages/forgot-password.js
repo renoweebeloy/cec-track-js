@@ -9,7 +9,7 @@ export default function ForgotPassword() {
   const router = useRouter();
 
   // Official Google Apps Script Web App URL
-  const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzzgxBbzaAjtwXBby3mKjVBLslpJtshjgGh68lKCW7raXpbiNinT3-uxNJ2FV5oy-PbWw/exec';
+  const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyetjBCQ7HYgPj_RmE9ik7F9v4-6yVfewhXH8F-0PQKWkabFEqbpcQhxcGz2czK_nnWXA/exec';
 
   // Step 1: Input ID & Email | Step 2: Verify Code | Step 3: New Password
   const [step, setStep] = useState(1);
