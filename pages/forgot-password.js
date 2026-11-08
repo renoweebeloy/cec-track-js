@@ -18,7 +18,7 @@ export default function ForgotPassword() {
   const [otpCode, setOtpCode] = useState('');
   const [resetRecordId, setResetRecordId] = useState(null);
 
-  // Password States para sa Step 3
+  // Password States for Step 3
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -28,7 +28,7 @@ export default function ForgotPassword() {
   const [isErrorMessage, setIsErrorMessage] = useState(false);
 
   // ========================================================
-  // STEP 1: SEND 6-DIGIT CODE TO GMAIL
+  // STEP 1: SEND 6-DIGIT CODE TO GMAIL VIA APPS SCRIPT
   // ========================================================
   const handleSendOtp = async (e) => {
     e.preventDefault();
@@ -49,7 +49,7 @@ export default function ForgotPassword() {
     try {
       if (!supabase) throw new Error('Database connection failed.');
 
-      // Paggamit sa limit(1) sa baylo nga maybeSingle aron dili mag-crash sa iOS
+      // 1. Verify user profile in database
       const { data: profiles, error: profileErr } = await supabase
         .from('profiles')
         .select('full_name, email, school_id')
@@ -65,11 +65,11 @@ export default function ForgotPassword() {
         throw new Error('Account match not found. Please verify your School ID and Email address.');
       }
 
-      // Paghimo og 6-digit random code
+      // 2. Generate random 6-digit OTP code
       const generatedCode = Math.floor(100000 + Math.random() * 900000).toString();
-      const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString(); // 10 minutos validity
+      const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString(); // 10 minutes validity
 
-      // Pag-save sa OTP ngadto sa Supabase
+      // 3. Save OTP record to Supabase
       const { error: resetErr } = await supabase.from('password_resets').insert([
         {
           email: cleanEmail,
@@ -81,26 +81,34 @@ export default function ForgotPassword() {
 
       if (resetErr) throw new Error(resetErr.message);
 
-      // Pagpadala sa Google Apps Script para sa Gmail
+      // 4. Send Verification Code via Google Apps Script (CORS-Safe Integration)
       if (APPS_SCRIPT_URL) {
         try {
-          await fetch(APPS_SCRIPT_URL, {
+          const mailResponse = await fetch(APPS_SCRIPT_URL, {
             method: 'POST',
-            mode: 'no-cors',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+              // Using text/plain avoids CORS preflight OPTIONS blocking by modern browsers
+              'Content-Type': 'text/plain;charset=utf-8',
+            },
             body: JSON.stringify({
               email: cleanEmail,
               code: generatedCode,
               name: profile.full_name || 'CEC Member',
+              type: 'reset',
             }),
           });
+
+          const mailResult = await mailResponse.json().catch(() => null);
+          if (mailResult && mailResult.status === 'error') {
+            throw new Error(mailResult.message || 'Email delivery failed.');
+          }
         } catch (fetchErr) {
-          console.warn('Apps script notification note:', fetchErr);
+          console.warn('Apps Script notification note:', fetchErr);
         }
       }
 
       setIsErrorMessage(false);
-      setStatusMessage(`Verification code sent to ${cleanEmail}! Please check your email inbox or spam folder.`);
+      setStatusMessage(`Verification code sent to ${cleanEmail}! Please check your inbox or spam folder.`);
       setOtpCode('');
       setStep(2);
     } catch (err) {
@@ -112,7 +120,7 @@ export default function ForgotPassword() {
   };
 
   // ========================================================
-  // STEP 2: VERIFY 6-DIGIT CODE ONLY (CRASH-PROOF)
+  // STEP 2: VERIFY 6-DIGIT CODE
   // ========================================================
   const handleVerifyOtpOnly = async (e) => {
     e.preventDefault();
@@ -133,7 +141,6 @@ export default function ForgotPassword() {
     try {
       if (!supabase) throw new Error('Database connection failed.');
 
-      // Pagkuha sa kinabag-ohang OTP gamit ang limit(1)
       const { data: records, error: checkErr } = await supabase
         .from('password_resets')
         .select('id, expires_at')
@@ -151,7 +158,6 @@ export default function ForgotPassword() {
         throw new Error('Invalid verification code. Please check your email and try again.');
       }
 
-      // Luwas nga pagsusi sa expiration date
       if (record.expires_at) {
         const expiryTime = new Date(record.expires_at).getTime();
         if (Date.now() > expiryTime) {
@@ -200,7 +206,7 @@ export default function ForgotPassword() {
     try {
       if (!supabase) throw new Error('Database connection failed.');
 
-      // 1. Markahan ang OTP isip used
+      // 1. Mark OTP as used
       if (resetRecordId) {
         await supabase
           .from('password_resets')
@@ -208,7 +214,7 @@ export default function ForgotPassword() {
           .eq('id', resetRecordId);
       }
 
-      // 2. I-update ang password sa profiles table
+      // 2. Update new password in profiles table
       const { error: updateErr } = await supabase
         .from('profiles')
         .update({
