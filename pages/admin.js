@@ -1819,10 +1819,30 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          {/* TAB 2: ADD & EDIT STUDENT */}
+          {/* TAB 2: ADD & EDIT STUDENT (STICKY FIX APPLIED) */}
           {activeTab === 'add-student' && canAddStudentTab && (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))', gap: '20px', width: '100%' }}>
-              <div className={styles.adminFormCard} ref={studentFormRef}>
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))',
+                gap: '20px',
+                width: '100%',
+                alignItems: 'start', // IMPORTANT: nagtugot sa sticky positioning
+              }}
+            >
+              {/* STICKY ADD/EDIT STUDENT CARD */}
+              <div
+                className={styles.adminFormCard}
+                ref={studentFormRef}
+                style={{
+                  position: 'sticky',
+                  top: '65px',
+                  alignSelf: 'start',
+                  zIndex: 10,
+                  maxHeight: 'calc(100vh - 85px)',
+                  overflowY: 'auto',
+                }}
+              >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
                   <h3 className={styles.analyticsTitle} style={{ fontSize: '0.9rem', margin: 0 }}>
                     {editingStudentId ? 'Edit Student Details' : 'Add Student'}
@@ -2652,7 +2672,7 @@ export default function AdminDashboard() {
                                   border: '1px solid #bbf7d0',
                                   backgroundColor: '#f0fdf4',
                                   color: '#15803d',
-                                  fontWeight: 800,
+                                  fontWeight: 900,
                                   cursor: 'pointer',
                                   padding: '5px 10px',
                                   borderRadius: '8px',
@@ -2690,7 +2710,7 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          {/* TAB: MANAGE OFFICERS (RESTORED SECTION) */}
+          {/* TAB: MANAGE OFFICERS */}
           {activeTab === 'manage-officers' && isAdmin && (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))', gap: '20px' }}>
               <div className={styles.adminFormCard} ref={officerFormRef}>
