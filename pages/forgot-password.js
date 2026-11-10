@@ -13,7 +13,7 @@ export default function ForgotPassword() {
 
   // Step 1: Input ID & Email | Step 2: Verify Code | Step 3: New Password
   const [step, setStep] = useState(1);
-  const [schoolId, setSchoolId] = useState('');
+  const [studentId, setStudentId] = useState('');
   const [email, setEmail] = useState('');
   const [otpCode, setOtpCode] = useState('');
   const [resetRecordId, setResetRecordId] = useState(null);
@@ -35,12 +35,12 @@ export default function ForgotPassword() {
     setStatusMessage('');
     setIsErrorMessage(false);
 
-    const cleanSchoolId = (schoolId || '').trim();
+    const cleanStudentId = (studentId || '').trim();
     const cleanEmail = (email || '').trim().toLowerCase();
 
-    if (!cleanSchoolId || !cleanEmail) {
+    if (!cleanStudentId || !cleanEmail) {
       setIsErrorMessage(true);
-      setStatusMessage('Please enter both your School ID and registered email address.');
+      setStatusMessage('Please enter both your Student ID and registered email address.');
       return;
     }
 
@@ -53,7 +53,7 @@ export default function ForgotPassword() {
       const { data: profiles, error: profileErr } = await supabase
         .from('profiles')
         .select('full_name, email, school_id')
-        .eq('school_id', cleanSchoolId)
+        .eq('school_id', cleanStudentId)
         .eq('email', cleanEmail)
         .limit(1);
 
@@ -62,12 +62,12 @@ export default function ForgotPassword() {
       const profile = profiles && profiles.length > 0 ? profiles[0] : null;
 
       if (!profile) {
-        throw new Error('Account match not found. Please verify your School ID and Email address.');
+        throw new Error('Account match not found. Please verify your Student ID and Email address.');
       }
 
       // 2. Generate random 6-digit OTP code
       const generatedCode = Math.floor(100000 + Math.random() * 900000).toString();
-      const expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString(); // 10 minutes validity
+      const expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString(); // 5 minutes validity
 
       // 3. Save OTP record to Supabase
       const { error: resetErr } = await supabase.from('password_resets').insert([
@@ -200,7 +200,7 @@ export default function ForgotPassword() {
     }
 
     setLoading(true);
-    const cleanSchoolId = (schoolId || '').trim();
+    const cleanStudentId = (studentId || '').trim();
     const cleanEmail = (email || '').trim().toLowerCase();
 
     try {
@@ -221,7 +221,7 @@ export default function ForgotPassword() {
           password: newPassword.trim(),
           must_change_password: false,
         })
-        .eq('school_id', cleanSchoolId)
+        .eq('school_id', cleanStudentId)
         .eq('email', cleanEmail);
 
       if (updateErr) throw new Error(updateErr.message);
@@ -284,17 +284,17 @@ export default function ForgotPassword() {
             {step === 3 && 'Create New Password'}
           </h1>
           <p className={styles.loginSubtitle}>
-            {step === 1 && 'Enter your School ID and registered email address to receive a verification code.'}
+            {step === 1 && 'Enter your Student ID and registered email address to receive a verification code.'}
             {step === 2 && 'Enter the 6-digit verification code sent to your email.'}
             {step === 3 && 'Your identity has been verified. Set your new password below.'}
           </p>
         </div>
 
-        {/* STEP 1: SCHOOL ID AND EMAIL INPUT */}
+        {/* STEP 1: STUDENT ID AND EMAIL INPUT */}
         {step === 1 && (
           <form onSubmit={handleSendOtp} className={styles.loginForm} autoComplete="off">
             <div className={styles.inputGroup}>
-              <label className={styles.inputLabel}>School ID</label>
+              <label className={styles.inputLabel}>Student ID</label>
               <div className={styles.inputWrapper}>
                 <div className={styles.inputIconLeft}>
                   <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -305,8 +305,8 @@ export default function ForgotPassword() {
                   type="text"
                   placeholder="e.g. 2024-0616"
                   className={styles.loginInput}
-                  value={schoolId}
-                  onChange={(e) => setSchoolId(e.target.value)}
+                  value={studentId}
+                  onChange={(e) => setStudentId(e.target.value)}
                   required
                 />
               </div>
