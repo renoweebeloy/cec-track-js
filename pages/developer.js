@@ -3,151 +3,183 @@ import Head from 'next/head';
 import { useRouter } from 'next/router';
 import { supabase } from '../lib/supabaseClient';
 
-export default function DeveloperDashboard() {
+export default function DeveloperPortal() {
   const router = useRouter();
 
   // Authentication & Security Guard States
-  const [isAuthorized, setIsAuthorized] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [authChecking, setAuthChecking] = useState(true);
 
-  // Navigation & UI States
-  const [activeTab, setActiveTab] = useState('broadcast'); // 'broadcast' | 'students' | 'history'
-  const [loading, setLoading] = useState(true);
-  const [sending, setSending] = useState(false);
-  const [notificationMsg, setNotificationMsg] = useState({ type: '', text: '' });
+  // Private Developer Login Gate States (kon wala pa naka-login)
+  const [devEmailInput, setDevEmailInput] = useState('');
+  const [devPasswordInput, setDevPasswordInput] = useState('');
+  const [loginLoading, setLoginLoading] = useState(false);
+  const [loginError, setLoginError] = useState('');
 
-  // Broadcast Form States
+  // Active Dashboard Tabs: 'broadcast' | 'students' | 'history'
+  const [activeTab, setActiveTab] = useState('broadcast');
+  const [loadingData, setLoadingData] = useState(false);
+
+  // Broadcast Notification Form
   const [title, setTitle] = useState('');
   const [message, setMessage] = useState('');
-  const [category, setCategory] = useState('security');
+  const [category, setCategory] = useState('security'); // 'security' | 'update' | 'maintenance' | 'general'
+  const [broadcasting, setBroadcasting] = useState(false);
+  const [feedback, setFeedback] = useState({ type: '', text: '' });
 
-  // Data Collections
-  const [students, setStudents] = useState([]);
-  const [sentNotifications, setSentNotifications] = useState([]);
+  // Collections
+  const [studentsList, setStudentsList] = useState([]);
+  const [sentBroadcasts, setSentBroadcasts] = useState([]);
   const [studentSearch, setStudentSearch] = useState('');
 
-  // 1. VERIFY DEVELOPER ACCESS GUARD
+  // 1. SECURITY CHECK: Verify kon Developer ba gayod ang misulod
   useEffect(() => {
-    const verifyDevAccess = async () => {
+    checkDeveloperSession();
+  }, []);
+
+  const checkDeveloperSession = async () => {
+    setAuthChecking(true);
+    try {
+      let savedEmail = null;
       try {
-        setAuthChecking(true);
+        savedEmail = sessionStorage.getItem('cec_developer_session') || sessionStorage.getItem('cec_user_email');
+      } catch (e) {}
 
-        let userEmail = null;
-        try {
-          userEmail = sessionStorage.getItem('cec_user_email') || localStorage.getItem('cec_user_email');
-        } catch (e) {}
-
-        if (supabase) {
-          const { data: { user } } = await supabase.auth.getUser();
-          if (user?.email) userEmail = user.email;
-        }
-
-        // Kon walay naka-log in, pabalikon sa home/login
-        if (!userEmail) {
-          router.replace('/');
-          return;
-        }
-
-        // Susiha sa profiles table kon developer ba ang role o email
-        const { data: profile, error } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('email', userEmail.trim().toLowerCase())
-          .maybeSingle();
-
-        if (error || !profile) {
-          router.replace('/');
-          return;
-        }
-
-        if (profile.role !== 'developer' && profile.email !== 'developer@gmail.com') {
-          alert('Access Denied: Kini nga panid para lamang sa Lead Developer.');
-          router.replace('/');
-          return;
-        }
-
-        setIsAuthorized(true);
-        loadDeveloperData();
-      } catch (err) {
-        console.error('Developer clearance error:', err);
-        router.replace('/');
-      } finally {
-        setAuthChecking(false);
+      if (savedEmail === 'developer@gmail.com') {
+        setIsAuthenticated(true);
+        loadPortalData();
+        return;
       }
-    };
 
-    verifyDevAccess();
-  }, [router]);
+      // Check if logged in via Supabase auth
+      if (supabase) {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user && user.email === 'developer@gmail.com') {
+          setIsAuthenticated(true);
+          sessionStorage.setItem('cec_developer_session', 'developer@gmail.com');
+          loadPortalData();
+          return;
+        }
+      }
 
-  // Fetch registered students & sent notifications
-  const loadDeveloperData = async () => {
-    setLoading(true);
+      setIsAuthenticated(false);
+    } catch (err) {
+      console.warn('Developer clearance check error:', err);
+      setIsAuthenticated(false);
+    } finally {
+      setAuthChecking(false);
+    }
+  };
+
+  // Direct Developer Gate Login
+  const handleDeveloperGateLogin = async (e) => {
+    e.preventDefault();
+    setLoginError('');
+    setLoginLoading(true);
+
+    const cleanEmail = devEmailInput.trim().toLowerCase();
+    const cleanPassword = devPasswordInput.trim();
+
+    try {
+      if (!supabase) throw new Error('Database connection failed.');
+
+      // Check directly from profiles table
+      const { data: profile, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('email', cleanEmail)
+        .eq('password', cleanPassword)
+        .maybeSingle();
+
+      if (error || !profile) {
+        throw new Error('Access Denied: Invalid Developer credentials or unauthorized key.');
+      }
+
+      if (profile.role !== 'developer' && profile.email !== 'developer@gmail.com') {
+        throw new Error('Access Restricted: This console is strictly reserved for the Lead Developer.');
+      }
+
+      // Success Login
+      try {
+        sessionStorage.setItem('cec_developer_session', 'developer@gmail.com');
+        sessionStorage.setItem('cec_user_email', 'developer@gmail.com');
+      } catch (e) {}
+
+      setIsAuthenticated(true);
+      loadPortalData();
+    } catch (err) {
+      setLoginError(err.message || 'Login failed.');
+    } finally {
+      setLoginLoading(false);
+    }
+  };
+
+  // Load registered students & sent notifications
+  const loadPortalData = async () => {
+    setLoadingData(true);
     try {
       if (!supabase) return;
 
-      // 1. Fetch all registered students
-      const { data: profilesData, error: profilesErr } = await supabase
+      // 1. Load Registered Students
+      const { data: profiles, error: profErr } = await supabase
         .from('profiles')
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (profilesErr) throw profilesErr;
-      if (profilesData) {
-        setStudents(profilesData.filter((p) => p.role === 'student' || (!p.role && p.role !== 'admin' && p.role !== 'staff' && p.role !== 'developer')));
+      if (profiles && !profErr) {
+        setStudentsList(profiles.filter((p) => p.role === 'student' || (!p.role && p.role !== 'admin' && p.role !== 'staff' && p.role !== 'developer')));
       }
 
-      // 2. Fetch sent broadcast notifications
-      const { data: notifData, error: notifErr } = await supabase
+      // 2. Load Sent Developer Notifications
+      const { data: notifs, error: notifErr } = await supabase
         .from('notifications')
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (notifErr) {
-        console.warn('Notifications table fetch warning:', notifErr.message);
-      } else if (notifData) {
-        setSentNotifications(notifData);
+      if (notifs && !notifErr) {
+        setSentBroadcasts(notifs);
       }
     } catch (err) {
-      console.error('Error loading developer records:', err);
+      console.error('Error fetching developer data:', err);
     } finally {
-      setLoading(false);
+      setLoadingData(false);
     }
   };
 
-  const showFeedback = (type, text) => {
-    setNotificationMsg({ type, text });
+  const showNotificationFeedback = (type, text) => {
+    setFeedback({ type, text });
     setTimeout(() => {
-      setNotificationMsg({ type: '', text: '' });
+      setFeedback({ type: '', text: '' });
     }, 4500);
   };
 
-  // Quick Presets
-  const handleApplyPreset = (presetType) => {
-    if (presetType === 'password_2months') {
-      setTitle('Security Reminder: Update Your Password Every 2 Months');
-      setMessage('To maintain the highest security standard for your student attendance and records, all students are required to update their account passwords every 2 months. Please navigate to your Profile tab to update your password.');
+  // Quick Developer Presets
+  const handleApplyPreset = (type) => {
+    if (type === 'password_2months') {
+      setTitle('Security Notice: Update Your Password Every 2 Months');
+      setMessage('To maintain the highest security standard for your student attendance records and digital credentials, all students are required to update their account passwords every 2 months. Please navigate to your Profile tab to set a new password.');
       setCategory('security');
-    } else if (presetType === 'system_update') {
-      setTitle('CECTRACK System Version Update');
-      setMessage('A new feature update has been rolled out to improve attendance QR scanning speed and profile syncing across devices. No action is required.');
+    } else if (type === 'system_update') {
+      setTitle('CECTRACK Version Engine Update');
+      setMessage('A system optimization update has been deployed by the developer. Attendance QR scanning speeds and cross-device sync have been enhanced. No student action is required.');
       setCategory('update');
-    } else if (presetType === 'maintenance') {
-      setTitle('Scheduled Database Maintenance Notice');
-      setMessage('The portal database will undergo quick optimization maintenance tonight. Attendance logs will remain completely safe and uncorrupted.');
+    } else if (type === 'maintenance') {
+      setTitle('Scheduled Database Optimization');
+      setMessage('The CECTRACK database engine will undergo routine server maintenance tonight. All verified attendance records and timestamps are fully backed up and secure.');
       setCategory('maintenance');
     }
   };
 
-  // Send Broadcast Notification
-  const handleSendNotification = async (e) => {
+  // Broadcast to All Students
+  const handleBroadcastSubmit = async (e) => {
     e.preventDefault();
 
     if (!title.trim() || !message.trim()) {
-      showFeedback('error', 'Please provide both the notification title and message.');
+      showNotificationFeedback('error', 'Please provide both the headline and message body.');
       return;
     }
 
-    setSending(true);
+    setBroadcasting(true);
     try {
       const payload = {
         title: title.trim(),
@@ -159,45 +191,44 @@ export default function DeveloperDashboard() {
       const { error } = await supabase.from('notifications').insert([payload]);
       if (error) throw error;
 
-      showFeedback('success', `Broadcast notification "${title.trim()}" dispatched successfully to all students!`);
+      showNotificationFeedback('success', `Broadcast dispatched to ${studentsList.length} registered students as "Developer </>"!`);
       setTitle('');
       setMessage('');
       setCategory('security');
-      loadDeveloperData();
+      loadPortalData();
     } catch (err) {
-      showFeedback('error', `Failed to broadcast notification: ${err.message}`);
+      showNotificationFeedback('error', `Broadcast failed: ${err.message}`);
     } finally {
-      setSending(false);
+      setBroadcasting(false);
     }
   };
 
-  const handleDeleteNotification = async (id, notifTitle) => {
-    const confirmDelete = window.confirm(`Are you sure you want to remove the broadcast announcement "${notifTitle}"?`);
+  // Delete an existing notification
+  const handleDeleteBroadcast = async (id, itemTitle) => {
+    const confirmDelete = window.confirm(`Permanently remove broadcast: "${itemTitle}"?`);
     if (!confirmDelete) return;
 
     try {
       const { error } = await supabase.from('notifications').delete().eq('id', id);
       if (error) throw error;
 
-      showFeedback('success', `Notification removed from student feeds.`);
-      loadDeveloperData();
+      showNotificationFeedback('success', 'Announcement removed from student portals.');
+      loadPortalData();
     } catch (err) {
-      showFeedback('error', `Failed to delete announcement: ${err.message}`);
+      showNotificationFeedback('error', `Failed to delete announcement: ${err.message}`);
     }
   };
 
-  const handleDevLogout = async () => {
-    if (supabase) await supabase.auth.signOut();
+  const handleDeveloperLogout = () => {
     try {
-      sessionStorage.clear();
-      localStorage.removeItem('cec_user_email');
-      localStorage.removeItem('cec_user_school_id');
-      localStorage.removeItem('cec_last_active_time');
+      sessionStorage.removeItem('cec_developer_session');
+      sessionStorage.removeItem('cec_user_email');
     } catch (e) {}
+    setIsAuthenticated(false);
     router.replace('/');
   };
 
-  const filteredStudents = students.filter(
+  const filteredStudents = studentsList.filter(
     (s) =>
       (s.school_id || '').toLowerCase().includes(studentSearch.toLowerCase()) ||
       (s.full_name || '').toLowerCase().includes(studentSearch.toLowerCase()) ||
@@ -205,16 +236,204 @@ export default function DeveloperDashboard() {
       (s.email || '').toLowerCase().includes(studentSearch.toLowerCase())
   );
 
+  // Loading Screen habang gina-verify
   if (authChecking) {
     return (
-      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#064e3b', color: '#6ee7b7', fontWeight: 900 }}>
-        Verifying Developer Clearance &lt;/&gt; ...
+      <div style={{ minHeight: '100vh', backgroundColor: '#022c22', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#34d399', fontFamily: 'monospace', fontWeight: 900 }}>
+        [🔒] AUTHENTICATING DEVELOPER CLEARANCE &lt;/&gt; ...
       </div>
     );
   }
 
-  if (!isAuthorized) return null;
+  // =========================================================================
+  // SCREEN: KON WALA PA NAKA-LOG IN (PRIVATE DEVELOPER LOCK GATE)
+  // =========================================================================
+  if (!isAuthenticated) {
+    return (
+      <div
+        style={{
+          minHeight: '100vh',
+          backgroundColor: '#022c22',
+          backgroundImage: 'radial-gradient(circle at 50% 20%, #064e3b 0%, #022c22 80%)',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '24px 16px',
+          fontFamily: 'system-ui, -apple-system, sans-serif',
+        }}
+      >
+        <Head>
+          <title>Developer Access Gate • CECTRACK</title>
+          <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+        </Head>
 
+        <div
+          style={{
+            width: '100%',
+            maxWidth: '420px',
+            backgroundColor: '#064e3b',
+            border: '2px solid #10b981',
+            borderRadius: '26px',
+            padding: '34px 26px',
+            boxShadow: '0 25px 60px rgba(0,0,0,0.5)',
+            boxSizing: 'border-box',
+            textAlign: 'center',
+            color: '#ffffff',
+          }}
+        >
+          <div
+            style={{
+              width: '64px',
+              height: '64px',
+              borderRadius: '18px',
+              backgroundColor: '#022c22',
+              border: '2px solid #34d399',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 16px auto',
+              fontSize: '1.6rem',
+              fontWeight: 900,
+              color: '#34d399',
+              boxShadow: '0 0 20px rgba(52, 211, 153, 0.35)',
+            }}
+          >
+            &lt;/&gt;
+          </div>
+
+          <span
+            style={{
+              display: 'inline-block',
+              backgroundColor: '#022c22',
+              color: '#6ee7b7',
+              border: '1px solid #10b981',
+              padding: '4px 14px',
+              borderRadius: '9999px',
+              fontSize: '0.72rem',
+              fontWeight: 900,
+              letterSpacing: '0.08em',
+              textTransform: 'uppercase',
+              marginBottom: '10px',
+            }}
+          >
+            AUTHORIZED DEVELOPER ONLY
+          </span>
+
+          <h1 style={{ fontSize: '1.45rem', fontWeight: 900, margin: '0 0 6px 0', letterSpacing: '-0.02em' }}>
+            CECTRACK Developer Console
+          </h1>
+          <p style={{ fontSize: '0.82rem', color: '#a7f3d0', margin: '0 0 22px 0', lineHeight: 1.5 }}>
+            Private administrative portal for lead creator <strong>Renowee Beloy</strong>. Restricted from students and unauthorized staff.
+          </p>
+
+          {loginError && (
+            <div
+              style={{
+                backgroundColor: '#7f1d1d',
+                border: '1.5px solid #ef4444',
+                color: '#fee2e2',
+                padding: '10px 14px',
+                borderRadius: '12px',
+                fontSize: '0.8rem',
+                fontWeight: 700,
+                marginBottom: '18px',
+                textAlign: 'left',
+              }}
+            >
+              ⚠️ {loginError}
+            </div>
+          )}
+
+          <form onSubmit={handleDeveloperGateLogin} style={{ display: 'flex', flexDirection: 'column', gap: '14px', textAlign: 'left' }}>
+            <div>
+              <label style={{ display: 'block', fontSize: '0.74rem', fontWeight: 800, color: '#6ee7b7', marginBottom: '5px' }}>
+                Developer Gmail *
+              </label>
+              <input
+                type="email"
+                placeholder="developer@gmail.com"
+                value={devEmailInput}
+                onChange={(e) => setDevEmailInput(e.target.value)}
+                required
+                style={{
+                  width: '100%',
+                  padding: '12px 14px',
+                  borderRadius: '12px',
+                  border: '1.5px solid #047857',
+                  backgroundColor: '#022c22',
+                  color: '#ffffff',
+                  fontSize: '0.9rem',
+                  fontWeight: 700,
+                  outline: 'none',
+                  boxSizing: 'border-box',
+                }}
+              />
+            </div>
+
+            <div>
+              <label style={{ display: 'block', fontSize: '0.74rem', fontWeight: 800, color: '#6ee7b7', marginBottom: '5px' }}>
+                Developer Passkey *
+              </label>
+              <input
+                type="password"
+                placeholder="••••••••••••"
+                value={devPasswordInput}
+                onChange={(e) => setDevPasswordInput(e.target.value)}
+                required
+                style={{
+                  width: '100%',
+                  padding: '12px 14px',
+                  borderRadius: '12px',
+                  border: '1.5px solid #047857',
+                  backgroundColor: '#022c22',
+                  color: '#ffffff',
+                  fontSize: '0.9rem',
+                  fontWeight: 700,
+                  outline: 'none',
+                  boxSizing: 'border-box',
+                }}
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={loginLoading}
+              style={{
+                width: '100%',
+                padding: '13px',
+                backgroundColor: '#10b981',
+                color: '#022c22',
+                border: 'none',
+                borderRadius: '12px',
+                fontSize: '0.94rem',
+                fontWeight: 900,
+                cursor: loginLoading ? 'not-allowed' : 'pointer',
+                boxShadow: '0 4px 16px rgba(16, 185, 129, 0.4)',
+                marginTop: '6px',
+              }}
+            >
+              {loginLoading ? 'Unlocking Console...' : 'Authenticate & Enter Console ➔'}
+            </button>
+          </form>
+
+          <div style={{ marginTop: '20px' }}>
+            <button
+              type="button"
+              onClick={() => router.push('/')}
+              style={{ background: 'none', border: 'none', color: '#a7f3d0', fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer', textDecoration: 'underline' }}
+            >
+              Return to Public Portal
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // =========================================================================
+  // SCREEN: OFFICIAL DEVELOPER DASHBOARD VIEWPORT
+  // =========================================================================
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#f8fafc', color: '#0f172a', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
       <Head>
@@ -222,7 +441,7 @@ export default function DeveloperDashboard() {
         <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
       </Head>
 
-      {/* TOP HEADER */}
+      {/* TOP COMMAND HEADER */}
       <header
         style={{
           position: 'sticky',
@@ -236,18 +455,18 @@ export default function DeveloperDashboard() {
         }}
       >
         <div style={{ maxWidth: '1200px', margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <div
               style={{
-                width: '36px',
-                height: '36px',
-                borderRadius: '10px',
-                backgroundColor: '#065f46',
+                width: '40px',
+                height: '40px',
+                borderRadius: '12px',
+                backgroundColor: '#022c22',
                 border: '1.5px solid #34d399',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                fontSize: '1rem',
+                fontSize: '1.1rem',
                 fontWeight: 900,
                 color: '#34d399',
               }}
@@ -255,8 +474,8 @@ export default function DeveloperDashboard() {
               &lt;/&gt;
             </div>
             <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span style={{ fontSize: '1.1rem', fontWeight: 900, letterSpacing: '-0.02em', color: '#ffffff' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ fontSize: '1.15rem', fontWeight: 900, letterSpacing: '-0.02em', color: '#ffffff' }}>
                   CECTRACK DEVELOPER CONSOLE
                 </span>
                 <span
@@ -274,38 +493,41 @@ export default function DeveloperDashboard() {
                   Developer &lt;/&gt;
                 </span>
               </div>
-              <span style={{ fontSize: '0.68rem', color: '#a7f3d0', fontWeight: 600 }}>
-                Logged in as: developer@gmail.com
+              <span style={{ fontSize: '0.72rem', color: '#a7f3d0', fontWeight: 600 }}>
+                Logged in as: <strong>developer@gmail.com</strong> • Full Broadcast Authority
               </span>
             </div>
           </div>
 
-          <button
-            type="button"
-            onClick={handleDevLogout}
-            style={{
-              backgroundColor: '#ef4444',
-              border: 'none',
-              color: '#ffffff',
-              padding: '7px 16px',
-              borderRadius: '8px',
-              fontSize: '0.78rem',
-              fontWeight: 800,
-              cursor: 'pointer',
-            }}
-          >
-            Logout Developer ➔
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <button
+              type="button"
+              onClick={handleDeveloperLogout}
+              style={{
+                backgroundColor: '#ef4444',
+                border: 'none',
+                color: '#ffffff',
+                padding: '7px 16px',
+                borderRadius: '10px',
+                fontSize: '0.8rem',
+                fontWeight: 800,
+                cursor: 'pointer',
+                boxShadow: '0 2px 6px rgba(239, 68, 68, 0.25)',
+              }}
+            >
+              Exit Developer Mode ✕
+            </button>
+          </div>
         </div>
       </header>
 
-      {/* SUB-NAV TABS */}
+      {/* SUB-HEADER TABS */}
       <div style={{ backgroundColor: '#ffffff', borderBottom: '1px solid #e2e8f0', padding: '0 20px' }}>
-        <div style={{ maxWidth: '1200px', margin: '0 auto', display: 'flex', gap: '8px', overflowX: 'auto' }}>
+        <div style={{ maxWidth: '1200px', margin: '0 auto', display: 'flex', gap: '10px', overflowX: 'auto' }}>
           {[
-            { id: 'broadcast', label: '📢 Broadcast Notification' },
-            { id: 'students', label: `👥 Registered Students (${students.length})` },
-            { id: 'history', label: `📋 Sent Announcements (${sentNotifications.length})` },
+            { id: 'broadcast', label: '📢 Send Broadcast Notification' },
+            { id: 'students', label: `👥 Registered Students Masterlist (${studentsList.length})` },
+            { id: 'history', label: `📋 Notification History (${sentBroadcasts.length})` },
           ].map((tab) => {
             const active = activeTab === tab.id;
             return (
@@ -320,7 +542,7 @@ export default function DeveloperDashboard() {
                   borderBottom: active ? '3px solid #15803d' : '3px solid transparent',
                   color: active ? '#15803d' : '#64748b',
                   fontWeight: active ? 900 : 700,
-                  fontSize: '0.86rem',
+                  fontSize: '0.88rem',
                   cursor: 'pointer',
                   whiteSpace: 'nowrap',
                 }}
@@ -332,9 +554,9 @@ export default function DeveloperDashboard() {
         </div>
       </div>
 
-      {/* MAIN CONTENT */}
+      {/* DASHBOARD BODY */}
       <main style={{ maxWidth: '1200px', margin: '0 auto', padding: '24px 16px' }}>
-        {/* STATS OVERVIEW */}
+        {/* STATS OVERVIEW CARDS */}
         <div
           style={{
             display: 'grid',
@@ -344,32 +566,32 @@ export default function DeveloperDashboard() {
           }}
         >
           <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '18px', padding: '16px 20px' }}>
-            <span style={{ fontSize: '0.68rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase' }}>REGISTERED STUDENTS</span>
-            <div style={{ fontSize: '1.8rem', fontWeight: 900, color: '#0f172a', marginTop: '2px' }}>{students.length}</div>
+            <span style={{ fontSize: '0.68rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase' }}>ENROLLED RECIPIENTS</span>
+            <div style={{ fontSize: '1.85rem', fontWeight: 900, color: '#0f172a', marginTop: '2px' }}>{studentsList.length}</div>
             <span style={{ fontSize: '0.72rem', color: '#15803d', fontWeight: 700 }}>● Active student accounts</span>
           </div>
 
           <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '18px', padding: '16px 20px' }}>
-            <span style={{ fontSize: '0.68rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase' }}>SENT BROADCAST NOTIFICATIONS</span>
-            <div style={{ fontSize: '1.8rem', fontWeight: 900, color: '#15803d', marginTop: '2px' }}>{sentNotifications.length}</div>
+            <span style={{ fontSize: '0.68rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase' }}>SENT BROADCASTS</span>
+            <div style={{ fontSize: '1.85rem', fontWeight: 900, color: '#15803d', marginTop: '2px' }}>{sentBroadcasts.length}</div>
             <span style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: 700 }}>Dispatched as Developer &lt;/&gt;</span>
           </div>
 
           <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '18px', padding: '16px 20px' }}>
             <span style={{ fontSize: '0.68rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase' }}>SECURITY COMPLIANCE TARGET</span>
-            <div style={{ fontSize: '1.8rem', fontWeight: 900, color: '#2563eb', marginTop: '2px' }}>60 Days</div>
-            <span style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: 700 }}>2-Month Password Rotation Cycle</span>
+            <div style={{ fontSize: '1.85rem', fontWeight: 900, color: '#2563eb', marginTop: '2px' }}>60 Days</div>
+            <span style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: 700 }}>2-Month Password Rotation Policy</span>
           </div>
 
           <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '18px', padding: '16px 20px' }}>
-            <span style={{ fontSize: '0.68rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase' }}>DEVELOPER CLEARANCE</span>
-            <div style={{ fontSize: '1.8rem', fontWeight: 900, color: '#16a34a', marginTop: '2px' }}>AUTHORIZED</div>
-            <span style={{ fontSize: '0.72rem', color: '#15803d', fontWeight: 700 }}>developer@gmail.com</span>
+            <span style={{ fontSize: '0.68rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase' }}>ROLE CLEARANCE</span>
+            <div style={{ fontSize: '1.85rem', fontWeight: 900, color: '#16a34a', marginTop: '2px' }}>SUPER DEV</div>
+            <span style={{ fontSize: '0.72rem', color: '#15803d', fontWeight: 700 }}>Exclusive Developer Portal</span>
           </div>
         </div>
 
-        {/* FEEDBACK ALERT */}
-        {notificationMsg.text && (
+        {/* FEEDBACK BANNER */}
+        {feedback.text && (
           <div
             style={{
               padding: '12px 18px',
@@ -377,35 +599,34 @@ export default function DeveloperDashboard() {
               marginBottom: '20px',
               fontSize: '0.85rem',
               fontWeight: 800,
-              backgroundColor: notificationMsg.type === 'error' ? '#fef2f2' : '#f0fdf4',
-              color: notificationMsg.type === 'error' ? '#b91c1c' : '#15803d',
-              border: `1px solid ${notificationMsg.type === 'error' ? '#fee2e2' : '#bbf7d0'}`,
+              backgroundColor: feedback.type === 'error' ? '#fef2f2' : '#f0fdf4',
+              color: feedback.type === 'error' ? '#b91c1c' : '#15803d',
+              border: `1px solid ${feedback.type === 'error' ? '#fee2e2' : '#bbf7d0'}`,
             }}
           >
-            {notificationMsg.type === 'error' ? '⚠️ ' : '✓ '}
-            {notificationMsg.text}
+            {feedback.type === 'error' ? '⚠️ ' : '✓ '}
+            {feedback.text}
           </div>
         )}
 
-        {/* TAB 1: BROADCAST NOTIFICATION */}
+        {/* TAB 1: BROADCAST SENDER & PREVIEW */}
         {activeTab === 'broadcast' && (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '24px' }}>
-            {/* Form */}
             <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '24px', padding: '24px', boxShadow: '0 4px 20px rgba(0,0,0,0.03)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px' }}>
-                <span style={{ fontSize: '1.25rem' }}>📢</span>
-                <h2 style={{ fontSize: '1.15rem', fontWeight: 900, margin: 0, color: '#0f172a' }}>
-                  Dispatch System Notification
+                <span style={{ fontSize: '1.3rem' }}>📢</span>
+                <h2 style={{ fontSize: '1.2rem', fontWeight: 900, margin: 0, color: '#0f172a' }}>
+                  Send Notification to Students
                 </h2>
               </div>
               <p style={{ fontSize: '0.82rem', color: '#64748b', margin: '0 0 16px 0', lineHeight: 1.5 }}>
-                Messages sent from this portal will appear across all enrolled students&apos; notification dashboards with the official sender signature <strong>Developer &lt;/&gt;</strong>.
+                Enter the headline and message details below. All enrolled students will immediately see this notice in their portal with the official sender signature <strong>Developer &lt;/&gt;</strong>.
               </p>
 
               {/* Quick Presets */}
               <div style={{ marginBottom: '16px' }}>
                 <label style={{ display: 'block', fontSize: '0.74rem', fontWeight: 800, color: '#334155', marginBottom: '6px' }}>
-                  ⚡ Quick Developer Presets:
+                  ⚡ One-Click Presets:
                 </label>
                 <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
                   <button
@@ -422,7 +643,7 @@ export default function DeveloperDashboard() {
                       cursor: 'pointer',
                     }}
                   >
-                    🔒 2-Month Password Rotation Notice
+                    🔒 2-Month Password Update Alert
                   </button>
                   <button
                     type="button"
@@ -459,10 +680,10 @@ export default function DeveloperDashboard() {
                 </div>
               </div>
 
-              <form onSubmit={handleSendNotification} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <form onSubmit={handleBroadcastSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                 <div>
                   <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: '#334155', marginBottom: '4px' }}>
-                    Sender Identity (Locked)
+                    Sender Tag (Fixed Signature)
                   </label>
                   <input
                     type="text"
@@ -485,7 +706,7 @@ export default function DeveloperDashboard() {
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                   <div>
                     <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: '#334155', marginBottom: '4px' }}>
-                      Alert Category *
+                      Notification Category *
                     </label>
                     <select
                       value={category}
@@ -502,19 +723,19 @@ export default function DeveloperDashboard() {
                       }}
                     >
                       <option value="security">🔒 Security Notice</option>
-                      <option value="update">🚀 Feature / Version Update</option>
-                      <option value="maintenance">🛠️ Maintenance Schedule</option>
+                      <option value="update">🚀 System Update</option>
+                      <option value="maintenance">🛠️ Maintenance</option>
                       <option value="general">📢 General Announcement</option>
                     </select>
                   </div>
 
                   <div>
                     <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: '#334155', marginBottom: '4px' }}>
-                      Target Audience
+                      Audience Scope
                     </label>
                     <input
                       type="text"
-                      value={`All Students (${students.length})`}
+                      value={`All Students (${studentsList.length})`}
                       disabled
                       style={{
                         width: '100%',
@@ -532,11 +753,11 @@ export default function DeveloperDashboard() {
 
                 <div>
                   <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: '#334155', marginBottom: '4px' }}>
-                    Notification Headline / Title *
+                    Announcement Title *
                   </label>
                   <input
                     type="text"
-                    placeholder="e.g. Action Required: Mandatory Password Update"
+                    placeholder="e.g. Action Required: Update Password Every 2 Months"
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
                     required
@@ -554,11 +775,11 @@ export default function DeveloperDashboard() {
 
                 <div>
                   <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: '#334155', marginBottom: '4px' }}>
-                    Detailed Message Body *
+                    Notification Message *
                   </label>
                   <textarea
                     rows={4}
-                    placeholder="Provide clear operational instructions or update details for all students..."
+                    placeholder="Enter instructions, security advice, or feature details..."
                     value={message}
                     onChange={(e) => setMessage(e.target.value)}
                     required
@@ -576,7 +797,7 @@ export default function DeveloperDashboard() {
 
                 <button
                   type="submit"
-                  disabled={sending}
+                  disabled={broadcasting}
                   style={{
                     padding: '13px',
                     backgroundColor: '#15803d',
@@ -585,12 +806,12 @@ export default function DeveloperDashboard() {
                     borderRadius: '12px',
                     fontSize: '0.92rem',
                     fontWeight: 900,
-                    cursor: sending ? 'not-allowed' : 'pointer',
+                    cursor: broadcasting ? 'not-allowed' : 'pointer',
                     boxShadow: '0 4px 14px rgba(21, 128, 61, 0.25)',
                     marginTop: '6px',
                   }}
                 >
-                  {sending ? 'Broadcasting Notice...' : 'Broadcast to All Students ➔'}
+                  {broadcasting ? 'Broadcasting Notice...' : 'Send Notification to All Students ➔'}
                 </button>
               </form>
             </div>
@@ -600,11 +821,11 @@ export default function DeveloperDashboard() {
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px' }}>
                 <span style={{ fontSize: '1.25rem' }}>📱</span>
                 <h3 style={{ fontSize: '1.05rem', fontWeight: 900, margin: 0, color: '#0f172a' }}>
-                  Student Viewport Preview
+                  Student Dashboard Preview
                 </h3>
               </div>
               <p style={{ fontSize: '0.8rem', color: '#64748b', margin: '0 0 16px 0' }}>
-                This is exactly how your announcement appears in the student portal feed.
+                This is exactly how students will view your notification on their screen:
               </p>
 
               <div
@@ -612,7 +833,7 @@ export default function DeveloperDashboard() {
                   backgroundColor: '#f8fafc',
                   border: '1.5px solid #bbf7d0',
                   borderRadius: '18px',
-                  padding: '16px 18px',
+                  padding: '18px',
                   display: 'flex',
                   alignItems: 'flex-start',
                   gap: '14px',
@@ -641,7 +862,7 @@ export default function DeveloperDashboard() {
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px', gap: '8px' }}>
                     <h4 style={{ margin: 0, fontSize: '0.96rem', fontWeight: 900, color: '#0f172a' }}>
-                      {title || 'Security Reminder: Update Your Password Every 2 Months'}
+                      {title || 'Security Notice: Update Your Password Every 2 Months'}
                     </h4>
                     <span
                       style={{
@@ -677,16 +898,16 @@ export default function DeveloperDashboard() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px', flexWrap: 'wrap', gap: '10px' }}>
               <div>
                 <h2 style={{ fontSize: '1.25rem', fontWeight: 900, color: '#0f172a', margin: '0 0 4px 0' }}>
-                  Registered Students Masterlist ({filteredStudents.length})
+                  Registered Students Directory ({filteredStudents.length})
                 </h2>
                 <p style={{ fontSize: '0.8rem', color: '#64748b', margin: 0 }}>
-                  Real-time registry of all students eligible to receive developer alerts.
+                  Real-time list of all students enrolled in the CECTRACK database.
                 </p>
               </div>
 
               <input
                 type="text"
-                placeholder="Search by ID, Name, or Course..."
+                placeholder="Search Student ID, Name, or Course..."
                 value={studentSearch}
                 onChange={(e) => setStudentSearch(e.target.value)}
                 style={{
@@ -694,7 +915,7 @@ export default function DeveloperDashboard() {
                   borderRadius: '10px',
                   border: '1.5px solid #cbd5e1',
                   fontSize: '0.84rem',
-                  width: '260px',
+                  width: '280px',
                   maxWidth: '100%',
                   outline: 'none',
                 }}
@@ -709,14 +930,14 @@ export default function DeveloperDashboard() {
                     <th style={{ padding: '12px 14px', fontWeight: 800, color: '#475569' }}>FULL NAME</th>
                     <th style={{ padding: '12px 14px', fontWeight: 800, color: '#475569' }}>REGISTERED EMAIL</th>
                     <th style={{ padding: '12px 14px', fontWeight: 800, color: '#475569' }}>COURSE &amp; SECTION</th>
-                    <th style={{ padding: '12px 14px', fontWeight: 800, color: '#475569', textAlign: 'center' }}>STATUS</th>
+                    <th style={{ padding: '12px 14px', fontWeight: 800, color: '#475569', textAlign: 'center' }}>ACCOUNT STATUS</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredStudents.length === 0 ? (
                     <tr>
                       <td colSpan={5} style={{ textAlign: 'center', padding: '30px', color: '#94a3b8' }}>
-                        No registered student records found.
+                        No student records match your query.
                       </td>
                     </tr>
                   ) : (
@@ -727,7 +948,7 @@ export default function DeveloperDashboard() {
                         <td style={{ padding: '12px 14px', color: '#64748b' }}>{st.email}</td>
                         <td style={{ padding: '12px 14px' }}>
                           <span style={{ fontWeight: 800, color: '#0f172a' }}>{st.course}</span> •{' '}
-                          <span style={{ color: '#64748b' }}>{st.section || 'Sec A'} ({st.year_level || '1st Year'})</span>
+                          <span style={{ color: '#64748b' }}>{st.section || 'Section A'} ({st.year_level || '1st Year'})</span>
                         </td>
                         <td style={{ padding: '12px 14px', textAlign: 'center' }}>
                           <span
@@ -758,20 +979,20 @@ export default function DeveloperDashboard() {
           <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '24px', padding: '24px', boxShadow: '0 4px 20px rgba(0,0,0,0.03)' }}>
             <div style={{ marginBottom: '18px' }}>
               <h2 style={{ fontSize: '1.25rem', fontWeight: 900, color: '#0f172a', margin: '0 0 4px 0' }}>
-                Dispatched Broadcast Announcements ({sentNotifications.length})
+                Dispatched Announcements History ({sentBroadcasts.length})
               </h2>
               <p style={{ fontSize: '0.8rem', color: '#64748b', margin: 0 }}>
-                Historical log of announcements pushed to student portals.
+                Manage all notifications broadcasted to student portal feeds.
               </p>
             </div>
 
-            {sentNotifications.length === 0 ? (
+            {sentBroadcasts.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '40px', color: '#94a3b8' }}>
-                No notifications sent yet. Use the Broadcast tab to dispatch one.
+                No notifications sent yet. Use the Broadcast tab to create one.
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                {sentNotifications.map((item) => (
+                {sentBroadcasts.map((item) => (
                   <div
                     key={item.id}
                     style={{
@@ -806,13 +1027,13 @@ export default function DeveloperDashboard() {
                         {item.message}
                       </p>
                       <span style={{ fontSize: '0.7rem', color: '#94a3b8', fontWeight: 700 }}>
-                        Sent on: {new Date(item.created_at).toLocaleString('en-US', { timeZone: 'Asia/Manila' })}
+                        Sent: {new Date(item.created_at).toLocaleString('en-US', { timeZone: 'Asia/Manila' })}
                       </span>
                     </div>
 
                     <button
                       type="button"
-                      onClick={() => handleDeleteNotification(item.id, item.title)}
+                      onClick={() => handleDeleteBroadcast(item.id, item.title)}
                       style={{
                         backgroundColor: '#fef2f2',
                         color: '#b91c1c',
