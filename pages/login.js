@@ -21,7 +21,7 @@ export default function Login() {
   const [hasAgreedTerms, setHasAgreedTerms] = useState(false);
 
   // ========================================================
-  // BULLETPROOF LOGIN HANDLER (FIXED NEW PASSWORD ENFORCEMENT)
+  // BULLETPROOF LOGIN HANDLER (WITH DEVELOPER ROLE ROUTING)
   // ========================================================
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -118,13 +118,19 @@ export default function Login() {
       localStorage.setItem('cec_last_active_time', Date.now().toString());
 
       // 5. Role Routing
-      if (userRole === 'admin') {
+      if (userRole === 'developer' || authenticatedProfile.email === 'developer@gmail.com') {
+        // Direct route para sa Lead Developer Portal
+        sessionStorage.setItem('cec_developer_session', 'developer@gmail.com');
+        sessionStorage.setItem('cec_dev_active', 'authorized_developer');
+        router.push('/developer');
+      } else if (userRole === 'admin') {
         router.push('/admin');
       } else if (authenticatedProfile.must_change_password) {
         router.push('/update-password');
       } else if (userRole === 'staff') {
         router.push('/admin');
       } else {
+        // Normal students proceed to Data Privacy Modal
         setHasAgreedTerms(false);
         setShowPrivacyModal(true);
       }
