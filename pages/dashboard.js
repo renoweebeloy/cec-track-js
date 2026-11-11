@@ -49,11 +49,10 @@ export default function StudentDashboard() {
     can_scan: false,
   });
 
-  // Events, Attendance, Officers, & Developer Notifications
+  // Events, Attendance, & Officers States
   const [events, setEvents] = useState([]);
   const [attendanceLogs, setAttendanceLogs] = useState([]);
   const [officersList, setOfficersList] = useState([]);
-  const [dbNotifications, setDbNotifications] = useState([]);
   const [attendanceFilter, setAttendanceFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -115,7 +114,7 @@ export default function StudentDashboard() {
           } catch (e) {}
 
           alert('Your session has expired due to 5 minutes of inactivity. Please log in again.');
-          router.replace('/');
+          router.replace('/login');
           return;
         }
       }
@@ -262,16 +261,6 @@ export default function StudentDashboard() {
 
       if (officersData) {
         setOfficersList(officersData);
-      }
-
-      // 4. Live Developer Broadcast Notifications
-      const { data: devNotifs, error: notifErr } = await supabase
-        .from('notifications')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (devNotifs && !notifErr) {
-        setDbNotifications(devNotifs);
       }
 
       if (isManualRefresh) {
@@ -550,41 +539,35 @@ export default function StudentDashboard() {
       );
     });
 
-  // Merge Live Developer Notifications with System Notices
-  const allNotificationsList = [
-    // Real notifications pushed by the Developer
-    ...dbNotifications.map((n) => ({
-      id: `dev-${n.id}`,
-      type: n.type || 'security',
-      title: n.title,
-      message: n.message,
-      sender: n.sender || 'Developer </ />',
-      time: new Date(n.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-      isDev: true,
-    })),
-    // Attendance alert kon dunay absences
+  // Dynamic Notifications Builder
+  const generatedNotifications = [
     ...(totalAbsencesCount > 0
       ? [
           {
             id: 'notif-absent-alert',
             type: 'alert',
             title: `Attendance Alert: ${totalAbsencesCount} Recorded Absences`,
-            message: `You were recorded absent in ${totalAbsencesCount} required event(s). Please review your Sanctions tab.`,
-            sender: 'Attendance System',
-            time: 'System Alert',
-            isDev: false,
+            message: `You were recorded absent in ${totalAbsencesCount} required event(s). Please check your Sanctions tab for upcoming community duties.`,
+            time: 'Important',
+            icon: '⚠️',
           },
         ]
       : []),
-    // Initial welcome confirmation
+    ...events.slice(0, 3).map((ev) => ({
+      id: `notif-ev-${ev.id}`,
+      type: 'event',
+      title: `Event Notice: ${ev.title}`,
+      message: `Scheduled for ${ev.date} at ${ev.location || 'FaCET Facade'}. Scan In starts at ${formatTime12Hour(ev.time_in)}.`,
+      time: ev.status === 'active' ? 'Active Now' : 'Upcoming',
+      icon: '📅',
+    })),
     {
       id: 'notif-welcome',
       type: 'system',
-      title: 'Portal Credentials Verified',
-      message: `Welcome to CECTRACK, ${profile.full_name}! Your student credentials and digital ID badge are officially activated.`,
-      sender: 'System Admin',
-      time: 'Official',
-      isDev: false,
+      title: 'Portal Access Activated',
+      message: `Welcome to CECTRACK, ${profile.full_name}! Your student credentials and digital ID badge are now live and synced.`,
+      time: 'System',
+      icon: '✓',
     },
   ];
 
@@ -944,6 +927,7 @@ export default function StudentDashboard() {
                   id: 'notifications',
                   label: 'Notifications',
                   icon: (
+                    /* Minimalist Bell Icon matching the requested logo */
                     <svg
                       width="18"
                       height="18"
@@ -1549,7 +1533,17 @@ export default function StudentDashboard() {
                       marginBottom: '8px',
                     }}
                   >
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#15803d" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                    <svg
+                      width="13"
+                      height="13"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="#15803d"
+                      strokeWidth="2.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      style={{ flexShrink: 0 }}
+                    >
                       <rect x="3" y="4" width="18" height="18" rx="2" />
                       <line x1="16" y1="2" x2="16" y2="6" />
                       <line x1="8" y1="2" x2="8" y2="6" />
@@ -1731,7 +1725,16 @@ export default function StudentDashboard() {
                               borderBottom: '1px solid #f1f5f9',
                             }}
                           >
-                            <svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                            <svg
+                              width="52"
+                              height="52"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="#cbd5e1"
+                              strokeWidth="1.6"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            >
                               <rect x="3" y="3" width="18" height="18" rx="4" ry="4" />
                               <circle cx="8.5" cy="8.5" r="1.5" fill="#cbd5e1" stroke="none" />
                               <polyline points="21 15 16 10 5 21" />
@@ -2005,7 +2008,7 @@ export default function StudentDashboard() {
             </div>
           )}
 
-          {/* TAB 6: NOTIFICATIONS (LIVE CONNECTED TO DEVELOPER CONSOLE) */}
+          {/* TAB 6: NOTIFICATIONS (NEW FEATURE) */}
           {activeTab === 'notifications' && (
             <div style={{ maxWidth: '820px', margin: '0 auto', width: '100%' }}>
               <div style={{ marginBottom: '22px' }}>
@@ -2029,7 +2032,7 @@ export default function StudentDashboard() {
                     <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
                     <path d="M13.73 21a2 2 0 0 1-3.46 0" />
                   </svg>
-                  <span>OFFICIAL ALERTS &amp; DEVELOPER UPDATES</span>
+                  <span>OFFICIAL ALERTS &amp; UPDATES</span>
                 </div>
 
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
@@ -2047,26 +2050,26 @@ export default function StudentDashboard() {
                       border: '1px solid #bbf7d0',
                     }}
                   >
-                    {allNotificationsList.length} Total Alerts
+                    {generatedNotifications.length} Total Alerts
                   </span>
                 </div>
                 <p style={{ fontSize: '0.85rem', color: '#64748b', margin: 0, fontWeight: 500 }}>
-                  Live announcements from the <strong>Developer &lt;/&gt;</strong>, system alerts, and assembly reminders.
+                  Stay informed on attendance check-ins, assembly call-times, and campus announcements.
                 </p>
               </div>
 
               {/* Notification Cards List */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                {allNotificationsList.map((notif) => (
+                {generatedNotifications.map((notif) => (
                   <div
                     key={notif.id}
                     style={{
                       backgroundColor: '#ffffff',
                       border: `1.5px solid ${
-                        notif.isDev
-                          ? '#10b981'
-                          : notif.type === 'alert'
+                        notif.type === 'alert'
                           ? '#fecdd3'
+                          : notif.type === 'event'
+                          ? '#bbf7d0'
                           : '#e2e8f0'
                       }`,
                       borderRadius: '18px',
@@ -2074,67 +2077,51 @@ export default function StudentDashboard() {
                       display: 'flex',
                       alignItems: 'flex-start',
                       gap: '14px',
-                      boxShadow: notif.isDev ? '0 4px 14px rgba(16, 185, 129, 0.08)' : '0 2px 6px rgba(0,0,0,0.02)',
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.02)',
+                      transition: 'transform 0.15s ease',
                     }}
                   >
                     <div
                       style={{
-                        width: '44px',
-                        height: '44px',
+                        width: '42px',
+                        height: '42px',
                         borderRadius: '12px',
-                        backgroundColor: notif.isDev
-                          ? '#064e3b'
-                          : notif.type === 'alert'
-                          ? '#fff1f2'
-                          : '#f0fdf4',
-                        border: `1.5px solid ${
-                          notif.isDev
-                            ? '#34d399'
-                            : notif.type === 'alert'
+                        backgroundColor:
+                          notif.type === 'alert'
+                            ? '#fff1f2'
+                            : notif.type === 'event'
+                            ? '#f0fdf4'
+                            : '#f8fafc',
+                        border: `1px solid ${
+                          notif.type === 'alert'
                             ? '#fecdd3'
-                            : '#bbf7d0'
+                            : notif.type === 'event'
+                            ? '#bbf7d0'
+                            : '#e2e8f0'
                         }`,
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        fontSize: notif.isDev ? '0.95rem' : '1.2rem',
-                        fontWeight: 900,
-                        color: notif.isDev ? '#6ee7b7' : '#15803d',
+                        fontSize: '1.25rem',
                         flexShrink: 0,
                       }}
                     >
-                      {notif.isDev ? '</>' : notif.type === 'alert' ? '⚠️' : '✓'}
+                      {notif.icon}
                     </div>
 
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px', gap: '8px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                          <h3
-                            style={{
-                              margin: 0,
-                              fontSize: '0.96rem',
-                              fontWeight: 900,
-                              color: notif.type === 'alert' ? '#be123c' : '#0f172a',
-                              lineHeight: 1.3,
-                            }}
-                          >
-                            {notif.title}
-                          </h3>
-                          <span
-                            style={{
-                              fontSize: '0.64rem',
-                              fontWeight: 900,
-                              backgroundColor: notif.isDev ? '#022c22' : '#f1f5f9',
-                              color: notif.isDev ? '#6ee7b7' : '#475569',
-                              border: `1px solid ${notif.isDev ? '#10b981' : '#cbd5e1'}`,
-                              padding: '2px 8px',
-                              borderRadius: '9999px',
-                              whiteSpace: 'nowrap',
-                            }}
-                          >
-                            {notif.sender}
-                          </span>
-                        </div>
+                        <h3
+                          style={{
+                            margin: 0,
+                            fontSize: '0.96rem',
+                            fontWeight: 900,
+                            color: notif.type === 'alert' ? '#be123c' : '#0f172a',
+                            lineHeight: 1.3,
+                          }}
+                        >
+                          {notif.title}
+                        </h3>
                         <span
                           style={{
                             fontSize: '0.68rem',
