@@ -8,7 +8,7 @@ export default function StudentDashboard() {
   const fileInputRef = useRef(null);
   const idCardRef = useRef(null);
 
-  // Active Tab Navigation
+  // Active Tab Navigation: 'my-id' | 'attendance' | 'events' | 'officers' | 'sanctions' | 'notifications' | 'profile' | 'about'
   const [activeTab, setActiveTab] = useState('my-id');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -373,10 +373,8 @@ export default function StudentDashboard() {
           return;
         }
 
-        // Generate a true Blob URL (Crucial for Android/iOS Long-Press to work instead of failing on data URLs)
         const blobUrl = URL.createObjectURL(blob);
 
-        // Attempt 1: Direct System Share Sheet (Supported in modern mobile browsers)
         if (navigator.canShare) {
           const file = new File([blob], fileName, { type: 'image/png' });
           if (navigator.canShare({ files: [file] })) {
@@ -394,7 +392,6 @@ export default function StudentDashboard() {
           }
         }
 
-        // Attempt 2: If inside Messenger WebView, launch the dedicated Long-Press & External Browser Modal
         if (isMessengerApp) {
           setIdModalData({
             isOpen: true,
@@ -406,7 +403,6 @@ export default function StudentDashboard() {
           return;
         }
 
-        // Attempt 3: Standard Browser Direct Download
         const downloadLink = document.createElement('a');
         downloadLink.download = fileName;
         downloadLink.href = blobUrl;
@@ -422,21 +418,17 @@ export default function StudentDashboard() {
     }
   };
 
-  // External Browser Trigger for Android Messenger
   const handleOpenInSystemBrowser = () => {
     const isAndroid = /Android/i.test(navigator.userAgent || '');
     const cleanUrl = window.location.href.replace(/^https?:\/\//, '');
 
     if (isAndroid) {
-      // Direct Chrome Intent for Android: forces opening in real Chrome where downloads work 100%
       window.location.href = `intent://${cleanUrl}#Intent;scheme=https;package=com.android.chrome;end`;
     } else {
-      // iOS Guide
       alert("To save on iPhone: Tap the ⋯ (three dots) icon at the top right of your Messenger screen, then tap 'Open in Safari'.");
     }
   };
 
-  // Re-trigger Native Share from within the Modal
   const handleModalShare = async () => {
     if (!idModalData.blob) return;
     try {
@@ -547,6 +539,38 @@ export default function StudentDashboard() {
       );
     });
 
+  // Dynamic Notifications Builder
+  const generatedNotifications = [
+    ...(totalAbsencesCount > 0
+      ? [
+          {
+            id: 'notif-absent-alert',
+            type: 'alert',
+            title: `Attendance Alert: ${totalAbsencesCount} Recorded Absences`,
+            message: `You were recorded absent in ${totalAbsencesCount} required event(s). Please check your Sanctions tab for upcoming community duties.`,
+            time: 'Important',
+            icon: '⚠️',
+          },
+        ]
+      : []),
+    ...events.slice(0, 3).map((ev) => ({
+      id: `notif-ev-${ev.id}`,
+      type: 'event',
+      title: `Event Notice: ${ev.title}`,
+      message: `Scheduled for ${ev.date} at ${ev.location || 'FaCET Facade'}. Scan In starts at ${formatTime12Hour(ev.time_in)}.`,
+      time: ev.status === 'active' ? 'Active Now' : 'Upcoming',
+      icon: '📅',
+    })),
+    {
+      id: 'notif-welcome',
+      type: 'system',
+      title: 'Portal Access Activated',
+      message: `Welcome to CECTRACK, ${profile.full_name}! Your student credentials and digital ID badge are now live and synced.`,
+      time: 'System',
+      icon: '✓',
+    },
+  ];
+
   // QR Code Payload
   const qrPayload = JSON.stringify({
     school_id: profile.school_id,
@@ -618,7 +642,6 @@ export default function StudentDashboard() {
           }
         }
 
-        /* Unblock Mobile & In-App Browser Touch Actions for Long-Press Image Saving */
         .touch-saveable-image {
           -webkit-touch-callout: default !important;
           -webkit-user-select: auto !important;
@@ -897,6 +920,26 @@ export default function StudentDashboard() {
                       <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
                       <line x1="12" y1="8" x2="12" y2="12" />
                       <line x1="12" y1="16" x2="12.01" y2="16" />
+                    </svg>
+                  ),
+                },
+                {
+                  id: 'notifications',
+                  label: 'Notifications',
+                  icon: (
+                    /* Minimalist Bell Icon matching the requested logo */
+                    <svg
+                      width="18"
+                      height="18"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                      <path d="M13.73 21a2 2 0 0 1-3.46 0" />
                     </svg>
                   ),
                 },
@@ -1517,7 +1560,6 @@ export default function StudentDashboard() {
                   </p>
                 </div>
 
-                {/* Counter Box */}
                 <div
                   style={{
                     backgroundColor: '#ffffff',
@@ -1966,7 +2008,153 @@ export default function StudentDashboard() {
             </div>
           )}
 
-          {/* TAB 6: PROFILE */}
+          {/* TAB 6: NOTIFICATIONS (NEW FEATURE) */}
+          {activeTab === 'notifications' && (
+            <div style={{ maxWidth: '820px', margin: '0 auto', width: '100%' }}>
+              <div style={{ marginBottom: '22px' }}>
+                <div
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    backgroundColor: '#f0fdf4',
+                    color: '#15803d',
+                    border: '1.5px solid #bbf7d0',
+                    padding: '4px 14px',
+                    borderRadius: '9999px',
+                    fontSize: '0.72rem',
+                    fontWeight: 900,
+                    textTransform: 'uppercase',
+                    marginBottom: '8px',
+                  }}
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#15803d" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                    <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+                  </svg>
+                  <span>OFFICIAL ALERTS &amp; UPDATES</span>
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                  <h1 style={{ fontSize: '1.75rem', fontWeight: 900, color: '#0f172a', margin: '0 0 4px 0' }}>
+                    Notifications
+                  </h1>
+                  <span
+                    style={{
+                      fontSize: '0.75rem',
+                      fontWeight: 800,
+                      color: '#15803d',
+                      backgroundColor: '#dcfce7',
+                      padding: '4px 12px',
+                      borderRadius: '9999px',
+                      border: '1px solid #bbf7d0',
+                    }}
+                  >
+                    {generatedNotifications.length} Total Alerts
+                  </span>
+                </div>
+                <p style={{ fontSize: '0.85rem', color: '#64748b', margin: 0, fontWeight: 500 }}>
+                  Stay informed on attendance check-ins, assembly call-times, and campus announcements.
+                </p>
+              </div>
+
+              {/* Notification Cards List */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {generatedNotifications.map((notif) => (
+                  <div
+                    key={notif.id}
+                    style={{
+                      backgroundColor: '#ffffff',
+                      border: `1.5px solid ${
+                        notif.type === 'alert'
+                          ? '#fecdd3'
+                          : notif.type === 'event'
+                          ? '#bbf7d0'
+                          : '#e2e8f0'
+                      }`,
+                      borderRadius: '18px',
+                      padding: '16px 18px',
+                      display: 'flex',
+                      alignItems: 'flex-start',
+                      gap: '14px',
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.02)',
+                      transition: 'transform 0.15s ease',
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: '42px',
+                        height: '42px',
+                        borderRadius: '12px',
+                        backgroundColor:
+                          notif.type === 'alert'
+                            ? '#fff1f2'
+                            : notif.type === 'event'
+                            ? '#f0fdf4'
+                            : '#f8fafc',
+                        border: `1px solid ${
+                          notif.type === 'alert'
+                            ? '#fecdd3'
+                            : notif.type === 'event'
+                            ? '#bbf7d0'
+                            : '#e2e8f0'
+                        }`,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '1.25rem',
+                        flexShrink: 0,
+                      }}
+                    >
+                      {notif.icon}
+                    </div>
+
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px', gap: '8px' }}>
+                        <h3
+                          style={{
+                            margin: 0,
+                            fontSize: '0.96rem',
+                            fontWeight: 900,
+                            color: notif.type === 'alert' ? '#be123c' : '#0f172a',
+                            lineHeight: 1.3,
+                          }}
+                        >
+                          {notif.title}
+                        </h3>
+                        <span
+                          style={{
+                            fontSize: '0.68rem',
+                            fontWeight: 800,
+                            color: notif.type === 'alert' ? '#e11d48' : '#15803d',
+                            backgroundColor: notif.type === 'alert' ? '#ffe4e6' : '#dcfce7',
+                            padding: '2px 8px',
+                            borderRadius: '9999px',
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          {notif.time}
+                        </span>
+                      </div>
+
+                      <p
+                        style={{
+                          margin: 0,
+                          fontSize: '0.82rem',
+                          color: '#475569',
+                          lineHeight: 1.5,
+                        }}
+                      >
+                        {notif.message}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* TAB 7: PROFILE */}
           {activeTab === 'profile' && (
             <div style={{ maxWidth: '640px', margin: '0 auto', width: '100%' }}>
               <div style={{ textAlign: 'center', marginBottom: '20px' }}>
@@ -2095,7 +2283,7 @@ export default function StudentDashboard() {
             </div>
           )}
 
-          {/* TAB 7: ABOUT */}
+          {/* TAB 8: ABOUT */}
           {activeTab === 'about' && (
             <div style={{ maxWidth: '980px', margin: '0 auto', width: '100%' }}>
               <section style={{ textAlign: 'center', marginBottom: '32px' }}>
@@ -2360,7 +2548,7 @@ export default function StudentDashboard() {
         </main>
       </div>
 
-      {/* MODAL: MESSENGER IN-APP BROWSER ID PREVIEW & DUAL SAVING ENGINE */}
+      {/* MODAL: MESSENGER IN-APP BROWSER ID PREVIEW */}
       {idModalData.isOpen && (
         <div
           style={{
@@ -2413,7 +2601,6 @@ export default function StudentDashboard() {
               </button>
             </div>
 
-            {/* In-App Browser Instruction Banner (Strictly Green Theme & English) */}
             <div
               style={{
                 backgroundColor: '#f0fdf4',
@@ -2433,12 +2620,11 @@ export default function StudentDashboard() {
               Direct file downloads are restricted inside the Messenger app.
               <br />
               <br />
-              <strong>Method 1:</strong> Press and hold (<strong>Long-Press</strong>) the card image below, then tap <strong>&quot;Save Image&quot;</strong> or <strong>&quot;Download Image&quot;</strong>[cite: 18].
+              <strong>Method 1:</strong> Press and hold (<strong>Long-Press</strong>) the card image below, then tap <strong>&quot;Save Image&quot;</strong> or <strong>&quot;Download Image&quot;</strong>.
               <br />
-              <strong>Method 2:</strong> Tap <strong>&quot;Open in Chrome / Browser&quot;</strong> below to download the PNG file automatically[cite: 18].
+              <strong>Method 2:</strong> Tap <strong>&quot;Open in Chrome / Browser&quot;</strong> below to download the PNG file automatically.
             </div>
 
-            {/* Touchable Link Wrapper around Image ensuring Native Context Menu */}
             <div style={{ marginBottom: '14px', borderRadius: '18px', overflow: 'hidden', boxShadow: '0 6px 16px rgba(0,0,0,0.08)' }}>
               <a
                 href={idModalData.url}
@@ -2461,7 +2647,6 @@ export default function StudentDashboard() {
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {/* Button: Open in Native Chrome / System Browser */}
               <button
                 type="button"
                 onClick={handleOpenInSystemBrowser}
@@ -2486,7 +2671,6 @@ export default function StudentDashboard() {
                 <span>Open in Chrome / Browser</span>
               </button>
 
-              {/* Button: Native Device Share */}
               <button
                 type="button"
                 onClick={handleModalShare}
