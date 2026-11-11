@@ -37,14 +37,14 @@ export default function StudentDashboard() {
   const [passwordLoading, setPasswordLoading] = useState(false);
   const [passwordMsg, setPasswordMsg] = useState({ type: '', text: '' });
 
-  // Student Profile Data
+  // Default Student Profile Data (Giilisan sa Developer & 0000-0000 imbes nga Ive cadalzo)
   const [profile, setProfile] = useState({
-    full_name: 'Ive cadalzo',
-    school_id: '2023-8133',
-    email: 'ive.cadalzo@dorsu.edu.ph',
-    course: 'BSAM',
+    full_name: 'Developer',
+    school_id: '0000-0000',
+    email: 'developer@dorsu.edu.ph',
+    course: 'BSIT',
     section: 'Section A',
-    year_level: '3rd Year',
+    year_level: '1st Year',
     avatar_url: '',
     can_scan: false,
   });
@@ -111,8 +111,22 @@ export default function StudentDashboard() {
           try {
             sessionStorage.clear();
             localStorage.removeItem('cec_last_active_time');
+            localStorage.removeItem('cec_user_email');
+            localStorage.removeItem('cec_user_school_id');
             if (supabase) await supabase.auth.signOut();
           } catch (e) {}
+
+          // Reset ngadto sa Developer ug 0000-0000 inig-expire
+          setProfile({
+            full_name: 'Developer',
+            school_id: '0000-0000',
+            email: 'developer@dorsu.edu.ph',
+            course: 'BSIT',
+            section: 'Section A',
+            year_level: '1st Year',
+            avatar_url: '',
+            can_scan: false,
+          });
 
           alert('Your session has expired due to 5 minutes of inactivity. Please log in again.');
           router.replace('/');
@@ -151,7 +165,30 @@ export default function StudentDashboard() {
     };
   }, [router]);
 
+  // Read immediately from cache on refresh to prevent old profile flash
   useEffect(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const cachedEmail = sessionStorage.getItem('cec_user_email') || localStorage.getItem('cec_user_email');
+        const cachedId = sessionStorage.getItem('cec_school_id') || sessionStorage.getItem('cec_user_school_id');
+        const cachedName = sessionStorage.getItem('cec_full_name');
+
+        if (!cachedEmail && !cachedId) {
+          router.replace('/');
+          return;
+        }
+
+        if (cachedName || cachedId) {
+          setProfile((prev) => ({
+            ...prev,
+            full_name: cachedName || prev.full_name,
+            school_id: cachedId || prev.school_id,
+            email: cachedEmail || prev.email,
+          }));
+        }
+      } catch (e) {}
+    }
+
     fetchStudentData();
   }, []);
 
@@ -170,11 +207,17 @@ export default function StudentDashboard() {
 
       try {
         userEmail = sessionStorage.getItem('cec_user_email') || localStorage.getItem('cec_user_email');
-        cachedId = sessionStorage.getItem('cec_user_school_id') || localStorage.getItem('cec_user_school_id');
+        cachedId = sessionStorage.getItem('cec_school_id') || sessionStorage.getItem('cec_user_school_id') || localStorage.getItem('cec_user_school_id');
       } catch (e) {}
 
       const { data: authData } = await supabase.auth.getUser();
       if (authData?.user?.email) userEmail = authData.user.email;
+
+      // Kon walay user session, pabalikon sa log-in
+      if (!userEmail && !cachedId) {
+        router.replace('/');
+        return;
+      }
 
       let currentStudentId = cachedId || profile.school_id;
 
@@ -192,17 +235,16 @@ export default function StudentDashboard() {
             userProfile.role === 'staff' ||
             userProfile.role === 'admin';
 
-          setProfile((prev) => ({
-            ...prev,
-            full_name: userProfile.full_name || prev.full_name,
-            school_id: userProfile.school_id || prev.school_id,
+          setProfile({
+            full_name: userProfile.full_name || 'Developer',
+            school_id: userProfile.school_id || '0000-0000',
             email: userProfile.email || userEmail,
-            course: userProfile.course || prev.course,
-            year_level: userProfile.year_level || prev.year_level,
-            section: userProfile.section || prev.section,
+            course: userProfile.course || 'BSIT',
+            year_level: userProfile.year_level || '1st Year',
+            section: userProfile.section || 'Section A',
             avatar_url: userProfile.avatar_url || '',
             can_scan: hasScanClearance,
-          }));
+          });
         }
       }
 
@@ -351,7 +393,6 @@ export default function StudentDashboard() {
     reader.readAsDataURL(file);
   };
 
-  // Comprehensive Mobile / Messenger / Browser Download Engine
   const handleDownloadIdCard = async () => {
     if (!idCardRef.current) return;
     setDownloadingId(true);
@@ -504,6 +545,8 @@ export default function StudentDashboard() {
     try {
       sessionStorage.clear();
       localStorage.removeItem('cec_last_active_time');
+      localStorage.removeItem('cec_user_email');
+      localStorage.removeItem('cec_user_school_id');
     } catch (e) {}
     router.replace('/');
   };
@@ -552,7 +595,6 @@ export default function StudentDashboard() {
 
   // Merge Live Developer Notifications with System Notices
   const allNotificationsList = [
-    // Real notifications pushed by the Developer
     ...dbNotifications.map((n) => ({
       id: `dev-${n.id}`,
       type: n.type || 'security',
@@ -562,7 +604,6 @@ export default function StudentDashboard() {
       time: new Date(n.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
       isDev: true,
     })),
-    // Attendance alert kon dunay absences
     ...(totalAbsencesCount > 0
       ? [
           {
@@ -576,7 +617,6 @@ export default function StudentDashboard() {
           },
         ]
       : []),
-    // Initial welcome confirmation (matches screenshot)
     {
       id: 'notif-welcome',
       type: 'system',
@@ -792,12 +832,12 @@ export default function StudentDashboard() {
         />
       )}
 
-      {/* WELCOME BANNER */}
+      {/* WELCOME BANNER (Gipahimutang sa top: 72px aron dili motabon sa header sa cellphone) */}
       {showWelcomeToast && (
         <div
           style={{
             position: 'fixed',
-            top: '18px',
+            top: '72px',
             left: '50%',
             transform: 'translateX(-50%)',
             zIndex: 9999,
@@ -809,6 +849,7 @@ export default function StudentDashboard() {
             alignItems: 'center',
             gap: '8px',
             boxShadow: '0 6px 20px rgba(16, 185, 129, 0.12)',
+            whiteSpace: 'nowrap',
           }}
         >
           <div
@@ -2005,11 +2046,11 @@ export default function StudentDashboard() {
             </div>
           )}
 
-          {/* TAB 6: NOTIFICATIONS (EXACT STYLING MATCHING SCREENSHOT) */}
+          {/* TAB 6: NOTIFICATIONS (100% MATCHED SA SCREENSHOT DESIGN) */}
           {activeTab === 'notifications' && (
             <div style={{ maxWidth: '820px', margin: '0 auto', width: '100%' }}>
               <div style={{ marginBottom: '22px' }}>
-                {/* Green Pill Badge: OFFICIAL ALERTS & UPDATES with Bell icon */}
+                {/* Green Pill Badge: OFFICIAL ALERTS & UPDATES nga naay Bell icon */}
                 <div
                   style={{
                     display: 'inline-flex',
@@ -2051,7 +2092,7 @@ export default function StudentDashboard() {
                     {allNotificationsList.length} Total Alerts
                   </span>
                 </div>
-                {/* Subtitle strictly matched to screenshot */}
+                {/* Eksaktong Subtitle sa screenshot */}
                 <p style={{ fontSize: '0.85rem', color: '#64748b', margin: 0, fontWeight: 500 }}>
                   Stay informed on attendance check-ins, assembly call-times, and campus announcements.
                 </p>
