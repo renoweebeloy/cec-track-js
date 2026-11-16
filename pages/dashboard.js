@@ -771,8 +771,26 @@ export default function StudentDashboard() {
         .sd-av{width:40px;height:40px;border-radius:50%;overflow:hidden;background:var(--g1);box-shadow:0 0 0 2px #fff,0 0 0 4px var(--g5);display:flex;align-items:center;justify-content:center;font-weight:800;color:var(--g7);flex-shrink:0}
         .sd-av img{width:100%;height:100%;object-fit:cover}
 
-        .sd-shell{display:flex;flex:1;min-width:0;width:100%}
-        .sd-side{width:236px;flex-shrink:0;background:#fff;border-right:1px solid var(--line);padding:22px 14px;display:flex;flex-direction:column;justify-content:space-between;overflow-y:auto;position:sticky;top:64px;height:calc(100vh - 64px)}
+        .sd-shell{display:flex;flex:1;min-width:0;width:100%}     
+.sd-side {
+  width: 236px;
+  flex-shrink: 0;
+  background: #fff;
+  border-right: 1px solid var(--line);
+  padding: 22px 14px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  overflow-y: auto;
+
+  /* FIXED SIDEBAR */
+  position: fixed;
+  top: 64px;
+  left: 0;
+  bottom: 0;
+  height: auto;
+  z-index: 30;
+}
         .sd-st{padding:0 8px;margin-bottom:18px;display:flex;justify-content:space-between;align-items:center}
         .sd-st h2{margin:0;font-size:1.3rem;font-weight:800;color:var(--g8)}
         .sd-st small{font-size:.76rem;font-weight:700;color:#7a9488}
@@ -781,8 +799,13 @@ export default function StudentDashboard() {
         .sd-nav button:hover{background:var(--g0);color:var(--g7)}
         .sd-nav button.on{background:linear-gradient(135deg,var(--g5),var(--g7));color:#fff;font-weight:800;box-shadow:0 8px 18px rgba(5,150,105,.28)}
         .sd-so{display:flex;align-items:center;gap:12px;width:100%;height:44px;padding:0 14px;border:0;border-radius:14px;background:none;color:var(--red);font-size:.9rem;font-weight:800}
-        .sd-so:hover{background:#fef2f2}
-        .sd-main{flex:1;min-width:0;padding:30px 34px}
+        .sd-so:hover{background:#fef2f2}     
+.sd-main {
+  flex: 1;
+  min-width: 0;
+  margin-left: 236px;
+  padding: 30px 34px;
+}
         .sd-wrap{max-width:980px;margin:0 auto;width:100%}
         .sd-bd{position:fixed;inset:0;background:rgba(4,38,26,.5);backdrop-filter:blur(3px);z-index:90}
 
@@ -956,7 +979,9 @@ export default function StudentDashboard() {
           .sd-main{padding:18px 14px}
           .sd-g4{grid-template-columns:repeat(2,1fr);gap:10px}
           .sd-g3{grid-template-columns:1fr}
-          .sd-un b{max-width:90px}
+          .sd-un b{max-width:90px}        
+.sd-main {
+  margin-left: 0;
         }
         @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
       `}</style>
