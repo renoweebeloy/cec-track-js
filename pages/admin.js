@@ -30,6 +30,7 @@ const P = {
   power: 'M18.36 6.64a9 9 0 11-12.73 0M12 2v10',
   scan: 'M3 7V5a2 2 0 012-2h2M17 3h2a2 2 0 012 2v2M21 17v2a2 2 0 01-2 2h-2M7 21H5a2 2 0 01-2-2v-2M7 12h10',
 };
+
 const Ic = ({ d, s = 18, w = 2.1 }) => (
   <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={w} strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }} aria-hidden="true">
     <path d={P[d]} />
@@ -44,6 +45,7 @@ const Field = ({ label, children }) => (
     {children}
   </div>
 );
+
 const PageHead = ({ icon, badge, title, sub, right }) => (
   <div className="ad-ph">
     <div>
@@ -54,14 +56,39 @@ const PageHead = ({ icon, badge, title, sub, right }) => (
     {right}
   </div>
 );
+
 const Stat = ({ label, value, tone }) => (
   <div className="ad-stat"><small>{label}</small><b className={tone || ''}>{value}</b></div>
 );
+
 const Switch = ({ checked, onChange }) => (
   <label className="ad-sw">
     <input type="checkbox" checked={checked} onChange={onChange} />
     <span />
   </label>
+);
+
+const SearchBox = ({ value, onChange, placeholder }) => (
+  <div className="ad-srch">
+    <Ic d="search" s={15} />
+    <input className="ad-in sm" type="text" placeholder={placeholder} value={value} onChange={onChange} />
+  </div>
+);
+
+const EditActions = ({ onEdit, onDel, delLabel }) => (
+  <div className="ad-acts">
+    <button type="button" className="ad-b out sm" onClick={onEdit}><Ic d="pencil" s={14} /> Edit</button>
+    {onDel && <button type="button" className="ad-b dng sm" onClick={onDel}><Ic d="trash" s={14} /> {delLabel}</button>}
+  </div>
+);
+
+const FormButtons = ({ editing, saving, onCancel, addLabel, saveLabel, disabled }) => (
+  <div className={editing ? 'ad-btns' : ''}>
+    {editing && <button type="button" className="ad-b neu" onClick={onCancel}>Cancel</button>}
+    <button type="submit" className="ad-b pri full" disabled={saving || disabled}>
+      {saving ? 'Saving...' : editing ? saveLabel : addLabel}
+    </button>
+  </div>
 );
 
 function Styles() {
@@ -157,8 +184,10 @@ function Styles() {
         .ad-fm>div,.ad-2>div{min-width:0}
         .ad-2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
         .ad-l{display:block;font-size:.84rem;font-weight:700;color:#2f4d3e;margin-bottom:6px}
-        .ad-in{width:100%;min-width:0;max-width:100%;display:block;padding:12px 14px;border-radius:14px;border:1.5px solid var(--line);font-size:.92rem;font-family:inherit;font-weight:600;color:var(--ink);background:#fafdfb;outline:0;transition:border-color .2s,box-shadow .2s,background .2s}
-        .ad-in.sm{padding:0 14px 0 38px;height:40px;border-radius:999px;background:#fff;font-size:.86rem}
+        .ad-in{width:100%;min-width:0;max-width:100%;min-height:46px;display:block;text-align:left;-webkit-appearance:none;appearance:none;padding:12px 14px;border-radius:14px;border:1.5px solid var(--line);font-size:.92rem;font-family:inherit;font-weight:600;color:var(--ink);background:#fafdfb;outline:0;transition:border-color .2s,box-shadow .2s,background .2s}
+        textarea.ad-in{resize:vertical;line-height:1.5;font-weight:500}
+        .ad-in:focus{border-color:var(--g5);background:#fff;box-shadow:0 0 0 4px rgba(16,185,129,.16)}
+        .ad-in.sm{padding:0 14px 0 38px;min-height:40px;height:40px;border-radius:999px;background:#fff;font-size:.86rem}
         .ad-srch{position:relative;width:200px;max-width:100%}
         .ad-srch svg{position:absolute;left:13px;top:50%;transform:translateY(-50%);color:#78a38c}
         .ad-ra{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
@@ -260,26 +289,27 @@ function Styles() {
         .ad-spin{width:44px;height:44px;border-radius:50%;border:4px solid var(--g1);border-top-color:var(--g6);animation:ad-r 1s linear infinite;margin-bottom:14px}
         @keyframes ad-r{to{transform:rotate(360deg)}}
 
-       @media(max-width:900px){
-  .ad-g2,.ad-g2.even{grid-template-columns:minmax(0,1fr)}
-  .ad-sticky{position:static;max-height:none;overflow:visible}
-}
-@media(max-width:768px){
-  .ad-menu{display:inline-flex}
-  .ad-side{position:fixed;top:0;bottom:0;left:0;height:auto;width:270px;max-width:82vw;z-index:100;transform:translateX(-100%);transition:transform .28s cubic-bezier(.4,0,.2,1)}
-  .ad-side.open{transform:none;box-shadow:8px 0 30px rgba(0,0,0,.2)}
-  .ad-main{padding:18px 14px 30px}
-  .ad-g4{grid-template-columns:repeat(2,1fr);gap:10px}
-  .ad-card{padding:18px 14px;border-radius:22px}
-  .ad-b{max-width:100%;white-space:normal;text-align:center;height:auto;min-height:42px;padding:10px 14px;line-height:1.25}
-  .ad-b.sm{height:auto;min-height:34px;padding:7px 12px}
-  .ad-row .ad-rl,.ad-scr .ad-rl{flex:1 1 100%}
-  .ad-row .ad-acts{width:100%;justify-content:flex-end}
-  .ad-re{width:100%;flex-direction:row;align-items:center;justify-content:space-between;flex-wrap:wrap}
-  .ad-scr>button,.ad-scr>.ad-pill{margin-left:auto}
-  .ad-perm>button{width:100%}
-}
-@media(max-width:480px){.ad-2{grid-template-columns:minmax(0,1fr)}}
+        @media(max-width:900px){
+          .ad-g2,.ad-g2.even{grid-template-columns:minmax(0,1fr)}
+          .ad-sticky{position:static;max-height:none;overflow:visible}
+        }
+        @media(max-width:768px){
+          .ad-menu{display:inline-flex}
+          .ad-side{position:fixed;top:0;bottom:0;left:0;height:auto;width:270px;max-width:82vw;z-index:100;transform:translateX(-100%);transition:transform .28s cubic-bezier(.4,0,.2,1)}
+          .ad-side.open{transform:none;box-shadow:8px 0 30px rgba(0,0,0,.2)}
+          .ad-main{padding:18px 14px 30px}
+          .ad-g4{grid-template-columns:repeat(2,1fr);gap:10px}
+          .ad-card{padding:18px 14px;border-radius:22px}
+          .ad-b{max-width:100%;white-space:normal;text-align:center;height:auto;min-height:42px;padding:10px 14px;line-height:1.25}
+          .ad-b.sm{height:auto;min-height:34px;padding:7px 12px}
+          .ad-row .ad-rl,.ad-scr .ad-rl{flex:1 1 100%}
+          .ad-row .ad-acts{width:100%;justify-content:flex-end}
+          .ad-re{width:100%;flex-direction:row;align-items:center;justify-content:space-between;flex-wrap:wrap}
+          .ad-scr>button,.ad-scr>.ad-pill{margin-left:auto}
+          .ad-perm>button{width:100%}
+        }
+        @media(max-width:480px){.ad-2{grid-template-columns:minmax(0,1fr)}}
+        @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
       `}</style>
     </>
   );
@@ -1714,26 +1744,6 @@ export default function AdminDashboard() {
   ].filter(Boolean);
 
   const modeIn = scanMode === 'time_in';
-  const SearchBox = ({ value, onChange, placeholder }) => (
-    <div className="ad-srch">
-      <Ic d="search" s={15} />
-      <input className="ad-in sm" type="text" placeholder={placeholder} value={value} onChange={onChange} />
-    </div>
-  );
-  const EditActions = ({ onEdit, onDel, delLabel }) => (
-    <div className="ad-acts">
-      <button type="button" className="ad-b out sm" onClick={onEdit}><Ic d="pencil" s={14} /> Edit</button>
-      {onDel && <button type="button" className="ad-b dng sm" onClick={onDel}><Ic d="trash" s={14} /> {delLabel}</button>}
-    </div>
-  );
-  const FormButtons = ({ editing, saving, onCancel, addLabel, saveLabel, disabled }) => (
-    <div className={editing ? 'ad-btns' : ''}>
-      {editing && <button type="button" className="ad-b neu" onClick={onCancel}>Cancel</button>}
-      <button type="submit" className="ad-b pri full" disabled={saving || disabled}>
-        {saving ? 'Saving...' : editing ? saveLabel : addLabel}
-      </button>
-    </div>
-  );
 
   return (
     <div className="ad-root">
