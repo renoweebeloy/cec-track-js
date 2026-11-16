@@ -3,7 +3,20 @@ import Head from 'next/head';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { supabase } from '../lib/supabaseClient';
-import styles from '../styles/Home.module.css';
+
+const STEPS = ['Account', 'Code', 'Password'];
+const ICONS = {
+  id: 'M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.306 0 2.417.835 2.83 2M9 14a3.001 3.001 0 00-2.83 2M15 11h3m-3 4h2',
+  mail: 'M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z',
+  lock: 'M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z',
+};
+const Ic = ({ d }) => (
+  <span className="fp-ic">
+    <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d={ICONS[d]} />
+    </svg>
+  </span>
+);
 
 export default function ForgotPassword() {
   const router = useRouter();
@@ -28,7 +41,7 @@ export default function ForgotPassword() {
   const [isErrorMessage, setIsErrorMessage] = useState(false);
 
   // ========================================================
-  // STEP 1: SEND 6-DIGIT CODE TO GMAIL VIA APPS SCRIPT
+  // STEP 1: SEND 6-DIGIT CODE TO EMAIL VIA APPS SCRIPT
   // ========================================================
   const handleSendOtp = async (e) => {
     e.preventDefault();
@@ -240,148 +253,141 @@ export default function ForgotPassword() {
     }
   };
 
+  const title = step === 1 ? 'Reset password' : step === 2 ? 'Enter verification code' : 'Create new password';
+  const subtitle =
+    step === 1
+      ? 'Enter your Student ID and registered email address to receive a verification code.'
+      : step === 2
+      ? 'Enter the 6-digit verification code sent to your email.'
+      : 'Your identity has been verified. Set your new password below.';
+
   return (
-    <div className={styles.loginContainer}>
+    <div className="fp-page">
       <Head>
         <title>Forgot Password • CECTRACK</title>
-        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
+        <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=Figtree:wght@500;600;700;800&display=swap" rel="stylesheet" />
       </Head>
 
-      <div className={styles.loginCard} style={{ maxWidth: '440px' }}>
-        {/* Logo */}
-        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1.25rem' }}>
-          <div
-            style={{
-              width: '56px',
-              height: '56px',
-              borderRadius: '16px',
-              backgroundColor: '#f0fdf4',
-              border: '2px solid #bbf7d0',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              boxShadow: '0 4px 10px rgba(21, 128, 61, 0.12)',
-              overflow: 'hidden',
-              padding: '6px',
-            }}
-          >
-            <img
-              src="/logo.png"
-              alt="CEC Logo"
-              style={{ width: '100%', height: '100%', objectFit: 'contain' }}
-              onError={(e) => {
-                e.currentTarget.style.display = 'none';
-              }}
-            />
-          </div>
+      <style jsx global>{`
+        :root{--g8:#064e3b;--g7:#047857;--g6:#059669;--g5:#10b981;--g1:#d1fae5;--g0:#ecfdf5;--ink:#0b2a1e;--mut:#56705f;--line:#cfe5d8}
+        *{box-sizing:border-box}
+        body{margin:0}
+        button{font-family:inherit}
+        :focus-visible{outline:3px solid var(--g5);outline-offset:2px}
+        .fp-page{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:28px 16px 24px;font-family:'Figtree',system-ui,sans-serif;color:var(--ink);position:relative;overflow:hidden;
+          background:radial-gradient(700px 340px at 6% -8%,rgba(16,185,129,.2),transparent 60%),radial-gradient(600px 320px at 100% 0,rgba(163,230,53,.16),transparent 60%),radial-gradient(760px 380px at 50% 112%,rgba(16,185,129,.12),transparent 60%),#ffffff}
+        .fp-page::after{content:'';position:absolute;inset:0;background-image:radial-gradient(rgba(5,150,105,.09) 1px,transparent 1px);background-size:22px 22px;pointer-events:none}
+        .fp-page>*{position:relative;z-index:1}
+        .fp-card{width:100%;max-width:450px;background:#fff;border-radius:30px;padding:62px 26px 26px;margin-top:58px;position:relative;box-shadow:0 0 0 1px #d6ebdf,0 24px 60px rgba(6,78,59,.14);animation:fp-rise .6s both}
+        @keyframes fp-rise{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+        .fp-logo{position:absolute;top:-54px;left:50%;transform:translateX(-50%);width:108px;height:108px;border-radius:50%;background:#fff;padding:9px;box-shadow:0 0 0 1px #d6ebdf,0 0 0 7px var(--g0),0 12px 28px rgba(5,150,105,.28);display:flex;align-items:center;justify-content:center}
+        .fp-logo img{width:100%;height:100%;object-fit:contain}
+
+        .fp-steps{display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:18px}
+        .fp-s{display:flex;align-items:center;gap:6px;font-size:.8rem;font-weight:700;color:#8aa597}
+        .fp-s i{width:26px;height:26px;border-radius:50%;background:#e5f3ea;display:flex;align-items:center;justify-content:center;font-style:normal;font-size:.76rem;font-weight:800}
+        .fp-s.on{color:var(--g7)}
+        .fp-s.on i{background:linear-gradient(135deg,var(--g5),var(--g7));color:#fff;box-shadow:0 4px 10px rgba(5,150,105,.3)}
+        .fp-line{width:22px;height:2px;background:#d6ebdf;border-radius:2px}
+
+        .fp-head{text-align:center;margin-bottom:20px}
+        .fp-head h1{font-family:'Bricolage Grotesque','Figtree',sans-serif;font-size:1.65rem;font-weight:800;letter-spacing:-.03em;margin:0 0 8px;color:var(--g8)}
+        .fp-head p{margin:0;font-size:.9rem;color:var(--mut);line-height:1.55}
+
+        .fp-form{display:flex;flex-direction:column;gap:14px}
+        .fp-l{display:block;font-size:.84rem;font-weight:700;color:#2f4d3e;margin-bottom:5px}
+        .fp-iw{position:relative}
+        .fp-ic{position:absolute;left:14px;top:50%;transform:translateY(-50%);color:#78a38c;display:flex;pointer-events:none}
+        .fp-in{width:100%;padding:13px 14px 13px 44px;border-radius:14px;border:1.5px solid var(--line);font-size:.95rem;font-family:inherit;font-weight:600;color:var(--ink);background:#fafdfb;outline:0;transition:border-color .2s,box-shadow .2s,background .2s}
+        .fp-in:focus{border-color:var(--g5);background:#fff;box-shadow:0 0 0 4px rgba(16,185,129,.16)}
+        .fp-otp{padding:14px 8px 14px 18px;text-align:center;font-family:'Bricolage Grotesque',sans-serif;font-size:1.9rem;font-weight:800;letter-spacing:.5em;border:2px solid var(--g5);background:var(--g0)}
+        .fp-tg{position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:0;color:var(--g7);font-weight:800;font-size:.82rem;cursor:pointer;padding:8px 10px;border-radius:10px}
+        .fp-tg:hover{background:var(--g0)}
+        .fp-btn{width:100%;display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:14px;border:0;border-radius:999px;background:linear-gradient(135deg,var(--g5),var(--g7));color:#fff;font-size:.98rem;font-weight:800;cursor:pointer;box-shadow:0 10px 24px rgba(5,150,105,.34);transition:transform .2s,box-shadow .2s;margin-top:2px}
+        .fp-btn:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 14px 30px rgba(5,150,105,.42)}
+        .fp-btn:disabled{opacity:.55;cursor:not-allowed;box-shadow:none}
+        .fp-lk{background:none;border:0;color:var(--mut);font-size:.86rem;font-weight:700;cursor:pointer;padding:4px;text-align:center}
+        .fp-lk:hover{color:var(--g7);text-decoration:underline}
+        .fp-n{margin-top:16px;font-size:.86rem;font-weight:700;line-height:1.45;padding:12px 14px;border-radius:14px;border:1px solid}
+        .fp-n.ok{color:#047857;background:var(--g0);border-color:#b7ecd3}
+        .fp-n.er{color:#b91c1c;background:#fef2f2;border-color:#fecaca}
+        .fp-back{display:flex;justify-content:center;margin-top:20px}
+        .fp-back a{display:inline-flex;align-items:center;gap:4px;color:var(--mut);font-weight:700;font-size:.86rem;text-decoration:none}
+        .fp-back a:hover{color:var(--g7)}
+        .fp-foot{margin-top:22px;font-size:.8rem;color:#4f7a63;font-weight:700;text-align:center}
+
+        @media(max-width:420px){.fp-card{padding:60px 18px 22px;border-radius:26px}.fp-s span{display:none}.fp-s.on span{display:inline}}
+        @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+      `}</style>
+
+      <div className="fp-card">
+        <div className="fp-logo">
+          <img src="/logo.png" alt="CEC Logo" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
         </div>
 
-        {/* Dynamic Header */}
-        <div className={styles.loginHeader}>
-          <h1 className={styles.loginTitle} style={{ fontSize: '1.5rem' }}>
-            {step === 1 && 'Reset Password'}
-            {step === 2 && 'Enter Verification Code'}
-            {step === 3 && 'Create New Password'}
-          </h1>
-          <p className={styles.loginSubtitle}>
-            {step === 1 && 'Enter your Student ID and registered email address to receive a verification code.'}
-            {step === 2 && 'Enter the 6-digit verification code sent to your email.'}
-            {step === 3 && 'Your identity has been verified. Set your new password below.'}
-          </p>
+        <div className="fp-steps" aria-label="Password reset progress">
+          {STEPS.map((s, i) => (
+            <React.Fragment key={s}>
+              {i > 0 && <span className="fp-line" />}
+              <div className={`fp-s ${i + 1 <= step ? 'on' : ''}`}>
+                <i>{i + 1 < step ? '✓' : i + 1}</i>
+                <span>{s}</span>
+              </div>
+            </React.Fragment>
+          ))}
+        </div>
+
+        <div className="fp-head">
+          <h1>{title}</h1>
+          <p>{subtitle}</p>
         </div>
 
         {/* STEP 1: STUDENT ID AND EMAIL INPUT */}
         {step === 1 && (
-          <form onSubmit={handleSendOtp} className={styles.loginForm} autoComplete="off">
-            <div className={styles.inputGroup}>
-              <label className={styles.inputLabel}>Student ID</label>
-              <div className={styles.inputWrapper}>
-                <div className={styles.inputIconLeft}>
-                  <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.306 0 2.417.835 2.83 2M9 14a3.001 3.001 0 00-2.83 2M15 11h3m-3 4h2" />
-                  </svg>
-                </div>
-                <input
-                  type="text"
-                  placeholder="e.g. 2024-0616"
-                  className={styles.loginInput}
-                  value={studentId}
-                  onChange={(e) => setStudentId(e.target.value)}
-                  required
-                />
+          <form onSubmit={handleSendOtp} className="fp-form" autoComplete="off">
+            <div>
+              <label className="fp-l">Student ID</label>
+              <div className="fp-iw">
+                <Ic d="id" />
+                <input className="fp-in" type="text" placeholder="e.g. 2024-0616" value={studentId} onChange={(e) => setStudentId(e.target.value)} required />
               </div>
             </div>
-
-            <div className={styles.inputGroup}>
-              <label className={styles.inputLabel}>Registered Email Address</label>
-              <div className={styles.inputWrapper}>
-                <div className={styles.inputIconLeft}>
-                  <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                  </svg>
-                </div>
-                <input
-                  type="email"
-                  placeholder="juandelacruz@gmail.com"
-                  className={styles.loginInput}
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                />
+            <div>
+              <label className="fp-l">Registered email address</label>
+              <div className="fp-iw">
+                <Ic d="mail" />
+                <input className="fp-in" type="email" placeholder="juandelacruz@gmail.com" value={email} onChange={(e) => setEmail(e.target.value)} required />
               </div>
             </div>
-
-            <button type="submit" disabled={loading} className={styles.submitBtn}>
-              {loading ? 'Sending Code...' : 'Send Verification Code ➔'}
-            </button>
+            <button type="submit" className="fp-btn" disabled={loading}>{loading ? 'Sending code...' : 'Send verification code'}</button>
           </form>
         )}
 
         {/* STEP 2: VERIFICATION CODE ONLY */}
         {step === 2 && (
-          <form onSubmit={handleVerifyOtpOnly} className={styles.loginForm} autoComplete="off">
-            <div className={styles.inputGroup}>
-              <label className={styles.inputLabel}>6-Digit Verification Code</label>
+          <form onSubmit={handleVerifyOtpOnly} className="fp-form" autoComplete="off">
+            <div>
+              <label className="fp-l" style={{ textAlign: 'center' }}>6-digit verification code</label>
               <input
+                className="fp-in fp-otp"
                 type="text"
-                placeholder="Enter verification code"
+                inputMode="numeric"
+                placeholder="••••••"
                 maxLength={6}
                 value={otpCode}
                 onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
-                className={styles.loginInput}
-                style={{
-                  textAlign: 'center',
-                  fontSize: '1.25rem',
-                  fontWeight: 800,
-                  letterSpacing: '4px',
-                  padding: '14px',
-                }}
                 required
                 autoFocus
               />
             </div>
-
-            <button type="submit" disabled={loading} className={styles.submitBtn}>
-              {loading ? 'Verifying Code...' : 'Verify Code ➔'}
-            </button>
-
+            <button type="submit" className="fp-btn" disabled={loading}>{loading ? 'Verifying code...' : 'Verify code'}</button>
             <button
               type="button"
-              onClick={() => {
-                setStep(1);
-                setStatusMessage('');
-                setIsErrorMessage(false);
-              }}
-              style={{
-                background: 'none',
-                border: 'none',
-                color: '#64748b',
-                fontSize: '0.82rem',
-                fontWeight: 700,
-                cursor: 'pointer',
-                marginTop: '6px',
-                textDecoration: 'underline',
-              }}
+              className="fp-lk"
+              onClick={() => { setStep(1); setStatusMessage(''); setIsErrorMessage(false); }}
             >
               Didn&apos;t receive the code? Change ID/email or resend
             </button>
@@ -390,74 +396,56 @@ export default function ForgotPassword() {
 
         {/* STEP 3: NEW PASSWORD & CONFIRM PASSWORD */}
         {step === 3 && (
-          <form onSubmit={handleSaveNewPassword} className={styles.loginForm} autoComplete="off">
-            <div className={styles.inputGroup}>
-              <label className={styles.inputLabel}>New Password</label>
-              <div className={styles.inputWrapper}>
+          <form onSubmit={handleSaveNewPassword} className="fp-form" autoComplete="off">
+            <div>
+              <label className="fp-l">New password</label>
+              <div className="fp-iw">
+                <Ic d="lock" />
                 <input
+                  className="fp-in"
+                  style={{ paddingRight: 70 }}
                   type={showPassword ? 'text' : 'password'}
                   placeholder="At least 6 characters"
-                  className={styles.loginInput}
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
-                  style={{ paddingRight: '3rem' }}
                   autoComplete="new-password"
                   required
                   autoFocus
                 />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className={styles.passwordToggle}
-                >
-                  {showPassword ? 'Hide' : 'Show'}
-                </button>
+                <button type="button" className="fp-tg" onClick={() => setShowPassword(!showPassword)}>{showPassword ? 'Hide' : 'Show'}</button>
               </div>
             </div>
-
-            <div className={styles.inputGroup}>
-              <label className={styles.inputLabel}>Confirm New Password</label>
-              <input
-                type={showPassword ? 'text' : 'password'}
-                placeholder="Re-enter new password"
-                className={styles.loginInput}
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                autoComplete="new-password"
-                required
-              />
+            <div>
+              <label className="fp-l">Confirm new password</label>
+              <div className="fp-iw">
+                <Ic d="lock" />
+                <input
+                  className="fp-in"
+                  type={showPassword ? 'text' : 'password'}
+                  placeholder="Re-enter new password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  autoComplete="new-password"
+                  required
+                />
+              </div>
             </div>
-
-            <button type="submit" disabled={loading} className={styles.submitBtn}>
-              {loading ? 'Saving Password...' : 'Save New Password ➔'}
-            </button>
+            <button type="submit" className="fp-btn" disabled={loading}>{loading ? 'Saving password...' : 'Save new password'}</button>
           </form>
         )}
 
         {/* STATUS NOTIFICATION MESSAGE */}
-        {statusMessage && (
-          <div
-            className={styles.alertMessage}
-            style={{
-              marginTop: '16px',
-              color: isErrorMessage ? '#b91c1c' : '#15803d',
-              backgroundColor: isErrorMessage ? '#fef2f2' : '#f0fdf4',
-              borderColor: isErrorMessage ? '#fee2e2' : '#bbf7d0',
-            }}
-          >
-            {statusMessage}
-          </div>
-        )}
+        {statusMessage && <div className={`fp-n ${isErrorMessage ? 'er' : 'ok'}`}>{statusMessage}</div>}
 
-        <div className={styles.backLinkWrapper}>
-          <Link href="/login" className={styles.backLink}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={styles.backIcon}>
-              <path d="M15 18l-6-6 6-6" />
-            </svg>
-            Back to Login
+        <div className="fp-back">
+          <Link href="/login">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6" /></svg>
+            Back to login
           </Link>
         </div>
       </div>
+
+      <div className="fp-foot">© 2026 CEC-TRACK • DOrSU Cateel Extension Campus</div>
     </div>
   );
 }
