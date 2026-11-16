@@ -4,11 +4,11 @@ import { useRouter } from 'next/router';
 import { supabase } from '../lib/supabaseClient';
 
 const COURSES = [
-  { k: 'BSBA', n: 'Business Administration', c: '#16a34a' },
+  { k: 'BSBA', n: 'Business Administration', c: '#d97706' },     
   { k: 'BSCRIM', n: 'Criminology', c: '#dc2626' },
   { k: 'BSA', n: 'Accountancy', c: '#059669' },
   { k: 'BEED', n: 'Elementary Education', c: '#2563eb' },
-  { k: 'BSAM', n: 'Agribusiness Management', c: '#d97706' },
+  { k: 'BSAM', n: 'Agribusiness Management', c: '#16a34a' },
 ];
 
 const P = {
