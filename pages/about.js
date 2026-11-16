@@ -206,7 +206,7 @@ export default function About() {
 
           <div className="ab-bd">
             <span>Developer</span>
-            <span>💻 Full-Stack Web &amp; Database Systems</span>
+            <span>💻 Gamer and website Dev</span>
             <span>📍 Davao Oriental State University Main Campus</span>
           </div>
 
