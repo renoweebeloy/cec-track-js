@@ -1,9 +1,284 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Head from 'next/head';
-import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { supabase } from '../lib/supabaseClient';
-import styles from '../styles/Home.module.css';
+
+const P = {
+  grid: 'M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z',
+  userplus: 'M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM19 8v6M22 11h-6',
+  shield: 'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10zM9 12l2 2 4-4',
+  cal: 'M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V6a2 2 0 012-2z',
+  award: 'M12 15a6 6 0 100-12 6 6 0 000 12zM8.21 13.89L7 23l5-3 5 3-1.21-9.12',
+  qr: 'M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h3v3h-3zM21 14v3M17 21h4',
+  list: 'M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01',
+  out: 'M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9',
+  menu: 'M3 12h18M3 6h18M3 18h18',
+  x: 'M18 6L6 18M6 6l12 12',
+  check: 'M20 6L9 17l-5-5',
+  alert: 'M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0zM12 9v4M12 17h.01',
+  pin: 'M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0zM12 13a3 3 0 100-6 3 3 0 000 6z',
+  pencil: 'M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z',
+  trash: 'M3 6h18M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6M10 11v6M14 11v6M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2',
+  search: 'M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z',
+  user: 'M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 11a4 4 0 100-8 4 4 0 000 8z',
+  users: 'M17 21v-2a4 4 0 00-4-4H7a4 4 0 00-4 4v2M10 11a4 4 0 100-8 4 4 0 000 8zM21 21v-2a4 4 0 00-3-3.85M16 3.13a4 4 0 010 7.75',
+  cam: 'M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2zM12 17a4 4 0 100-8 4 4 0 000 8z',
+  plus: 'M12 5v14M5 12h14',
+  img: 'M5 3h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2zM8.5 10a1.5 1.5 0 100-3 1.5 1.5 0 000 3zM21 15l-5-5L5 21',
+  clock: 'M12 22a10 10 0 100-20 10 10 0 000 20zM12 6v6l4 2',
+  lock: 'M19 11H5a2 2 0 00-2 2v7a2 2 0 002 2h14a2 2 0 002-2v-7a2 2 0 00-2-2zM7 11V7a5 5 0 0110 0v4',
+  power: 'M18.36 6.64a9 9 0 11-12.73 0M12 2v10',
+  scan: 'M3 7V5a2 2 0 012-2h2M17 3h2a2 2 0 012 2v2M21 17v2a2 2 0 01-2 2h-2M7 21H5a2 2 0 01-2-2v-2M7 12h10',
+};
+const Ic = ({ d, s = 18, w = 2.1 }) => (
+  <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={w} strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }} aria-hidden="true">
+    <path d={P[d]} />
+  </svg>
+);
+
+const COURSE_COLORS = { BSCRIM: '#0f766e', BSBA: '#16a34a', BSAM: '#15803d', BEED: '#059669', BSA: '#65a30d' };
+
+const Field = ({ label, children }) => (
+  <div>
+    <label className="ad-l">{label}</label>
+    {children}
+  </div>
+);
+const PageHead = ({ icon, badge, title, sub, right }) => (
+  <div className="ad-ph">
+    <div>
+      <span className="ad-badge"><Ic d={icon} s={14} /> {badge}</span>
+      <h1>{title}</h1>
+      {sub && <p>{sub}</p>}
+    </div>
+    {right}
+  </div>
+);
+const Stat = ({ label, value, tone }) => (
+  <div className="ad-stat"><small>{label}</small><b className={tone || ''}>{value}</b></div>
+);
+const Switch = ({ checked, onChange }) => (
+  <label className="ad-sw">
+    <input type="checkbox" checked={checked} onChange={onChange} />
+    <span />
+  </label>
+);
+
+function Styles() {
+  return (
+    <>
+      <Head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
+        <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=Figtree:wght@500;600;700;800&display=swap" rel="stylesheet" />
+      </Head>
+      <style jsx global>{`
+        :root{--g9:#04261a;--g8:#064e3b;--g7:#047857;--g6:#059669;--g5:#10b981;--g2:#a7f3d0;--g1:#d1fae5;--g0:#ecfdf5;--ink:#0b2a1e;--mut:#56705f;--line:#d6ebdf;--red:#dc2626;--blue:#2563eb}
+        *{box-sizing:border-box}
+        body{margin:0;font-family:'Figtree',system-ui,sans-serif;color:var(--ink);background:#f3faf5;overflow-x:hidden}
+        button{font-family:inherit;cursor:pointer}
+        h1,h2,h3{font-family:'Bricolage Grotesque','Figtree',sans-serif}
+        :focus-visible{outline:3px solid var(--g5);outline-offset:2px}
+        .ad-root{min-height:100vh;display:flex;flex-direction:column;overflow-x:clip}
+
+        .ad-b{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:44px;padding:0 18px;border-radius:999px;border:1.5px solid transparent;font-size:.9rem;font-weight:800;line-height:1;white-space:nowrap;transition:transform .2s,box-shadow .2s,background .2s;touch-action:manipulation}
+        .ad-b:disabled{opacity:.55;cursor:not-allowed;transform:none!important;box-shadow:none!important}
+        .ad-b.sm{height:36px;padding:0 13px;font-size:.8rem;gap:6px}
+        .ad-b.full{width:100%}
+        .ad-b.pri{background:linear-gradient(135deg,var(--g5),var(--g7));color:#fff;box-shadow:0 8px 20px rgba(5,150,105,.3)}
+        .ad-b.pri:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 12px 26px rgba(5,150,105,.4)}
+        .ad-b.blue{background:linear-gradient(135deg,#3b82f6,#2563eb);color:#fff;box-shadow:0 8px 20px rgba(37,99,235,.28)}
+        .ad-b.out{background:var(--g0);color:var(--g7);border-color:#b7ecd3}.ad-b.out:hover:not(:disabled){background:var(--g1)}
+        .ad-b.neu{background:#fff;color:#3f5a4b;border-color:var(--line)}.ad-b.neu:hover:not(:disabled){background:var(--g0)}
+        .ad-b.dng{background:#fff;color:var(--red);border-color:#fecaca}.ad-b.dng:hover:not(:disabled){background:#fef2f2}
+        .ad-b.org{background:#fff;color:#ea580c;border-color:#fed7aa}.ad-b.org:hover:not(:disabled){background:#fff7ed}
+        .ad-b.dsol{background:linear-gradient(135deg,#f43f5e,#dc2626);color:#fff;box-shadow:0 8px 20px rgba(220,38,38,.28)}
+        .ad-b.osol{background:linear-gradient(135deg,#fb923c,#ea580c);color:#fff;box-shadow:0 8px 20px rgba(234,88,12,.28)}
+        .ad-b.gray{background:#94a3b8;color:#fff}
+
+        .ad-hd{position:sticky;top:0;z-index:50;height:64px;background:rgba(255,255,255,.9);backdrop-filter:blur(14px);border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:0 16px;gap:10px}
+        .ad-hl{display:flex;align-items:center;gap:10px;min-width:0}
+        .ad-menu{display:none;width:40px;height:40px;border-radius:12px;border:1px solid var(--line);background:#fff;color:var(--g7);align-items:center;justify-content:center}
+        .ad-brand b{font:800 1.15rem 'Bricolage Grotesque',sans-serif;color:var(--g8);letter-spacing:-.02em;margin-right:6px}
+        .ad-chip{background:var(--g0);border:1px solid #b7ecd3;color:var(--g7);padding:2px 9px;border-radius:999px;font-size:.7rem;font-weight:800}
+        .ad-chip.staff{background:#eff6ff;border-color:#bfdbfe;color:#1d4ed8}
+        .ad-brand small{display:block;font-size:.72rem;color:var(--mut);font-weight:600}
+        .ad-camp{display:inline-flex;align-items:center;gap:6px;background:var(--g0);border:1px solid #b7ecd3;color:var(--g7);border-radius:999px;padding:7px 14px;font-size:.8rem;font-weight:800;white-space:nowrap}
+
+        .ad-shell{display:flex;flex:1;min-width:0;width:100%}
+        .ad-side{width:250px;flex-shrink:0;background:#fff;border-right:1px solid var(--line);padding:22px 14px;display:flex;flex-direction:column;justify-content:space-between;overflow-y:auto;position:sticky;top:64px;height:calc(100vh - 64px)}
+        .ad-st{padding:0 8px;margin-bottom:18px;display:flex;justify-content:space-between;align-items:center}
+        .ad-st h2{margin:0;font-size:1.25rem;font-weight:800;color:var(--g8)}
+        .ad-st small{font-size:.74rem;font-weight:700;color:#7a9488}
+        .ad-nav{display:flex;flex-direction:column;gap:4px}
+        .ad-nav button{display:flex;align-items:center;gap:12px;min-height:44px;padding:0 14px;border:0;border-radius:14px;background:transparent;color:#4b6558;font-size:.9rem;font-weight:700;text-align:left;transition:background .15s,color .15s}
+        .ad-nav button:hover{background:var(--g0);color:var(--g7)}
+        .ad-nav button.on{background:linear-gradient(135deg,var(--g5),var(--g7));color:#fff;font-weight:800;box-shadow:0 8px 18px rgba(5,150,105,.28)}
+        .ad-so{display:flex;align-items:center;gap:12px;width:100%;height:46px;padding:0 14px;border:0;border-radius:14px;background:none;color:var(--red);font-size:.92rem;font-weight:800}
+        .ad-so:hover{background:#fef2f2}
+        .ad-main{flex:1;min-width:0;padding:28px 32px 40px}
+        .ad-wrap{max-width:1180px;margin:0 auto;width:100%}
+        .ad-bd{position:fixed;inset:0;background:rgba(4,38,26,.5);backdrop-filter:blur(3px);z-index:90}
+
+        .ad-wt{position:fixed;top:76px;left:50%;transform:translateX(-50%);z-index:9999;background:#fff;border:1px solid #b7ecd3;padding:9px 12px 9px 16px;border-radius:999px;display:flex;align-items:center;gap:10px;box-shadow:0 12px 30px rgba(5,150,105,.2);white-space:nowrap;font-size:.86rem;font-weight:800;color:var(--g7);animation:ad-d .4s both}
+        .ad-wt i{width:22px;height:22px;border-radius:50%;background:var(--g6);color:#fff;display:flex;align-items:center;justify-content:center}
+        .ad-wt button{background:none;border:0;color:#7a9488;display:flex;padding:2px}
+        @keyframes ad-d{from{opacity:0;transform:translate(-50%,-8px)}to{opacity:1;transform:translate(-50%,0)}}
+        .ad-toast{display:flex;align-items:center;gap:10px;padding:12px 16px;border-radius:16px;margin-bottom:18px;font-size:.88rem;font-weight:700;border:1px solid;line-height:1.45}
+        .ad-toast.ok{background:var(--g0);color:var(--g7);border-color:#b7ecd3}.ad-toast.er{background:#fef2f2;color:#b91c1c;border-color:#fecaca}
+
+        .ad-ph{display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:14px;margin-bottom:22px}
+        .ad-badge{display:inline-flex;align-items:center;gap:6px;background:var(--g0);color:var(--g7);border:1px solid #b7ecd3;border-radius:999px;padding:5px 13px;font-size:.8rem;font-weight:800;margin-bottom:10px}
+        .ad-ph h1{margin:0 0 4px;font-size:clamp(1.6rem,4vw,2.1rem);font-weight:800;letter-spacing:-.03em;color:var(--g8)}
+        .ad-ph p{margin:0;font-size:.92rem;color:var(--mut)}
+
+        .ad-card{background:#fff;border:1px solid var(--line);border-radius:26px;padding:22px;box-shadow:0 8px 24px rgba(6,78,59,.06)}
+        .ad-ct{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:16px}
+        .ad-ct h3{margin:0;font-size:1.15rem;font-weight:800;color:var(--g8);display:flex;align-items:center;gap:10px}
+        .ad-ci{width:38px;height:38px;border-radius:12px;background:linear-gradient(135deg,var(--g5),var(--g7));color:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 6px 14px rgba(5,150,105,.25)}
+        .ad-sub{margin:-8px 0 16px;font-size:.88rem;color:var(--mut);line-height:1.55}
+        .ad-g4{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px}
+        .ad-stat{background:#fff;border:1px solid var(--line);border-radius:20px;padding:16px 18px;box-shadow:0 6px 18px rgba(6,78,59,.05)}
+        .ad-stat small{display:block;font-size:.78rem;font-weight:700;color:#6f8b7d}
+        .ad-stat b{display:block;font:800 2rem/1.15 'Bricolage Grotesque',sans-serif;margin-top:4px}
+        .ad-stat b.g{color:var(--g6)}.ad-stat b.r{color:var(--red)}
+        .ad-cg{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px}
+        .ad-cc{background:#fff;border:1px solid var(--line);border-radius:22px;padding:20px 18px;position:relative;overflow:hidden}
+        .ad-cc::before{content:'';position:absolute;left:0;top:0;bottom:0;width:6px;background:var(--a)}
+        .ad-cb{display:inline-block;font-size:.8rem;font-weight:800;padding:3px 12px;border-radius:999px;color:var(--a);background:color-mix(in srgb,var(--a) 12%,white);margin-bottom:10px}
+        .ad-cn{font:800 2.6rem/1 'Bricolage Grotesque',sans-serif;letter-spacing:-.04em}
+        .ad-cm{font-size:.82rem;font-weight:700;color:var(--mut);margin-top:6px;line-height:1.35}
+
+        .ad-g2{display:grid;grid-template-columns:minmax(300px,380px) minmax(0,1fr);gap:22px;align-items:start}
+        .ad-g2.even{grid-template-columns:repeat(auto-fit,minmax(300px,1fr))}
+        .ad-sticky{position:sticky;top:84px;align-self:start;max-height:calc(100vh - 104px);overflow-y:auto}
+        .ad-fm{display:flex;flex-direction:column;gap:14px}
+        .ad-2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+        .ad-l{display:block;font-size:.84rem;font-weight:700;color:#2f4d3e;margin-bottom:6px}
+        .ad-in{width:100%;padding:12px 14px;border-radius:14px;border:1.5px solid var(--line);font-size:.92rem;font-family:inherit;font-weight:600;color:var(--ink);background:#fafdfb;outline:0;transition:border-color .2s,box-shadow .2s,background .2s}
+        textarea.ad-in{resize:vertical;line-height:1.5;font-weight:500}
+        .ad-in:focus{border-color:var(--g5);background:#fff;box-shadow:0 0 0 4px rgba(16,185,129,.16)}
+        .ad-in.sm{padding:0 14px 0 38px;height:40px;border-radius:999px;background:#fff;font-size:.86rem}
+        .ad-srch{position:relative;width:200px;max-width:100%}
+        .ad-srch svg{position:absolute;left:13px;top:50%;transform:translateY(-50%);color:#78a38c}
+        .ad-ra{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+        .ad-btns{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:10px}
+
+        .ad-tw{overflow-x:auto;border:1px solid var(--line);border-radius:20px}
+        .ad-tw table{width:100%;min-width:560px;border-collapse:collapse;text-align:left;font-size:.86rem}
+        .ad-tw th{padding:13px 14px;background:var(--g0);color:var(--g7);font-weight:800;font-size:.8rem;border-bottom:1px solid var(--line);white-space:nowrap}
+        .ad-tw td{padding:12px 14px;border-bottom:1px solid #edf6f0;vertical-align:middle}
+        .ad-tw tr:last-child td{border-bottom:0}.ad-tw tbody tr:hover{background:#f9fdfb}
+        .ad-tw td b{display:block;font-weight:800;color:var(--ink)}
+        .ad-tw td small{display:block;color:#6f8b7d;font-size:.76rem;margin-top:1px}
+        .ad-id{font-weight:800;color:var(--g8);white-space:nowrap}
+        .ad-pill{display:inline-flex;align-items:center;gap:5px;padding:3px 11px;border-radius:999px;font-size:.74rem;font-weight:800;background:var(--g1);color:var(--g7)}
+        .ad-pill.no{background:#fee2e2;color:#b91c1c}.ad-pill.mu{background:#eef3f0;color:#6b8076}.ad-pill.org{background:#fff7ed;color:#ea580c}
+        .ad-empty{text-align:center;padding:30px 16px;color:#7a9488;font-size:.9rem}
+        .ad-acts{display:inline-flex;gap:6px}
+
+        .ad-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;border:1px solid var(--line);border-radius:18px;background:#fff;transition:border-color .2s,box-shadow .2s}
+        .ad-row:hover{border-color:#86efac;box-shadow:0 8px 20px rgba(5,150,105,.1)}
+        .ad-row.sel{background:var(--g0);border-color:#86efac}
+        .ad-rl{display:flex;align-items:center;gap:12px;min-width:0;flex:1}
+        .ad-th{width:52px;height:52px;border-radius:14px;background:var(--g1);color:var(--g7);display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0}
+        .ad-th.round{border-radius:50%;box-shadow:0 0 0 2px #fff,0 0 0 4px var(--g5)}
+        .ad-th img{width:100%;height:100%;object-fit:cover}
+        .ad-rt{min-width:0}
+        .ad-rt h4{margin:0 0 2px;font-size:.95rem;font-weight:800;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+        .ad-rt div{font-size:.78rem;color:var(--mut);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+        .ad-rt .g{color:var(--g6);font-weight:800}
+        .ad-list{display:flex;flex-direction:column;gap:10px}
+        .ad-re{display:flex;flex-direction:column;align-items:flex-end;gap:8px;flex-shrink:0}
+
+        .ad-up{border:2px dashed #b7ecd3;border-radius:18px;padding:14px;text-align:center;cursor:pointer;background:var(--g0);transition:background .2s,border-color .2s;color:var(--g7);font-weight:800;font-size:.86rem}
+        .ad-up:hover{background:var(--g1);border-color:var(--g5)}
+        .ad-up svg{display:block;margin:0 auto 4px}
+        .ad-up img{max-height:120px;width:auto;border-radius:12px;margin:0 auto 6px;display:block}
+        .ad-up img.av{width:80px;height:80px;border-radius:50%;object-fit:cover}
+        .ad-up span{display:block;font-size:.76rem;color:var(--mut);font-weight:700}
+
+        .ad-sw{position:relative;display:inline-block;width:46px;height:26px;flex-shrink:0;cursor:pointer}
+        .ad-sw input{opacity:0;width:0;height:0;position:absolute}
+        .ad-sw span{position:absolute;inset:0;background:#cbd5e1;border-radius:99px;transition:.25s}
+        .ad-sw span::after{content:'';position:absolute;top:3px;left:3px;width:20px;height:20px;background:#fff;border-radius:50%;box-shadow:0 2px 4px rgba(0,0,0,.2);transition:.25s}
+        .ad-sw input:checked+span{background:var(--g6)}.ad-sw input:checked+span::after{transform:translateX(20px)}
+        .ad-tg{display:flex;align-items:center;justify-content:space-between;gap:12px;background:#f7faf8;border:1.5px solid var(--line);border-radius:18px;padding:12px 14px;transition:background .2s,border-color .2s}
+        .ad-tg.on{background:var(--g0);border-color:#86efac}
+        .ad-tg b{display:block;font-size:.88rem;color:var(--ink)}.ad-tg small{font-size:.76rem;color:var(--mut);font-weight:600}
+        .ad-perm{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;background:#f7faf8;border:1px solid var(--line);border-radius:14px;padding:8px 12px;font-size:.8rem;font-weight:700;color:var(--mut)}
+        .ad-perm.on{background:var(--g0);border-color:#b7ecd3;color:var(--g7)}
+        .ad-sc{border:1px solid var(--line);border-radius:20px;padding:14px;display:flex;flex-direction:column;gap:10px;background:#fff}
+        .ad-sc.adm{border-color:#b7ecd3}
+        .ad-scr{display:flex;align-items:center;justify-content:space-between;gap:10px}
+
+        .ad-gate{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;border-radius:20px;padding:14px 16px;margin-bottom:16px;border:1px solid;text-align:left}
+        .ad-gate.on{background:var(--g0);border-color:#b7ecd3}.ad-gate.off{background:#fef2f2;border-color:#fecaca}
+        .ad-gate b{display:block;font-size:.92rem}.ad-gate.on b{color:var(--g7)}.ad-gate.off b{color:#b91c1c}
+        .ad-gate small{font-size:.78rem;color:var(--mut);font-weight:600}
+        .ad-seg{display:grid;grid-template-columns:1fr 1fr;gap:6px;background:#eef5f0;padding:6px;border-radius:999px}
+        .ad-seg button{height:42px;border:0;border-radius:999px;background:transparent;color:#5f7d6d;font-weight:800;font-size:.86rem;display:flex;align-items:center;justify-content:center;gap:6px;transition:all .2s}
+        .ad-seg button.in{background:linear-gradient(135deg,var(--g5),var(--g7));color:#fff;box-shadow:0 6px 14px rgba(5,150,105,.28)}
+        .ad-seg button.ou{background:linear-gradient(135deg,#3b82f6,#2563eb);color:#fff;box-shadow:0 6px 14px rgba(37,99,235,.28)}
+        .ad-note{background:#f7faf8;border:1px solid var(--line);border-radius:14px;padding:9px 12px;font-size:.8rem;color:var(--mut);line-height:1.5;margin-top:8px;text-align:left}
+        .ad-msg{margin-top:14px;font-size:.86rem;font-weight:700;padding:12px 14px;border-radius:14px;border:1px solid;line-height:1.45}
+        .ad-msg.success,.ad-msg.info{background:var(--g0);color:var(--g7);border-color:#b7ecd3}.ad-msg.error{background:#fef2f2;color:#b91c1c;border-color:#fecaca}.ad-msg.warning{background:#fffbeb;color:#b45309;border-color:#fde68a}
+        .ad-center{text-align:center}
+
+        .ad-pf{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+        .ad-pa{width:72px;height:72px;border-radius:50%;overflow:hidden;background:var(--g1);color:var(--g7);display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 3px #fff,0 0 0 6px var(--g5);flex-shrink:0}
+        .ad-pa img{width:100%;height:100%;object-fit:cover}
+        .ad-pf h2{margin:6px 0 2px;font-size:1.35rem;color:var(--g8)}.ad-pf p{margin:0;font-size:.84rem;font-weight:700;color:var(--g7)}.ad-pf small{color:var(--mut);font-size:.78rem}
+        .ad-lg{border:1px solid var(--line);border-radius:18px;padding:14px;background:#fff}
+        .ad-lg.ab{border-color:#fecaca}
+        .ad-lgt{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:10px}
+        .ad-lgt h4{margin:0 0 2px;font-size:.95rem;font-weight:800;word-break:break-word}.ad-lgt div{font-size:.78rem;color:var(--g6);font-weight:700}
+        .ad-lgg{display:grid;grid-template-columns:repeat(auto-fit,minmax(90px,1fr));gap:8px;background:#f7faf8;border-radius:12px;padding:10px 12px}
+        .ad-lgg small{display:block;font-size:.72rem;color:#7a9488;font-weight:700}.ad-lgg b{font-size:.84rem}
+
+        .ad-ov{position:fixed;inset:0;z-index:130;background:rgba(4,38,26,.6);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;padding:16px;animation:ad-f .25s both}
+        @keyframes ad-f{from{opacity:0}to{opacity:1}}
+        .ad-md{width:100%;max-width:400px;max-height:92vh;overflow-y:auto;background:#fff;border-radius:28px;padding:24px;box-shadow:0 30px 70px rgba(0,0,0,.35);text-align:center}
+        .ad-md.sc{max-width:440px}
+        .ad-mi{width:60px;height:60px;border-radius:20px;background:linear-gradient(135deg,var(--g5),var(--g7));color:#fff;display:flex;align-items:center;justify-content:center;margin:0 auto 12px;box-shadow:0 10px 22px rgba(5,150,105,.3)}
+        .ad-mi.red{background:linear-gradient(135deg,#f43f5e,#dc2626);box-shadow:0 10px 22px rgba(220,38,38,.3)}
+        .ad-mi.org{background:linear-gradient(135deg,#fb923c,#ea580c);box-shadow:0 10px 22px rgba(234,88,12,.3)}
+        .ad-md h3{margin:0 0 6px;font-size:1.25rem;font-weight:800;color:var(--g8)}
+        .ad-md p{margin:0 0 20px;font-size:.9rem;color:var(--mut);line-height:1.6}
+        .ad-md p strong{color:var(--ink)}
+        .ad-ma{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+        .ad-mh{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+        .ad-xb{width:36px;height:36px;border-radius:50%;border:1px solid var(--line);background:#fff;color:#6f8b7d;display:flex;align-items:center;justify-content:center}
+        .ad-rd{width:100%;height:280px;background:#0b2a1e;border-radius:20px;overflow:hidden;display:flex;align-items:center;justify-content:center;margin-bottom:14px}
+        .ad-fbp{width:130px;height:130px;border-radius:30px;background:var(--g1);color:var(--g7);margin:0 auto 14px;overflow:hidden;display:flex;align-items:center;justify-content:center;box-shadow:0 10px 24px rgba(0,0,0,.12);border:3px solid var(--g5)}
+        .ad-fbp.warn{border-color:#f59e0b}.ad-fbp img{width:100%;height:100%;object-fit:cover}
+        .ad-fbs{background:#f7faf8;border:1px solid var(--line);border-radius:16px;padding:12px 14px;margin:0 0 18px;text-align:left;font-size:.84rem;display:flex;flex-direction:column;gap:6px}
+        .ad-fbs div{display:flex;justify-content:space-between;gap:10px}.ad-fbs span{color:var(--mut);font-weight:700}.ad-fbs div:last-child{border-top:1px solid var(--line);padding-top:6px}
+        .ad-fbt{display:inline-flex;align-items:center;gap:6px;padding:5px 14px;border-radius:999px;font-size:.82rem;font-weight:800;margin-bottom:14px;background:var(--g1);color:var(--g7)}
+        .ad-fbt.warning{background:#fef3c7;color:#a16207}.ad-fbt.error{background:#fee2e2;color:#b91c1c}
+
+        .ad-spin{width:44px;height:44px;border-radius:50%;border:4px solid var(--g1);border-top-color:var(--g6);animation:ad-r 1s linear infinite;margin-bottom:14px}
+        @keyframes ad-r{to{transform:rotate(360deg)}}
+
+        @media(max-width:900px){
+          .ad-g2{grid-template-columns:1fr}
+          .ad-sticky{position:static;max-height:none;overflow:visible}
+        }
+        @media(max-width:768px){
+          .ad-menu{display:inline-flex}
+          .ad-side{position:fixed;top:0;bottom:0;left:0;height:auto;width:270px;max-width:82vw;z-index:100;transform:translateX(-100%);transition:transform .28s cubic-bezier(.4,0,.2,1)}
+          .ad-side.open{transform:none;box-shadow:8px 0 30px rgba(0,0,0,.2)}
+          .ad-main{padding:18px 14px 30px}
+          .ad-g4{grid-template-columns:repeat(2,1fr);gap:10px}
+          .ad-card{padding:18px 14px;border-radius:22px}
+        }
+        @media(max-width:480px){.ad-2{grid-template-columns:1fr}}
+        @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+      `}</style>
+    </>
+  );
+}
 
 export default function AdminDashboard() {
   const router = useRouter();
@@ -110,11 +385,11 @@ export default function AdminDashboard() {
   const [searchEventQuery, setSearchEventQuery] = useState('');
 
   const courses = [
-    { code: 'BSCRIM', name: 'Bachelor of Science in Criminology', badge: styles.bscrimBadge },
-    { code: 'BSBA', name: 'Bachelor of Science in Business Administration', badge: styles.bsbaBadge },
-    { code: 'BSAM', name: 'Bachelor of Science in Agribusiness Management', badge: styles.bsamBadge },
-    { code: 'BEED', name: 'Bachelor of Elementary Education', badge: styles.beedBadge },
-    { code: 'BSA', name: 'Bachelor of Science in Accountancy', badge: styles.bsaBadge },
+    { code: 'BSCRIM', name: 'Bachelor of Science in Criminology' },
+    { code: 'BSBA', name: 'Bachelor of Science in Business Administration' },
+    { code: 'BSAM', name: 'Bachelor of Science in Agribusiness Management' },
+    { code: 'BEED', name: 'Bachelor of Elementary Education' },
+    { code: 'BSA', name: 'Bachelor of Science in Accountancy' },
   ];
 
   const sectionsList = [
@@ -1403,10 +1678,10 @@ export default function AdminDashboard() {
 
   if (authChecking) {
     return (
-      <div className={styles.container} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <p style={{ fontWeight: 800, fontSize: '1.1rem', color: '#15803d' }}>
-          Verifying Portal Clearance...
-        </p>
+      <div className="ad-root" style={{ alignItems: 'center', justifyContent: 'center' }}>
+        <Styles />
+        <div className="ad-spin" />
+        <p style={{ fontWeight: 800, color: '#047857', margin: 0 }}>Verifying portal clearance...</p>
       </div>
     );
   }
@@ -1423,2000 +1698,385 @@ export default function AdminDashboard() {
 
   const activeEventObj = events.find((e) => e.id === selectedEventId);
 
+  const navItems = [
+    isAdmin && { id: 'profile', label: 'System overview', icon: 'grid' },
+    canAddStudentTab && { id: 'add-student', label: 'Add student', icon: 'userplus' },
+    isAdmin && { id: 'add-staff', label: 'Manage staff & scanners', icon: 'shield' },
+    isAdmin && { id: 'add-event', label: 'Manage events', icon: 'cal' },
+    isAdmin && { id: 'manage-officers', label: 'Manage officers', icon: 'award' },
+    { id: 'scan-qr', label: 'Scan QR & quick log', icon: 'qr' },
+    { id: 'search-student', label: 'Student records & logs', icon: 'list' },
+  ].filter(Boolean);
+
+  const modeIn = scanMode === 'time_in';
+  const SearchBox = ({ value, onChange, placeholder }) => (
+    <div className="ad-srch">
+      <Ic d="search" s={15} />
+      <input className="ad-in sm" type="text" placeholder={placeholder} value={value} onChange={onChange} />
+    </div>
+  );
+  const EditActions = ({ onEdit, onDel, delLabel }) => (
+    <div className="ad-acts">
+      <button type="button" className="ad-b out sm" onClick={onEdit}><Ic d="pencil" s={14} /> Edit</button>
+      {onDel && <button type="button" className="ad-b dng sm" onClick={onDel}><Ic d="trash" s={14} /> {delLabel}</button>}
+    </div>
+  );
+  const FormButtons = ({ editing, saving, onCancel, addLabel, saveLabel, disabled }) => (
+    <div className={editing ? 'ad-btns' : ''}>
+      {editing && <button type="button" className="ad-b neu" onClick={onCancel}>Cancel</button>}
+      <button type="submit" className="ad-b pri full" disabled={saving || disabled}>
+        {saving ? 'Saving...' : editing ? saveLabel : addLabel}
+      </button>
+    </div>
+  );
+
   return (
-    <div className={styles.container} style={{ paddingBottom: 0, overflowX: 'hidden', maxWidth: '100vw', position: 'relative' }}>
+    <div className="ad-root">
       <Head>
         <title>CEC TRACK • {isAdmin ? 'Admin Portal' : 'Staff Portal'}</title>
-        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
       </Head>
-
-      {/* TOP GREEN WELCOME BANNER */}
-      {showWelcomeToast && (
-        <div
-          style={{
-            position: 'fixed',
-            top: '18px',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            zIndex: 9999,
-            backgroundColor: '#ecfdf5',
-            border: '1.5px solid #a7f3d0',
-            padding: '7px 20px',
-            borderRadius: '16px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            boxShadow: '0 6px 20px rgba(16, 185, 129, 0.12)',
-            animation: 'fadeIn 0.25s ease',
-          }}
-        >
-          <div
-            style={{
-              width: '18px',
-              height: '18px',
-              borderRadius: '50%',
-              backgroundColor: '#15803d',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#ffffff',
-              fontSize: '11px',
-              fontWeight: 900,
-            }}
-          >
-            ✓
-          </div>
-          <span style={{ fontSize: '0.85rem', fontWeight: 800, color: '#15803d' }}>
-            Welcome to the {isAdmin ? 'Admin' : 'Staff'} Portal!
-          </span>
-          <button
-            onClick={() => setShowWelcomeToast(false)}
-            style={{
-              background: 'none',
-              border: 'none',
-              color: '#15803d',
-              fontSize: '12px',
-              fontWeight: 900,
-              cursor: 'pointer',
-              marginLeft: '4px',
-              padding: '0 4px',
-            }}
-          >
-            ✕
-          </button>
-        </div>
-      )}
+      <Styles />
 
       {/* TOP HEADER */}
-      <header
-        style={{
-          position: 'sticky',
-          top: 0,
-          zIndex: 40,
-          backgroundColor: '#ffffff',
-          borderBottom: '1px solid #e2e8f0',
-          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
-          width: '100%',
-          boxSizing: 'border-box',
-        }}
-      >
-        <div
-          style={{
-            maxWidth: '1280px',
-            margin: '0 auto',
-            padding: '8px 10px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: '6px',
-            boxSizing: 'border-box',
-            width: '100%',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, flexShrink: 1 }}>
-            <button
-              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-              aria-label="Toggle Navigation Menu"
-              style={{
-                width: '38px',
-                height: '38px',
-                borderRadius: '12px',
-                backgroundColor: '#f1f5f9',
-                border: '1px solid #e2e8f0',
-                fontSize: '1.2rem',
-                fontWeight: 900,
-                color: '#0f172a',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                flexShrink: 0,
-              }}
-            >
-              {isSidebarOpen ? '✕' : '☰'}
-            </button>
-
-            <div style={{ minWidth: 0, overflow: 'hidden' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                <span
-                  style={{
-                    fontSize: '1.05rem',
-                    fontWeight: 900,
-                    color: '#15803d',
-                    letterSpacing: '-0.025em',
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  CEC TRACK
-                </span>
-                <span
-                  style={{
-                    fontSize: '0.62rem',
-                    fontWeight: 900,
-                    padding: '2px 6px',
-                    borderRadius: '9999px',
-                    backgroundColor: isAdmin ? '#dcfce7' : '#eff6ff',
-                    color: isAdmin ? '#15803d' : '#1d4ed8',
-                    border: `1px solid ${isAdmin ? '#bbf7d0' : '#bfdbfe'}`,
-                    textTransform: 'uppercase',
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  {isAdmin ? 'Admin' : 'Staff'}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              backgroundColor: '#f0fdf4',
-              border: '1px solid #bbf7d0',
-              borderRadius: '12px',
-              padding: '6px 10px',
-              boxShadow: '0 1px 2px rgba(21, 128, 61, 0.06)',
-              flexShrink: 0,
-              maxWidth: '145px',
-            }}
-          >
-            <span
-              style={{
-                fontSize: '0.75rem',
-                fontWeight: 800,
-                color: '#15803d',
-                letterSpacing: '-0.01em',
-                lineHeight: 1.15,
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-              }}
-            >
-              Cateel Campus
-            </span>
+      <header className="ad-hd">
+        <div className="ad-hl">
+          <button type="button" className="ad-menu" onClick={() => setIsSidebarOpen(!isSidebarOpen)} aria-label="Toggle navigation menu">
+            <Ic d={isSidebarOpen ? 'x' : 'menu'} s={20} />
+          </button>
+          <div className="ad-brand">
+            <div><b>CEC TRACK</b><span className={`ad-chip ${isAdmin ? '' : 'staff'}`}>{isAdmin ? 'Admin' : 'Staff'}</span></div>
+            <small>{isAdmin ? 'Administrator access' : 'Staff officer access'}</small>
           </div>
         </div>
+        <span className="ad-camp"><Ic d="pin" s={15} /> Cateel Campus</span>
       </header>
 
-      {/* MOBILE DRAWER OVERLAY */}
-      {isSidebarOpen && (
-        <div
-          onClick={() => setIsSidebarOpen(false)}
-          style={{
-            position: 'fixed',
-            inset: 0,
-            backgroundColor: 'rgba(15, 23, 42, 0.55)',
-            backdropFilter: 'blur(3px)',
-            zIndex: 90,
-          }}
-        />
+      {isSidebarOpen && <div className="ad-bd" onClick={() => setIsSidebarOpen(false)} />}
+
+      {showWelcomeToast && (
+        <div className="ad-wt" role="status">
+          <i><Ic d="check" s={13} w={3} /></i>
+          Welcome to the {isAdmin ? 'Admin' : 'Staff'} Portal!
+          <button type="button" onClick={() => setShowWelcomeToast(false)} aria-label="Close"><Ic d="x" s={14} /></button>
+        </div>
       )}
 
-      <div className={styles.portalWrapper}>
+      <div className="ad-shell">
         {/* SIDEBAR NAVIGATION */}
-        <aside
-          style={{
-            position: 'fixed',
-            top: 0,
-            bottom: 0,
-            left: 0,
-            width: '280px',
-            maxWidth: '82vw',
-            backgroundColor: '#ffffff',
-            borderRight: '1px solid #e2e8f0',
-            zIndex: 100,
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'space-between',
-            padding: '20px 16px',
-            boxShadow: isSidebarOpen ? '6px 0 25px rgba(0,0,0,0.15)' : 'none',
-            transform: isSidebarOpen ? 'translateX(0)' : 'translateX(-100%)',
-            transition: 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-            overflowY: 'auto',
-            boxSizing: 'border-box',
-          }}
-        >
+        <aside className={`ad-side ${isSidebarOpen ? 'open' : ''}`}>
           <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', paddingBottom: '14px', borderBottom: '1px solid #f1f5f9' }}>
+            <div className="ad-st">
               <div>
-                <h2 style={{ fontSize: '1.25rem', fontWeight: 900, color: '#15803d', margin: 0 }}>Portal Menu</h2>
-                <span style={{ fontSize: '0.68rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                  {isAdmin ? 'Administrator Access' : 'Staff Officer Access'}
-                </span>
+                <h2>Portal menu</h2>
+                <small>{isAdmin ? 'Administrator access' : 'Staff officer access'}</small>
               </div>
-              <button
-                onClick={() => setIsSidebarOpen(false)}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  fontSize: '1.2rem',
-                  fontWeight: 900,
-                  color: '#64748b',
-                  cursor: 'pointer',
-                  padding: '4px',
-                }}
-              >
-                ✕
-              </button>
+              {isSidebarOpen && (
+                <button type="button" className="ad-xb" onClick={() => setIsSidebarOpen(false)} aria-label="Close menu"><Ic d="x" s={16} /></button>
+              )}
             </div>
-
-            <nav style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {isAdmin && (
-                <button
-                  onClick={() => { setActiveTab('profile'); setIsSidebarOpen(false); }}
-                  className={activeTab === 'profile' ? `${styles.portalNavLink} ${styles.portalNavLinkActive}` : styles.portalNavLink}
-                  style={{ fontSize: '0.92rem', padding: '12px 14px', justifyContent: 'flex-start' }}
-                >
-                  <span>System Overview</span>
+            <nav className="ad-nav">
+              {navItems.map((n) => (
+                <button type="button" key={n.id} className={activeTab === n.id ? 'on' : ''} onClick={() => { setActiveTab(n.id); setIsSidebarOpen(false); }}>
+                  <Ic d={n.icon} s={19} /> <span>{n.label}</span>
                 </button>
-              )}
-
-              {canAddStudentTab && (
-                <button
-                  onClick={() => { setActiveTab('add-student'); setIsSidebarOpen(false); }}
-                  className={activeTab === 'add-student' ? `${styles.portalNavLink} ${styles.portalNavLinkActive}` : styles.portalNavLink}
-                  style={{ fontSize: '0.92rem', padding: '12px 14px', justifyContent: 'flex-start' }}
-                >
-                  <span>Add Student</span>
-                </button>
-              )}
-
-              {isAdmin && (
-                <button
-                  onClick={() => { setActiveTab('add-staff'); setIsSidebarOpen(false); }}
-                  className={activeTab === 'add-staff' ? `${styles.portalNavLink} ${styles.portalNavLinkActive}` : styles.portalNavLink}
-                  style={{ fontSize: '0.92rem', padding: '12px 14px', justifyContent: 'flex-start' }}
-                >
-                  <span>Manage Staff &amp; Scanners</span>
-                </button>
-              )}
-
-              {isAdmin && (
-                <button
-                  onClick={() => { setActiveTab('add-event'); setIsSidebarOpen(false); }}
-                  className={activeTab === 'add-event' ? `${styles.portalNavLink} ${styles.portalNavLinkActive}` : styles.portalNavLink}
-                  style={{ fontSize: '0.92rem', padding: '12px 14px', justifyContent: 'flex-start' }}
-                >
-                  <span>Manage Events</span>
-                </button>
-              )}
-
-              {isAdmin && (
-                <button
-                  onClick={() => { setActiveTab('manage-officers'); setIsSidebarOpen(false); }}
-                  className={activeTab === 'manage-officers' ? `${styles.portalNavLink} ${styles.portalNavLinkActive}` : styles.portalNavLink}
-                  style={{ fontSize: '0.92rem', padding: '12px 14px', justifyContent: 'flex-start' }}
-                >
-                  <span>Manage Officers</span>
-                </button>
-              )}
-
-              <button
-                onClick={() => { setActiveTab('scan-qr'); setIsSidebarOpen(false); }}
-                className={activeTab === 'scan-qr' ? `${styles.portalNavLink} ${styles.portalNavLinkActive}` : styles.portalNavLink}
-                style={{ fontSize: '0.92rem', padding: '12px 14px', justifyContent: 'flex-start' }}
-              >
-                <span>Scan QR &amp; Quick Log</span>
-              </button>
-
-              <button
-                onClick={() => { setActiveTab('search-student'); setIsSidebarOpen(false); }}
-                className={activeTab === 'search-student' ? `${styles.portalNavLink} ${styles.portalNavLinkActive}` : styles.portalNavLink}
-                style={{ fontSize: '0.92rem', padding: '12px 14px', justifyContent: 'flex-start' }}
-              >
-                <span>Student Records &amp; Logs</span>
-              </button>
+              ))}
             </nav>
           </div>
-
-          <div style={{ borderTop: '1px solid #f1f5f9', paddingTop: '16px', marginTop: '16px' }}>
-            <button
-              onClick={() => setIsLogoutModalOpen(true)}
-              className={styles.portalNavLink}
-              style={{ color: '#b91c1c', fontWeight: 900, fontSize: '0.92rem', padding: '12px 14px', justifyContent: 'flex-start' }}
-            >
-              <span>Sign Out</span>
+          <div style={{ paddingTop: 16 }}>
+            <button type="button" className="ad-so" onClick={() => setIsLogoutModalOpen(true)}>
+              <Ic d="out" s={19} /> <span>Sign out</span>
             </button>
           </div>
         </aside>
 
         {/* MAIN BODY VIEWPORT */}
-        <main className={styles.portalContentArea} style={{ padding: '16px 12px', width: '100%', boxSizing: 'border-box' }}>
-          <div style={{ marginBottom: '18px' }}>
-            <h1 style={{ fontSize: '1.45rem', fontWeight: 900, color: '#0f172a', margin: '0 0 4px 0' }}>
-              Command Center
-            </h1>
-            <p style={{ fontSize: '0.82rem', color: '#64748b', margin: 0, fontWeight: 600 }}>
-              Official Administration &amp; Attendance Hub
-            </p>
-          </div>
-
-          {notification.message && (
-            <div
-              className={styles.alertMessage}
-              style={{
-                marginBottom: '1rem',
-                fontSize: '0.85rem',
-                color: notification.type === 'error' ? '#b91c1c' : '#15803d',
-                backgroundColor: notification.type === 'error' ? '#fef2f2' : '#f0fdf4',
-                borderColor: notification.type === 'error' ? '#fee2e2' : '#bbf7d0',
-                padding: '10px 14px',
-              }}
-            >
-              {notification.message}
-            </div>
-          )}
-
-          {/* TAB 1: SYSTEM OVERVIEW */}
-          {activeTab === 'profile' && isAdmin && (
-            <div>
-              <div className={styles.attendanceStatsGrid}>
-                <div className={styles.attStatCard} style={{ padding: '16px' }}>
-                  <span className={styles.attStatLabel} style={{ fontSize: '0.75rem' }}>Enrolled Students</span>
-                  <div className={styles.attStatValue} style={{ fontSize: '1.8rem' }}>{students.length}</div>
-                </div>
-
-                <div className={styles.attStatCard} style={{ padding: '16px' }}>
-                  <span className={styles.attStatLabel} style={{ fontSize: '0.75rem' }}>Authorized Staff</span>
-                  <div className={`${styles.attStatValue} ${styles.attGreenText}`} style={{ fontSize: '1.8rem' }}>
-                    {staffList.length}
-                  </div>
-                </div>
-
-                <div className={styles.attStatCard} style={{ padding: '16px' }}>
-                  <span className={styles.attStatLabel} style={{ fontSize: '0.75rem' }}>Campus Officers</span>
-                  <div className={`${styles.attStatValue} ${styles.attGreenText}`} style={{ fontSize: '1.8rem' }}>
-                    {officersList.length}
-                  </div>
-                </div>
-
-                <div className={styles.attStatCard} style={{ padding: '16px' }}>
-                  <span className={styles.attStatLabel} style={{ fontSize: '0.75rem' }}>Total Events</span>
-                  <div className={styles.attStatValue} style={{ fontSize: '1.8rem' }}>{events.length}</div>
-                </div>
+        <main className="ad-main">
+          <div className="ad-wrap">
+            {notification.message && (
+              <div className={`ad-toast ${notification.type === 'error' ? 'er' : 'ok'}`} role="status">
+                <Ic d={notification.type === 'error' ? 'alert' : 'check'} s={18} /> {notification.message}
               </div>
+            )}
 
-              <div className={styles.adminFormCard}>
-                <h3 className={styles.analyticsTitle} style={{ fontSize: '0.85rem', marginBottom: '14px' }}>
-                  Students Distribution by Course
-                </h3>
-                <div className={styles.courseGrid}>
-                  {courses.map((c) => {
-                    const count = students.filter((s) => s.course === c.code).length;
-                    return (
-                      <div key={c.code} className={styles.courseCard} style={{ minHeight: '130px' }}>
-                        <div className={styles.cardTop}>
-                          <span className={`${styles.badge} ${c.badge}`}>{c.code}</span>
-                        </div>
-                        <div className={styles.countValue}>{count}</div>
-                        <div className={styles.courseName}>{c.name}</div>
+            {/* TAB 1: SYSTEM OVERVIEW */}
+            {activeTab === 'profile' && isAdmin && (
+              <div>
+                <PageHead icon="grid" badge="Command center" title="System overview" sub="Official administration & attendance hub." />
+                <div className="ad-g4">
+                  <Stat label="Enrolled students" value={students.length} />
+                  <Stat label="Authorized staff" value={staffList.length} tone="g" />
+                  <Stat label="Campus officers" value={officersList.length} tone="g" />
+                  <Stat label="Total events" value={events.length} />
+                </div>
+
+                <div className="ad-card">
+                  <div className="ad-ct"><h3><span className="ad-ci"><Ic d="users" s={19} /></span> Students distribution by course</h3></div>
+                  <div className="ad-cg">
+                    {courses.map((c) => (
+                      <div key={c.code} className="ad-cc" style={{ '--a': COURSE_COLORS[c.code] }}>
+                        <span className="ad-cb">{c.code}</span>
+                        <div className="ad-cn">{students.filter((s) => s.course === c.code).length}</div>
+                        <div className="ad-cm">{c.name}</div>
                       </div>
-                    );
-                  })}
+                    ))}
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
+            )}
 
-          {/* TAB 2: ADD & EDIT STUDENT (STICKY FIX APPLIED) */}
-          {activeTab === 'add-student' && canAddStudentTab && (
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))',
-                gap: '20px',
-                width: '100%',
-                alignItems: 'start', // IMPORTANT: nagtugot sa sticky positioning
-              }}
-            >
-              {/* STICKY ADD/EDIT STUDENT CARD */}
-              <div
-                className={styles.adminFormCard}
-                ref={studentFormRef}
-                style={{
-                  position: 'sticky',
-                  top: '65px',
-                  alignSelf: 'start',
-                  zIndex: 10,
-                  maxHeight: 'calc(100vh - 85px)',
-                  overflowY: 'auto',
-                }}
-              >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
-                  <h3 className={styles.analyticsTitle} style={{ fontSize: '0.9rem', margin: 0 }}>
-                    {editingStudentId ? 'Edit Student Details' : 'Add Student'}
-                  </h3>
-                  {editingStudentId && (
-                    <button
-                      type="button"
-                      onClick={handleCancelEditStudent}
-                      style={{
-                        background: 'none',
-                        border: '1px solid #cbd5e1',
-                        borderRadius: '6px',
-                        padding: '3px 8px',
-                        fontSize: '0.72rem',
-                        fontWeight: 800,
-                        color: '#64748b',
-                        cursor: 'pointer',
-                      }}
-                    >
-                      ✕ Cancel Edit
-                    </button>
-                  )}
-                </div>
-
-                <form onSubmit={handleSaveStudent} className={styles.loginForm}>
-                  <div className={styles.inputGroup}>
-                    <label className={styles.inputLabel} style={{ fontSize: '0.75rem' }}>School ID (Format: 2024-0616) *</label>
-                    <input
-                      type="text"
-                      placeholder="e.g. 2024-0616"
-                      value={studentId}
-                      onChange={(e) => setStudentId(e.target.value)}
-                      pattern="\d{4}-\d{4,5}"
-                      className={styles.loginInput}
-                      style={{ padding: '10px 12px', fontSize: '0.9rem' }}
-                      required
-                    />
-                  </div>
-
-                  <div className={styles.inputGroup}>
-                    <label className={styles.inputLabel} style={{ fontSize: '0.75rem' }}>Full Name *</label>
-                    <input
-                      type="text"
-                      placeholder="e.g. Juan Dela Cruz"
-                      value={studentName}
-                      onChange={(e) => setStudentName(e.target.value)}
-                      className={styles.loginInput}
-                      style={{ padding: '10px 12px', fontSize: '0.9rem' }}
-                      required
-                    />
-                  </div>
-
-                  <div className={styles.inputGroup}>
-                    <label className={styles.inputLabel} style={{ fontSize: '0.75rem' }}>Student Email Address *</label>
-                    <input
-                      type="email"
-                      placeholder="e.g. student@dorsu.edu.ph"
-                      value={studentEmail}
-                      onChange={(e) => setStudentEmail(e.target.value)}
-                      className={styles.loginInput}
-                      style={{ padding: '10px 12px', fontSize: '0.9rem' }}
-                      required
-                    />
-                  </div>
-
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                    <div className={styles.inputGroup}>
-                      <label className={styles.inputLabel} style={{ fontSize: '0.75rem' }}>Course</label>
-                      <select
-                        value={studentCourse}
-                        onChange={(e) => setStudentCourse(e.target.value)}
-                        className={styles.loginInput}
-                        style={{ padding: '10px 12px', fontSize: '0.9rem' }}
-                      >
-                        {courses.map((c) => (
-                          <option key={c.code} value={c.code}>{c.code}</option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div className={styles.inputGroup}>
-                      <label className={styles.inputLabel} style={{ fontSize: '0.75rem' }}>Year Level</label>
-                      <select
-                        value={studentYear}
-                        onChange={(e) => setStudentYear(e.target.value)}
-                        className={styles.loginInput}
-                        style={{ padding: '10px 12px', fontSize: '0.9rem' }}
-                      >
-                        <option value="1st Year">1st Year</option>
-                        <option value="2nd Year">2nd Year</option>
-                        <option value="3rd Year">3rd Year</option>
-                        <option value="4th Year">4th Year</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <div className={styles.inputGroup}>
-                    <label className={styles.inputLabel} style={{ fontSize: '0.75rem' }}>Section (A - K) *</label>
-                    <select
-                      value={studentSection}
-                      onChange={(e) => setStudentSection(e.target.value)}
-                      className={styles.loginInput}
-                      style={{ padding: '10px 12px', fontSize: '0.9rem' }}
-                    >
-                      {sectionsList.map((sec) => (
-                        <option key={sec} value={sec}>{sec}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div style={{ display: 'flex', gap: '8px' }}>
-                    <button
-                      type="submit"
-                      disabled={loading}
-                      className={styles.adminPrimaryBtn}
-                      style={{ flex: 1, minHeight: '44px', fontSize: '0.9rem' }}
-                    >
-                      {loading
-                        ? 'Saving...'
-                        : editingStudentId
-                        ? 'Save Changes ➔'
-                        : 'Add Student ➔'}
-                    </button>
-                    {editingStudentId && (
-                      <button
-                        type="button"
-                        onClick={handleCancelEditStudent}
-                        style={{
-                          backgroundColor: '#f1f5f9',
-                          color: '#475569',
-                          border: '1px solid #cbd5e1',
-                          borderRadius: '12px',
-                          padding: '0 14px',
-                          fontWeight: 800,
-                          cursor: 'pointer',
-                        }}
-                      >
-                        Cancel
-                      </button>
-                    )}
-                  </div>
-                </form>
-              </div>
-
-              {/* ENROLLED STUDENTS LIST */}
-              <div className={styles.adminFormCard} style={{ width: '100%', boxSizing: 'border-box' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '8px' }}>
-                  <div>
-                    <h3 className={styles.analyticsTitle} style={{ fontSize: '0.9rem', margin: 0 }}>
-                      Enrolled Students ({filteredStudents.length})
-                    </h3>
-                  </div>
-
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <input
-                      type="text"
-                      placeholder="Search..."
-                      value={searchStudentQuery}
-                      onChange={(e) => setSearchStudentQuery(e.target.value)}
-                      className={styles.loginInput}
-                      style={{ width: '120px', padding: '6px 10px', fontSize: '0.8rem' }}
-                    />
-
-                    {isAdmin && students.length > 0 && (
-                      <button
-                        type="button"
-                        onClick={() => triggerDeletePrompt('all_students', 'ALL', 'ALL enrolled students')}
-                        style={{
-                          border: '1px solid #fecaca',
-                          backgroundColor: '#fef2f2',
-                          color: '#b91c1c',
-                          fontWeight: 900,
-                          cursor: 'pointer',
-                          padding: '6px 10px',
-                          borderRadius: '8px',
-                          fontSize: '0.75rem',
-                          whiteSpace: 'nowrap',
-                          touchAction: 'manipulation',
-                        }}
-                      >
-                        Remove All
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                <div
-                  style={{
-                    width: '100%',
-                    overflowX: 'auto',
-                    WebkitOverflowScrolling: 'touch',
-                    borderRadius: '12px',
-                    border: '1px solid #e2e8f0',
-                  }}
-                >
-                  <table style={{ width: '100%', minWidth: '520px', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.82rem' }}>
-                    <thead>
-                      <tr style={{ backgroundColor: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
-                        <th style={{ padding: '10px 12px', fontWeight: 800, color: '#475569' }}>Student ID</th>
-                        <th style={{ padding: '10px 12px', fontWeight: 800, color: '#475569' }}>Student Details</th>
-                        <th style={{ padding: '10px 12px', fontWeight: 800, color: '#475569' }}>Course &amp; Section</th>
-                        <th style={{ padding: '10px 12px', fontWeight: 800, color: '#475569', textAlign: 'center', minWidth: '130px' }}>Action</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredStudents.length === 0 ? (
-                        <tr>
-                          <td colSpan={4} style={{ textAlign: 'center', padding: '24px', color: '#94a3b8' }}>
-                            No student records found.
-                          </td>
-                        </tr>
-                      ) : (
-                        filteredStudents.map((st) => (
-                          <tr key={st.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                            <td style={{ padding: '10px 12px', fontWeight: 900, color: '#0f172a' }}>{st.school_id}</td>
-                            <td style={{ padding: '10px 12px' }}>
-                              <div style={{ fontWeight: 800, color: '#0f172a' }}>{st.full_name}</div>
-                              <div style={{ fontSize: '0.7rem', color: '#64748b' }}>{st.email}</div>
-                            </td>
-                            <td style={{ padding: '10px 12px' }}>
-                              <span className={styles.idBadge} style={{ padding: '2px 6px', fontSize: '0.68rem' }}>{st.course}</span>
-                              <div style={{ fontSize: '0.7rem', color: '#15803d', fontWeight: 800, marginTop: '2px' }}>
-                                {st.section || 'Section A'} • {st.year_level || '1st Year'}
-                              </div>
-                            </td>
-                            <td style={{ padding: '10px 12px', textAlign: 'center', whiteSpace: 'nowrap' }}>
-                              <div style={{ display: 'inline-flex', gap: '6px' }}>
-                                <button
-                                  type="button"
-                                  onClick={() => handleStartEditStudent(st)}
-                                  style={{
-                                    border: '1px solid #bbf7d0',
-                                    backgroundColor: '#f0fdf4',
-                                    color: '#15803d',
-                                    fontWeight: 900,
-                                    cursor: 'pointer',
-                                    padding: '5px 10px',
-                                    borderRadius: '8px',
-                                    fontSize: '0.75rem',
-                                    touchAction: 'manipulation',
-                                  }}
-                                >
-                                  Edit
-                                </button>
-                                {isAdmin && (
-                                  <button
-                                    type="button"
-                                    onClick={() => triggerDeletePrompt('student', st.id, st.school_id)}
-                                    style={{
-                                      border: '1px solid #fecaca',
-                                      backgroundColor: '#fef2f2',
-                                      color: '#b91c1c',
-                                      fontWeight: 900,
-                                      cursor: 'pointer',
-                                      padding: '5px 10px',
-                                      borderRadius: '8px',
-                                      fontSize: '0.75rem',
-                                      touchAction: 'manipulation',
-                                    }}
-                                  >
-                                    Remove
-                                  </button>
-                                )}
-                              </div>
-                            </td>
-                          </tr>
-                        ))
+            {/* TAB 2: ADD & EDIT STUDENT (STICKY FORM) */}
+            {activeTab === 'add-student' && canAddStudentTab && (
+              <div>
+                <PageHead icon="userplus" badge="Enrollment" title="Add student" sub="Register students to the official whitelist." />
+                <div className="ad-g2">
+                  <div className="ad-card ad-sticky" ref={studentFormRef}>
+                    <div className="ad-ct">
+                      <h3><span className="ad-ci"><Ic d={editingStudentId ? 'pencil' : 'userplus'} s={19} /></span> {editingStudentId ? 'Edit student details' : 'Add student'}</h3>
+                      {editingStudentId && (
+                        <button type="button" className="ad-b neu sm" onClick={handleCancelEditStudent}><Ic d="x" s={14} /> Cancel edit</button>
                       )}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* TAB 3: MANAGE STAFF & AUTHORIZED SCANNERS */}
-          {activeTab === 'add-staff' && isAdmin && (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px' }}>
-              <div className={styles.adminFormCard}>
-                <h3 className={styles.analyticsTitle} style={{ fontSize: '0.9rem', marginBottom: '14px' }}>
-                  Authorize Staff / Student Scanner
-                </h3>
-
-                <form onSubmit={handleAddStaff} className={styles.loginForm}>
-                  <div className={styles.inputGroup}>
-                    <label className={styles.inputLabel} style={{ fontSize: '0.75rem' }}>Staff / Student Name *</label>
-                    <input
-                      type="text"
-                      placeholder="e.g. Maria Santos"
-                      value={staffName}
-                      onChange={(e) => setStaffName(e.target.value)}
-                      className={styles.loginInput}
-                      style={{ padding: '10px 12px', fontSize: '0.9rem' }}
-                      required
-                    />
-                  </div>
-
-                  <div className={styles.inputGroup}>
-                    <label className={styles.inputLabel} style={{ fontSize: '0.75rem' }}>Registered Email Address *</label>
-                    <input
-                      type="email"
-                      placeholder="e.g. maria@dorsu.edu.ph"
-                      value={staffEmail}
-                      onChange={(e) => setStaffEmail(e.target.value)}
-                      className={styles.loginInput}
-                      style={{ padding: '10px 12px', fontSize: '0.9rem' }}
-                      required
-                    />
-                  </div>
-
-                  <div className={styles.inputGroup}>
-                    <label className={styles.inputLabel} style={{ fontSize: '0.75rem' }}>Designation / Title</label>
-                    <input
-                      type="text"
-                      value={staffRole}
-                      onChange={(e) => setStaffRole(e.target.value)}
-                      className={styles.loginInput}
-                      style={{ padding: '10px 12px', fontSize: '0.9rem' }}
-                    />
-                  </div>
-
-                  {/* TOGGLE: ALLOW ADDING STUDENTS */}
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      backgroundColor: staffCanAddStudent ? '#f0fdf4' : '#f8fafc',
-                      border: `1.5px solid ${staffCanAddStudent ? '#86efac' : '#e2e8f0'}`,
-                      borderRadius: '14px',
-                      padding: '10px 14px',
-                      marginBottom: '16px',
-                      transition: 'all 0.2s',
-                    }}
-                  >
-                    <div>
-                      <span style={{ fontSize: '0.82rem', fontWeight: 900, color: staffCanAddStudent ? '#15803d' : '#0f172a', display: 'block' }}>
-                        Allow Adding Students
-                      </span>
-                      <span style={{ fontSize: '0.7rem', color: '#64748b', fontWeight: 600 }}>
-                        {staffCanAddStudent ? 'Staff can register new students' : 'Only allowed to scan attendance'}
-                      </span>
                     </div>
 
-                    <label
-                      style={{
-                        position: 'relative',
-                        display: 'inline-block',
-                        width: '44px',
-                        height: '24px',
-                        flexShrink: 0,
-                        cursor: 'pointer',
-                      }}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={staffCanAddStudent}
-                        onChange={(e) => setStaffCanAddStudent(e.target.checked)}
-                        style={{ opacity: 0, width: 0, height: 0 }}
-                      />
-                      <span
-                        style={{
-                          position: 'absolute',
-                          top: 0,
-                          left: 0,
-                          right: 0,
-                          bottom: 0,
-                          backgroundColor: staffCanAddStudent ? '#15803d' : '#cbd5e1',
-                          transition: '0.25s',
-                          borderRadius: '24px',
-                        }}
-                      >
-                        <span
-                          style={{
-                            position: 'absolute',
-                            height: '18px',
-                            width: '18px',
-                            left: staffCanAddStudent ? '22px' : '3px',
-                            bottom: '3px',
-                            backgroundColor: '#ffffff',
-                            transition: '0.25s',
-                            borderRadius: '50%',
-                            boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
-                          }}
-                        />
-                      </span>
-                    </label>
+                    <form className="ad-fm" onSubmit={handleSaveStudent}>
+                      <Field label="School ID (format: 2024-0616) *">
+                        <input className="ad-in" type="text" placeholder="e.g. 2024-0616" value={studentId} onChange={(e) => setStudentId(e.target.value)} pattern="\d{4}-\d{4,5}" required />
+                      </Field>
+                      <Field label="Full name *">
+                        <input className="ad-in" type="text" placeholder="e.g. Juan Dela Cruz" value={studentName} onChange={(e) => setStudentName(e.target.value)} required />
+                      </Field>
+                      <Field label="Student email address *">
+                        <input className="ad-in" type="email" placeholder="e.g. student@dorsu.edu.ph" value={studentEmail} onChange={(e) => setStudentEmail(e.target.value)} required />
+                      </Field>
+                      <div className="ad-2">
+                        <Field label="Course">
+                          <select className="ad-in" value={studentCourse} onChange={(e) => setStudentCourse(e.target.value)}>
+                            {courses.map((c) => (<option key={c.code} value={c.code}>{c.code}</option>))}
+                          </select>
+                        </Field>
+                        <Field label="Year level">
+                          <select className="ad-in" value={studentYear} onChange={(e) => setStudentYear(e.target.value)}>
+                            {['1st Year', '2nd Year', '3rd Year', '4th Year'].map((y) => (<option key={y} value={y}>{y}</option>))}
+                          </select>
+                        </Field>
+                      </div>
+                      <Field label="Section (A - K) *">
+                        <select className="ad-in" value={studentSection} onChange={(e) => setStudentSection(e.target.value)}>
+                          {sectionsList.map((sec) => (<option key={sec} value={sec}>{sec}</option>))}
+                        </select>
+                      </Field>
+                      <FormButtons editing={Boolean(editingStudentId)} saving={loading} onCancel={handleCancelEditStudent} addLabel="Add student" saveLabel="Save changes" />
+                    </form>
                   </div>
 
-                  <button type="submit" disabled={loading} className={styles.adminPrimaryBtn} style={{ minHeight: '44px', fontSize: '0.9rem' }}>
-                    {loading ? 'Authorizing...' : 'Authorize Scanner Privilege ➔'}
-                  </button>
-                </form>
-              </div>
+                  {/* ENROLLED STUDENTS LIST */}
+                  <div className="ad-card">
+                    <div className="ad-ct">
+                      <h3><span className="ad-ci"><Ic d="users" s={19} /></span> Enrolled students ({filteredStudents.length})</h3>
+                      <div className="ad-ra">
+                        <SearchBox value={searchStudentQuery} onChange={(e) => setSearchStudentQuery(e.target.value)} placeholder="Search..." />
+                        {isAdmin && students.length > 0 && (
+                          <button type="button" className="ad-b dng sm" onClick={() => triggerDeletePrompt('all_students', 'ALL', 'ALL enrolled students')}>
+                            <Ic d="trash" s={14} /> Remove all
+                          </button>
+                        )}
+                      </div>
+                    </div>
 
-              {/* AUTHORIZED SCANNERS LIST */}
-              <div className={styles.adminFormCard}>
-                <h3 className={styles.analyticsTitle} style={{ fontSize: '0.95rem', marginBottom: '14px' }}>
-                  Authorized Scanners ({staffList.length})
-                </h3>
-
-                {staffList.length === 0 ? (
-                  <div style={{ textAlign: 'center', padding: '24px', color: '#94a3b8', fontSize: '0.85rem' }}>
-                    No authorized scanners registered yet.
-                  </div>
-                ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', width: '100%' }}>
-                    {staffList.map((st) => {
-                      const isPermanentAdmin = st.role === 'admin';
-                      const canAddSt = Boolean(st.can_add_students);
-
-                      return (
-                        <div
-                          key={st.id}
-                          style={{
-                            backgroundColor: '#ffffff',
-                            border: `1px solid ${isPermanentAdmin ? '#bbf7d0' : '#e2e8f0'}`,
-                            borderRadius: '16px',
-                            padding: '14px',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            gap: '10px',
-                            width: '100%',
-                            boxSizing: 'border-box',
-                            boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
-                          }}
-                        >
-                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
-                            <div style={{ minWidth: 0, flex: 1 }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                <h4 style={{ margin: '0 0 2px 0', fontSize: '0.92rem', fontWeight: 900, color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                  {st.full_name}
-                                </h4>
-                                {isPermanentAdmin && (
-                                  <span style={{ fontSize: '0.62rem', fontWeight: 900, color: '#15803d', backgroundColor: '#dcfce7', padding: '2px 6px', borderRadius: '6px', border: '1px solid #bbf7d0' }}>
-                                    ADMIN
-                                  </span>
-                                )}
-                              </div>
-                              <div style={{ fontSize: '0.75rem', color: '#64748b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                {st.email}
-                              </div>
-                            </div>
-
-                            {isPermanentAdmin ? (
-                              <span
-                                style={{
-                                  backgroundColor: '#f0fdf4',
-                                  color: '#15803d',
-                                  border: '1px solid #bbf7d0',
-                                  padding: '5px 10px',
-                                  borderRadius: '10px',
-                                  fontSize: '0.72rem',
-                                  fontWeight: 900,
-                                  flexShrink: 0,
-                                  textTransform: 'uppercase',
-                                  letterSpacing: '0.02em',
-                                }}
-                              >
-                                Permanent Admin
-                              </span>
-                            ) : (
-                              <button
-                                type="button"
-                                onClick={() => triggerDeletePrompt('staff', st.id, st.full_name)}
-                                style={{
-                                  border: '1px solid #fed7aa',
-                                  backgroundColor: '#fff7ed',
-                                  color: '#ea580c',
-                                  fontWeight: 900,
-                                  cursor: 'pointer',
-                                  padding: '5px 12px',
-                                  borderRadius: '8px',
-                                  fontSize: '0.75rem',
-                                  flexShrink: 0,
-                                  touchAction: 'manipulation',
-                                }}
-                              >
-                                Revoke
-                              </button>
-                            )}
-                          </div>
-
-                          {!isPermanentAdmin && (
-                            <div
-                              style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'space-between',
-                                backgroundColor: canAddSt ? '#f0fdf4' : '#f8fafc',
-                                border: `1px solid ${canAddSt ? '#bbf7d0' : '#e2e8f0'}`,
-                                borderRadius: '10px',
-                                padding: '6px 10px',
-                              }}
-                            >
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                <span style={{ fontSize: '0.72rem', fontWeight: 800, color: canAddSt ? '#15803d' : '#64748b' }}>
-                                  Can Add Student: <strong>{canAddSt ? 'ALLOWED' : 'LOCKED'}</strong>
-                                </span>
-                              </div>
-
-                              <button
-                                type="button"
-                                onClick={() => handleToggleStaffAddStudentPermission(st.id, canAddSt, st.full_name)}
-                                style={{
-                                  padding: '4px 10px',
-                                  borderRadius: '6px',
-                                  fontSize: '0.7rem',
-                                  fontWeight: 900,
-                                  cursor: 'pointer',
-                                  border: `1px solid ${canAddSt ? '#fca5a5' : '#bbf7d0'}`,
-                                  backgroundColor: canAddSt ? '#fef2f2' : '#f0fdf4',
-                                  color: canAddSt ? '#dc2626' : '#15803d',
-                                  touchAction: 'manipulation',
-                                }}
-                              >
-                                {canAddSt ? 'Revoke Permission' : 'Grant Permission'}
-                              </button>
-                            </div>
+                    <div className="ad-tw">
+                      <table>
+                        <thead>
+                          <tr><th>Student ID</th><th>Student details</th><th>Course &amp; section</th><th style={{ textAlign: 'center' }}>Action</th></tr>
+                        </thead>
+                        <tbody>
+                          {filteredStudents.length === 0 ? (
+                            <tr><td colSpan={4} className="ad-empty">No student records found.</td></tr>
+                          ) : (
+                            filteredStudents.map((st) => (
+                              <tr key={st.id}>
+                                <td className="ad-id">{st.school_id}</td>
+                                <td><b>{st.full_name}</b><small>{st.email}</small></td>
+                                <td>
+                                  <span className="ad-pill" style={{ color: COURSE_COLORS[st.course] || '#047857' }}>{st.course}</span>
+                                  <small style={{ color: '#047857', fontWeight: 800 }}>{st.section || 'Section A'} • {st.year_level || '1st Year'}</small>
+                                </td>
+                                <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
+                                  <EditActions onEdit={() => handleStartEditStudent(st)} onDel={isAdmin ? () => triggerDeletePrompt('student', st.id, st.school_id) : null} delLabel="Remove" />
+                                </td>
+                              </tr>
+                            ))
                           )}
-                        </div>
-                      );
-                    })}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* TAB 4: MANAGE EVENTS */}
-          {activeTab === 'add-event' && isAdmin && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '22px', width: '100%' }}>
-              <div className={styles.adminFormCard} ref={formRef} style={{ width: '100%', boxSizing: 'border-box' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
-                  <h3 className={styles.analyticsTitle} style={{ fontSize: '0.9rem', margin: 0 }}>
-                    {editingEventId ? 'Edit Event' : 'Publish New Event'}
-                  </h3>
-                  {editingEventId && (
-                    <button
-                      type="button"
-                      onClick={handleCancelEditEvent}
-                      style={{
-                        background: 'none',
-                        border: '1px solid #cbd5e1',
-                        borderRadius: '6px',
-                        padding: '3px 8px',
-                        fontSize: '0.72rem',
-                        fontWeight: 800,
-                        color: '#64748b',
-                        cursor: 'pointer',
-                      }}
-                    >
-                      ✕ Cancel Edit
-                    </button>
-                  )}
                 </div>
+              </div>
+            )}
 
-                <form onSubmit={handleSaveEvent} className={styles.loginForm}>
-                  <div className={styles.inputGroup}>
-                    <label className={styles.inputLabel} style={{ fontSize: '0.75rem' }}>Event Poster</label>
-                    <input
-                      type="file"
-                      ref={eventImageInputRef}
-                      onChange={handleEventImageUpload}
-                      accept="image/*"
-                      style={{ display: 'none' }}
-                    />
-                    <div
-                      onClick={() => eventImageInputRef.current?.click()}
-                      style={{
-                        border: '2px dashed #cbd5e1',
-                        borderRadius: '14px',
-                        padding: '12px',
-                        textAlign: 'center',
-                        cursor: 'pointer',
-                        backgroundColor: '#f8fafc',
-                        position: 'relative',
-                      }}
-                    >
-                      {compressingImage ? (
-                        <div style={{ padding: '14px 0', color: '#15803d', fontWeight: 800, fontSize: '0.8rem' }}>
-                          Optimizing image...
-                        </div>
-                      ) : eventImage ? (
-                        <div style={{ position: 'relative' }}>
-                          <img
-                            src={eventImage}
-                            alt="Event Preview"
-                            style={{ maxHeight: '120px', width: 'auto', borderRadius: '10px', margin: '0 auto', display: 'block' }}
-                          />
-                          <span style={{ fontSize: '0.68rem', color: '#15803d', fontWeight: 800, display: 'block', marginTop: '4px' }}>
-                            Click to change picture
-                          </span>
-                        </div>
-                      ) : (
+            {/* TAB 3: MANAGE STAFF & AUTHORIZED SCANNERS */}
+            {activeTab === 'add-staff' && isAdmin && (
+              <div>
+                <PageHead icon="shield" badge="Access control" title="Manage staff & scanners" sub="Authorize officers who can scan attendance." />
+                <div className="ad-g2">
+                  <div className="ad-card ad-sticky">
+                    <div className="ad-ct"><h3><span className="ad-ci"><Ic d="shield" s={19} /></span> Authorize staff / student scanner</h3></div>
+                    <form className="ad-fm" onSubmit={handleAddStaff}>
+                      <Field label="Staff / student name *">
+                        <input className="ad-in" type="text" placeholder="e.g. Maria Santos" value={staffName} onChange={(e) => setStaffName(e.target.value)} required />
+                      </Field>
+                      <Field label="Registered email address *">
+                        <input className="ad-in" type="email" placeholder="e.g. maria@dorsu.edu.ph" value={staffEmail} onChange={(e) => setStaffEmail(e.target.value)} required />
+                      </Field>
+                      <Field label="Designation / title">
+                        <input className="ad-in" type="text" value={staffRole} onChange={(e) => setStaffRole(e.target.value)} />
+                      </Field>
+
+                      <div className={`ad-tg ${staffCanAddStudent ? 'on' : ''}`}>
                         <div>
-                          <span style={{ fontSize: '0.85rem', fontWeight: 800, color: '#15803d', display: 'block' }}>
-                            + Upload Event Picture
-                          </span>
+                          <b>Allow adding students</b>
+                          <small>{staffCanAddStudent ? 'Staff can register new students' : 'Only allowed to scan attendance'}</small>
                         </div>
-                      )}
-                    </div>
-                  </div>
+                        <Switch checked={staffCanAddStudent} onChange={(e) => setStaffCanAddStudent(e.target.checked)} />
+                      </div>
 
-                  <div className={styles.inputGroup}>
-                    <label className={styles.inputLabel} style={{ fontSize: '0.75rem' }}>Event Title *</label>
-                    <input
-                      type="text"
-                      value={eventTitle}
-                      onChange={(e) => setEventTitle(e.target.value)}
-                      className={styles.loginInput}
-                      style={{ padding: '10px 12px', fontSize: '0.9rem' }}
-                      required
-                    />
-                  </div>
-
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '10px' }}>
-                    <div className={styles.inputGroup}>
-                      <label className={styles.inputLabel} style={{ fontSize: '0.75rem' }}>Location *</label>
-                      <input
-                        type="text"
-                        value={eventLocation}
-                        onChange={(e) => setEventLocation(e.target.value)}
-                        className={styles.loginInput}
-                        style={{ padding: '10px 12px', fontSize: '0.9rem' }}
-                        required
-                      />
-                    </div>
-
-                    <div className={styles.inputGroup}>
-                      <label className={styles.inputLabel} style={{ fontSize: '0.75rem' }}>Mode</label>
-                      <select
-                        value={eventStatus}
-                        onChange={(e) => setEventStatus(e.target.value)}
-                        className={styles.loginInput}
-                        style={{ padding: '10px 12px', fontSize: '0.9rem' }}
-                      >
-                        <option value="active">Active (Open)</option>
-                        <option value="inactive">Inactive (Closed)</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <div className={styles.inputGroup}>
-                    <label className={styles.inputLabel} style={{ fontSize: '0.75rem' }}>Event Date *</label>
-                    <input
-                      type="date"
-                      value={eventDate}
-                      onChange={(e) => setEventDate(e.target.value)}
-                      className={styles.loginInput}
-                      style={{ padding: '10px 12px', fontSize: '0.9rem' }}
-                      required
-                    />
-                  </div>
-
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                    <div className={styles.inputGroup}>
-                      <label className={styles.inputLabel} style={{ fontSize: '0.75rem' }}>Time In *</label>
-                      <input
-                        type="time"
-                        value={timeIn}
-                        onChange={(e) => setTimeIn(e.target.value)}
-                        className={styles.loginInput}
-                        style={{ padding: '10px 12px', fontSize: '0.9rem' }}
-                        required
-                      />
-                    </div>
-
-                    <div className={styles.inputGroup}>
-                      <label className={styles.inputLabel} style={{ fontSize: '0.75rem' }}>Time Out *</label>
-                      <input
-                        type="time"
-                        value={timeOut}
-                        onChange={(e) => setTimeOut(e.target.value)}
-                        className={styles.loginInput}
-                        style={{ padding: '10px 12px', fontSize: '0.9rem' }}
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  <div className={styles.inputGroup}>
-                    <label className={styles.inputLabel} style={{ fontSize: '0.75rem' }}>Description</label>
-                    <textarea
-                      rows="2"
-                      value={eventDesc}
-                      onChange={(e) => setEventDesc(e.target.value)}
-                      className={styles.loginInput}
-                      style={{ padding: '10px 12px', fontSize: '0.9rem' }}
-                      placeholder="Brief details..."
-                    />
-                  </div>
-
-                  <div style={{ display: 'flex', gap: '8px' }}>
-                    <button
-                      type="submit"
-                      disabled={loading || compressingImage}
-                      className={styles.adminPrimaryBtn}
-                      style={{ flex: 1, minHeight: '44px', fontSize: '0.9rem' }}
-                    >
-                      {loading
-                        ? 'Saving...'
-                        : editingEventId
-                        ? 'Save Changes ➔'
-                        : 'Publish Event ➔'}
-                    </button>
-                    {editingEventId && (
-                      <button
-                        type="button"
-                        onClick={handleCancelEditEvent}
-                        style={{
-                          backgroundColor: '#f1f5f9',
-                          color: '#475569',
-                          border: '1px solid #cbd5e1',
-                          borderRadius: '12px',
-                          padding: '0 14px',
-                          fontWeight: 800,
-                          cursor: 'pointer',
-                        }}
-                      >
-                        Cancel
+                      <button type="submit" className="ad-b pri full" disabled={loading}>
+                        {loading ? 'Authorizing...' : 'Authorize scanner privilege'}
                       </button>
-                    )}
-                  </div>
-                </form>
-              </div>
-
-              {/* PUBLISHED EVENTS */}
-              <div className={styles.adminFormCard} style={{ width: '100%', boxSizing: 'border-box', padding: '16px 14px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '8px' }}>
-                  <h3 className={styles.analyticsTitle} style={{ fontSize: '0.95rem', margin: 0 }}>
-                    Published Events ({filteredEvents.length})
-                  </h3>
-                  <input
-                    type="text"
-                    placeholder="Search event..."
-                    value={searchEventQuery}
-                    onChange={(e) => setSearchEventQuery(e.target.value)}
-                    className={styles.loginInput}
-                    style={{ width: '130px', padding: '6px 10px', fontSize: '0.8rem' }}
-                  />
-                </div>
-
-                {filteredEvents.length === 0 ? (
-                  <div style={{ textAlign: 'center', padding: '24px', color: '#94a3b8', fontSize: '0.85rem' }}>
-                    No events found.
-                  </div>
-                ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', width: '100%' }}>
-                    {filteredEvents.map((ev) => {
-                      const isActive = ev.status === 'active';
-                      return (
-                        <div
-                          key={ev.id}
-                          style={{
-                            backgroundColor: editingEventId === ev.id ? '#f0fdf4' : '#ffffff',
-                            border: `1px solid ${editingEventId === ev.id ? '#86efac' : '#e2e8f0'}`,
-                            borderRadius: '14px',
-                            padding: '12px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'space-between',
-                            gap: '10px',
-                            width: '100%',
-                            boxSizing: 'border-box',
-                            boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
-                          }}
-                        >
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0, flex: 1 }}>
-                            {ev.image_url ? (
-                              <img
-                                src={ev.image_url}
-                                alt="Event"
-                                style={{ width: '48px', height: '48px', borderRadius: '10px', objectFit: 'cover', flexShrink: 0 }}
-                              />
-                            ) : (
-                              <div
-                                style={{
-                                  width: '48px',
-                                  height: '48px',
-                                  borderRadius: '10px',
-                                  backgroundColor: '#f1f5f9',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                  fontSize: '0.8rem',
-                                  fontWeight: 800,
-                                  color: '#64748b',
-                                  flexShrink: 0,
-                                }}
-                              >
-                                EVENT
-                              </div>
-                            )}
-
-                            <div style={{ minWidth: 0, flex: 1 }}>
-                              <h4 style={{ margin: '0 0 2px 0', fontSize: '0.88rem', fontWeight: 900, color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                {ev.title}
-                              </h4>
-                              <div style={{ fontSize: '0.72rem', color: '#15803d', fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                Location: {ev.location || 'FaCET Facade'}
-                              </div>
-                              <div style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: 700, marginTop: '2px' }}>
-                                {ev.date} • {formatTime12Hour(ev.time_in)} - {formatTime12Hour(ev.time_out)}
-                              </div>
-                            </div>
-                          </div>
-
-                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '6px', flexShrink: 0 }}>
-                            <span
-                              className={styles.idBadge}
-                              style={{
-                                backgroundColor: isActive ? '#dcfce7' : '#f1f5f9',
-                                color: isActive ? '#15803d' : '#64748b',
-                                fontSize: '0.62rem',
-                                padding: '2px 8px',
-                              }}
-                            >
-                              {isActive ? 'ACTIVE' : 'CLOSED'}
-                            </span>
-
-                            <div style={{ display: 'inline-flex', gap: '6px' }}>
-                              <button
-                                type="button"
-                                onClick={() => handleStartEditEvent(ev)}
-                                style={{
-                                  border: '1px solid #bbf7d0',
-                                  backgroundColor: '#f0fdf4',
-                                  color: '#15803d',
-                                  fontWeight: 900,
-                                  cursor: 'pointer',
-                                  padding: '5px 10px',
-                                  borderRadius: '8px',
-                                  fontSize: '0.72rem',
-                                  touchAction: 'manipulation',
-                                }}
-                              >
-                                Edit
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => triggerDeletePrompt('event', ev.id, ev.title)}
-                                style={{
-                                  border: '1px solid #fecaca',
-                                  backgroundColor: '#fef2f2',
-                                  color: '#b91c1c',
-                                  fontWeight: 900,
-                                  cursor: 'pointer',
-                                  padding: '5px 10px',
-                                  borderRadius: '8px',
-                                  fontSize: '0.72rem',
-                                  touchAction: 'manipulation',
-                                }}
-                              >
-                                Del
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* TAB: MANAGE OFFICERS */}
-          {activeTab === 'manage-officers' && isAdmin && (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))', gap: '20px' }}>
-              <div className={styles.adminFormCard} ref={officerFormRef}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
-                  <h3 className={styles.analyticsTitle} style={{ fontSize: '0.95rem', margin: 0 }}>
-                    {editingOfficerId ? 'Edit Student Leader / Officer' : 'Add Student Leader / Officer'}
-                  </h3>
-                  {editingOfficerId && (
-                    <button
-                      type="button"
-                      onClick={handleCancelEditOfficer}
-                      style={{
-                        background: 'none',
-                        border: '1px solid #cbd5e1',
-                        borderRadius: '6px',
-                        padding: '3px 8px',
-                        fontSize: '0.72rem',
-                        fontWeight: 800,
-                        color: '#64748b',
-                        cursor: 'pointer',
-                      }}
-                    >
-                      ✕ Cancel Edit
-                    </button>
-                  )}
-                </div>
-
-                <form onSubmit={handleSaveOfficer} className={styles.loginForm}>
-                  <input
-                    type="file"
-                    ref={officerAvatarInputRef}
-                    onChange={handleOfficerAvatarUpload}
-                    accept="image/*"
-                    style={{ display: 'none' }}
-                  />
-
-                  <div className={styles.inputGroup}>
-                    <label className={styles.inputLabel} style={{ fontSize: '0.75rem' }}>Officer 2x2 / Formal Photo</label>
-                    <div
-                      onClick={() => officerAvatarInputRef.current?.click()}
-                      style={{
-                        border: '2px dashed #bbf7d0',
-                        borderRadius: '14px',
-                        padding: '14px',
-                        textAlign: 'center',
-                        cursor: 'pointer',
-                        backgroundColor: '#f0fdf4',
-                        transition: 'border 0.2s',
-                      }}
-                    >
-                      {compressingOfficerAvatar ? (
-                        <span style={{ fontSize: '0.8rem', color: '#15803d', fontWeight: 800 }}>
-                          Compressing image...
-                        </span>
-                      ) : officerAvatar ? (
-                        <div>
-                          <img
-                            src={officerAvatar}
-                            alt="Officer Preview"
-                            style={{ width: '70px', height: '70px', borderRadius: '18px', objectFit: 'cover' }}
-                          />
-                          <span style={{ fontSize: '0.72rem', color: '#15803d', fontWeight: 800, marginTop: '4px', display: 'block' }}>
-                            Click to change photo
-                          </span>
-                        </div>
-                      ) : (
-                        <div>
-                          <span style={{ fontSize: '1.4rem', display: 'block', marginBottom: '2px' }}>👤</span>
-                          <span style={{ fontSize: '0.82rem', color: '#15803d', fontWeight: 800 }}>
-                            + Upload Formal Photo
-                          </span>
-                        </div>
-                      )}
-                    </div>
+                    </form>
                   </div>
 
-                  <div className={styles.inputGroup}>
-                    <label className={styles.inputLabel} style={{ fontSize: '0.75rem' }}>Full Name *</label>
-                    <input
-                      type="text"
-                      placeholder="e.g. Juan Dela Cruz"
-                      value={officerName}
-                      onChange={(e) => setOfficerName(e.target.value)}
-                      className={styles.loginInput}
-                      style={{ padding: '10px 12px', fontSize: '0.9rem' }}
-                      required
-                    />
-                  </div>
-
-                  <div className={styles.inputGroup}>
-                    <label className={styles.inputLabel} style={{ fontSize: '0.75rem' }}>Official Position / Role *</label>
-                    <input
-                      type="text"
-                      placeholder="e.g. President, Vice President, Treasurer"
-                      value={officerPosition}
-                      onChange={(e) => setOfficerPosition(e.target.value)}
-                      className={styles.loginInput}
-                      style={{ padding: '10px 12px', fontSize: '0.9rem' }}
-                      required
-                    />
-                  </div>
-
-                  <div className={styles.inputGroup}>
-                    <label className={styles.inputLabel} style={{ fontSize: '0.75rem' }}>Department / Council</label>
-                    <select
-                      value={officerDepartment}
-                      onChange={(e) => setOfficerDepartment(e.target.value)}
-                      className={styles.loginInput}
-                      style={{ padding: '10px 12px', fontSize: '0.9rem' }}
-                    >
-                      <option value="Supreme Student Government (SSG)">Supreme Student Government (SSG)</option>
-                      <option value="BSCRIM Department">BSCRIM Department</option>
-                      <option value="BSBA Department">BSBA Department</option>
-                      <option value="BSA Department">BSA Department</option>
-                      <option value="BEED Department">BEED Department</option>
-                      <option value="BSAM Department">BSAM Department</option>
-                    </select>
-                  </div>
-
-                  <div className={styles.inputGroup}>
-                    <label className={styles.inputLabel} style={{ fontSize: '0.75rem' }}>Term / Academic Year</label>
-                    <input
-                      type="text"
-                      value={officerTerm}
-                      onChange={(e) => setOfficerTerm(e.target.value)}
-                      className={styles.loginInput}
-                      style={{ padding: '10px 12px', fontSize: '0.9rem' }}
-                    />
-                  </div>
-
-                  <div style={{ display: 'flex', gap: '8px' }}>
-                    <button
-                      type="submit"
-                      disabled={loading || compressingOfficerAvatar}
-                      className={styles.adminPrimaryBtn}
-                      style={{ flex: 1, minHeight: '44px', fontSize: '0.9rem' }}
-                    >
-                      {loading
-                        ? 'Saving...'
-                        : editingOfficerId
-                        ? 'Save Changes ➔'
-                        : 'Publish Officer ➔'}
-                    </button>
-                    {editingOfficerId && (
-                      <button
-                        type="button"
-                        onClick={handleCancelEditOfficer}
-                        style={{
-                          backgroundColor: '#f1f5f9',
-                          color: '#475569',
-                          border: '1px solid #cbd5e1',
-                          borderRadius: '12px',
-                          padding: '0 14px',
-                          fontWeight: 800,
-                          cursor: 'pointer',
-                        }}
-                      >
-                        Cancel
-                      </button>
-                    )}
-                  </div>
-                </form>
-              </div>
-
-              {/* Published Officers Roster */}
-              <div className={styles.adminFormCard}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
-                  <h3 className={styles.analyticsTitle} style={{ fontSize: '0.95rem', margin: 0 }}>
-                    Official Officers Roster ({officersList.length})
-                  </h3>
-                </div>
-
-                {officersList.length === 0 ? (
-                  <div style={{ textAlign: 'center', padding: '30px', color: '#94a3b8', fontSize: '0.85rem' }}>
-                    No officers registered yet.
-                  </div>
-                ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', width: '100%' }}>
-                    {officersList.map((off) => (
-                      <div
-                        key={off.id}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          padding: '12px 14px',
-                          borderRadius: '14px',
-                          border: '1px solid #e2e8f0',
-                          backgroundColor: '#ffffff',
-                          boxShadow: '0 1px 3px rgba(0,0,0,0.02)',
-                          gap: '10px',
-                        }}
-                      >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0, flex: 1 }}>
-                          <div
-                            style={{
-                              width: '46px',
-                              height: '46px',
-                              borderRadius: '12px',
-                              backgroundColor: '#dcfce7',
-                              border: '2px solid #15803d',
-                              overflow: 'hidden',
-                              flexShrink: 0,
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                            }}
-                          >
-                            {off.avatar_url ? (
-                              <img src={off.avatar_url} alt={off.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                            ) : (
-                              <span style={{ fontSize: '1.2rem' }}>👤</span>
-                            )}
-                          </div>
-                          <div style={{ minWidth: 0 }}>
-                            <h4 style={{ margin: 0, fontSize: '0.92rem', fontWeight: 900, color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                              {off.name}
-                            </h4>
-                            <div style={{ fontSize: '0.78rem', fontWeight: 800, color: '#15803d' }}>
-                              {off.position}
-                            </div>
-                            <div style={{ fontSize: '0.7rem', color: '#64748b' }}>
-                              {off.department} • {off.term}
-                            </div>
-                          </div>
-                        </div>
-
-                        <div style={{ display: 'inline-flex', gap: '6px', flexShrink: 0 }}>
-                          <button
-                            type="button"
-                            onClick={() => handleStartEditOfficer(off)}
-                            style={{
-                              border: '1px solid #bbf7d0',
-                              backgroundColor: '#f0fdf4',
-                              color: '#15803d',
-                              fontWeight: 800,
-                              cursor: 'pointer',
-                              padding: '6px 12px',
-                              borderRadius: '8px',
-                              fontSize: '0.75rem',
-                              touchAction: 'manipulation',
-                            }}
-                          >
-                            Edit
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => triggerDeletePrompt('officer', off.id, off.name)}
-                            style={{
-                              border: '1px solid #fecaca',
-                              backgroundColor: '#fef2f2',
-                              color: '#b91c1c',
-                              fontWeight: 900,
-                              padding: '6px 12px',
-                              borderRadius: '8px',
-                              fontSize: '0.75rem',
-                              cursor: 'pointer',
-                              touchAction: 'manipulation',
-                            }}
-                          >
-                            Remove
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* TAB 5: SCAN QR & QUICK LOG */}
-          {activeTab === 'scan-qr' && (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))', gap: '20px' }}>
-              <div className={styles.adminFormCard} style={{ padding: '24px 18px', textAlign: 'center' }}>
-                <h3 className={styles.analyticsTitle} style={{ justifyContent: 'center', fontSize: '1.15rem', marginBottom: '6px' }}>
-                  Live Attendance QR Scanner
-                </h3>
-                <p style={{ fontSize: '0.82rem', color: '#64748b', marginBottom: '18px', lineHeight: 1.45 }}>
-                  Configure the scanning mode and schedule below, then launch the continuous camera scanner.
-                </p>
-
-                {/* SCANNER GATE TOGGLE */}
-                <div
-                  style={{
-                    backgroundColor: isScannerGateOpen ? '#f0fdf4' : '#fef2f2',
-                    border: `1px solid ${isScannerGateOpen ? '#bbf7d0' : '#fecaca'}`,
-                    borderRadius: '16px',
-                    padding: '12px 16px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    marginBottom: '16px',
-                  }}
-                >
-                  <div style={{ textAlign: 'left' }}>
-                    <div style={{ fontSize: '0.88rem', fontWeight: 900, color: isScannerGateOpen ? '#15803d' : '#b91c1c' }}>
-                      Scanner Gate: {isScannerGateOpen ? 'OPEN (ACCEPTING SCANS)' : 'CLOSED (PAUSED)'}
-                    </div>
-                    <span style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: 700 }}>
-                      {isScannerGateOpen
-                        ? 'Students and staff can scan right now'
-                        : 'Attendance logging is stopped by Administrator'}
-                    </span>
-                  </div>
-
-                  {isAdmin ? (
-                    <button
-                      type="button"
-                      onClick={handleToggleScannerGate}
-                      style={{
-                        backgroundColor: isScannerGateOpen ? '#15803d' : '#ef4444',
-                        color: '#ffffff',
-                        border: 'none',
-                        borderRadius: '10px',
-                        padding: '8px 14px',
-                        fontSize: '0.78rem',
-                        fontWeight: 900,
-                        cursor: 'pointer',
-                        boxShadow: '0 2px 6px rgba(0,0,0,0.1)',
-                        touchAction: 'manipulation',
-                      }}
-                    >
-                      {isScannerGateOpen ? 'Turn OFF' : 'Turn ON'}
-                    </button>
-                  ) : (
-                    <div
-                      style={{
-                        fontSize: '0.72rem',
-                        fontWeight: 800,
-                        color: '#475569',
-                        backgroundColor: '#f1f5f9',
-                        border: '1px solid #cbd5e1',
-                        padding: '6px 10px',
-                        borderRadius: '8px',
-                      }}
-                    >
-                      Admin Controlled
-                    </div>
-                  )}
-                </div>
-
-                {/* TIME IN vs TIME OUT TOGGLE BUTTONS */}
-                <div style={{ marginBottom: '16px' }}>
-                  <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 900, color: '#0f172a', marginBottom: '8px', textAlign: 'left' }}>
-                    SELECT SCANNER MODE:
-                  </label>
-                  <div
-                    style={{
-                      display: 'grid',
-                      gridTemplateColumns: '1fr 1fr',
-                      gap: '8px',
-                      backgroundColor: '#f1f5f9',
-                      padding: '6px',
-                      borderRadius: '14px',
-                    }}
-                  >
-                    <button
-                      type="button"
-                      onClick={() => setScanMode('time_in')}
-                      style={{
-                        padding: '10px',
-                        borderRadius: '10px',
-                        border: 'none',
-                        fontWeight: 900,
-                        fontSize: '0.88rem',
-                        cursor: 'pointer',
-                        transition: 'all 0.2s',
-                        backgroundColor: scanMode === 'time_in' ? '#15803d' : 'transparent',
-                        color: scanMode === 'time_in' ? '#ffffff' : '#64748b',
-                        boxShadow: scanMode === 'time_in' ? '0 2px 8px rgba(21, 128, 61, 0.25)' : 'none',
-                        touchAction: 'manipulation',
-                      }}
-                    >
-                      TIME IN SCANNER
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => setScanMode('time_out')}
-                      style={{
-                        padding: '10px',
-                        borderRadius: '10px',
-                        border: 'none',
-                        fontWeight: 900,
-                        fontSize: '0.88rem',
-                        cursor: 'pointer',
-                        transition: 'all 0.2s',
-                        backgroundColor: scanMode === 'time_out' ? '#2563eb' : 'transparent',
-                        color: scanMode === 'time_out' ? '#ffffff' : '#64748b',
-                        boxShadow: scanMode === 'time_out' ? '0 2px 8px rgba(37, 99, 235, 0.25)' : 'none',
-                        touchAction: 'manipulation',
-                      }}
-                    >
-                      TIME OUT SCANNER
-                    </button>
-                  </div>
-                </div>
-
-                {/* TARGET EVENT SCHEDULE */}
-                <div style={{ marginBottom: '18px', textAlign: 'left' }}>
-                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: '#334155', marginBottom: '6px' }}>
-                    Target Event Schedule:
-                  </label>
-                  <select
-                    value={selectedEventId}
-                    onChange={(e) => setSelectedEventId(e.target.value)}
-                    className={styles.loginInput}
-                    style={{ padding: '10px 12px', fontSize: '0.88rem' }}
-                  >
-                    {events.map((ev) => (
-                      <option key={ev.id} value={ev.id}>
-                        {ev.title} ({ev.date}) - In: {formatTime12Hour(ev.time_in)} / Out: {formatTime12Hour(ev.time_out)}
-                      </option>
-                    ))}
-                  </select>
-
-                  {activeEventObj && (
-                    <div style={{ marginTop: '8px', fontSize: '0.75rem', color: '#64748b', backgroundColor: '#f8fafc', padding: '8px 12px', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
-                      <span style={{ fontWeight: 800, color: '#0f172a' }}>Scheduled Hours: </span>
-                      Time In Starts: <strong style={{ color: '#15803d' }}>{formatTime12Hour(activeEventObj.time_in)}</strong> • Time Out: <strong style={{ color: '#2563eb' }}>{formatTime12Hour(activeEventObj.time_out)}</strong>
-                    </div>
-                  )}
-                </div>
-
-                <button
-                  type="button"
-                  onClick={startCameraScanner}
-                  disabled={!isScannerGateOpen}
-                  className={styles.submitBtn}
-                  style={{
-                    minHeight: '48px',
-                    fontSize: '0.95rem',
-                    fontWeight: 900,
-                    backgroundColor: !isScannerGateOpen ? '#94a3b8' : scanMode === 'time_in' ? '#15803d' : '#2563eb',
-                    cursor: !isScannerGateOpen ? 'not-allowed' : 'pointer',
-                    touchAction: 'manipulation',
-                  }}
-                >
-                  {!isScannerGateOpen
-                    ? 'Scanner Gate is Closed by Admin'
-                    : `Launch ${scanMode === 'time_in' ? 'Time In' : 'Time Out'} Scanner ➔`}
-                </button>
-              </div>
-
-              {/* MANUAL CHECK-IN */}
-              <div className={styles.adminFormCard}>
-                <h3 className={styles.analyticsTitle} style={{ fontSize: '0.95rem', marginBottom: '8px' }}>
-                  Manual School ID Check-in
-                </h3>
-                <p style={{ fontSize: '0.8rem', color: '#64748b', marginBottom: '14px' }}>
-                  Mode: <strong style={{ color: scanMode === 'time_in' ? '#15803d' : '#2563eb' }}>{scanMode.toUpperCase()}</strong>. For students without smartphones or camera issues.
-                </p>
-
-                <form onSubmit={handleManualScanSubmit} className={styles.loginForm}>
-                  <div className={styles.inputGroup}>
-                    <label className={styles.inputLabel} style={{ fontSize: '0.75rem' }}>School ID (e.g. 2024-0616) *</label>
-                    <input
-                      type="text"
-                      placeholder="e.g. 2024-0616"
-                      value={manualStudentId}
-                      onChange={(e) => setManualStudentId(e.target.value)}
-                      className={styles.loginInput}
-                      style={{ padding: '10px 12px', fontSize: '0.9rem' }}
-                      required
-                    />
-                  </div>
-
-                  <button
-                    type="submit"
-                    disabled={!isScannerGateOpen}
-                    className={styles.adminPrimaryBtn}
-                    style={{
-                      minHeight: '44px',
-                      fontSize: '0.9rem',
-                      backgroundColor: !isScannerGateOpen ? '#94a3b8' : scanMode === 'time_in' ? '#15803d' : '#2563eb',
-                      cursor: !isScannerGateOpen ? 'not-allowed' : 'pointer',
-                      touchAction: 'manipulation',
-                    }}
-                  >
-                    {!isScannerGateOpen ? 'Scanner Closed' : `Mark ${scanMode === 'time_in' ? 'Time In' : 'Time Out'}`}
-                  </button>
-                </form>
-
-                {scanLogMsg.text && (
-                  <div
-                    className={styles.alertMessage}
-                    style={{
-                      marginTop: '12px',
-                      fontSize: '0.85rem',
-                      color: scanLogMsg.type === 'error' ? '#b91c1c' : scanLogMsg.type === 'warning' ? '#b45309' : '#15803d',
-                      backgroundColor: scanLogMsg.type === 'error' ? '#fef2f2' : scanLogMsg.type === 'warning' ? '#fefce8' : '#f0fdf4',
-                    }}
-                  >
-                    {scanLogMsg.text}
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* TAB 6: SEARCH STUDENT ATTENDANCE HISTORY */}
-          {activeTab === 'search-student' && (
-            <div style={{ maxWidth: '900px', margin: '0 auto', width: '100%' }}>
-              <div className={styles.adminFormCard} style={{ padding: '20px', marginBottom: '20px' }}>
-                <h3 className={styles.analyticsTitle} style={{ fontSize: '1.1rem', marginBottom: '6px' }}>
-                  Search Student Attendance Records
-                </h3>
-                <p style={{ fontSize: '0.85rem', color: '#64748b', margin: '0 0 16px 0', lineHeight: 1.45 }}>
-                  Enter the student&apos;s School ID to view total Present, Absent, and complete Time In / Time Out logs across all events.
-                </p>
-
-                <form onSubmit={handleSearchStudentHistory} style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                  <input
-                    type="text"
-                    placeholder="e.g. 2024-0616"
-                    value={searchHistoryId}
-                    onChange={(e) => setSearchHistoryId(e.target.value)}
-                    className={styles.loginInput}
-                    style={{ flex: 1, minWidth: '180px', padding: '10px 14px', fontSize: '0.95rem' }}
-                    required
-                  />
-                  <button
-                    type="submit"
-                    disabled={searchingHistory}
-                    className={styles.adminPrimaryBtn}
-                    style={{ minHeight: '44px', padding: '10px 20px', fontSize: '0.92rem', flexShrink: 0, touchAction: 'manipulation' }}
-                  >
-                    {searchingHistory ? 'Searching...' : 'Search Student'}
-                  </button>
-                </form>
-
-                {historySearchMessage && (
-                  <div
-                    className={styles.alertMessage}
-                    style={{ marginTop: '14px', backgroundColor: '#fef2f2', color: '#b91c1c', borderColor: '#fecaca', fontSize: '0.85rem' }}
-                  >
-                    {historySearchMessage}
-                  </div>
-                )}
-              </div>
-
-              {searchedStudent && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '18px', width: '100%' }}>
-                  <div
-                    style={{
-                      backgroundColor: '#ffffff',
-                      border: '1px solid #bbf7d0',
-                      borderRadius: '20px',
-                      padding: '18px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '16px',
-                      boxShadow: '0 4px 12px rgba(21, 128, 61, 0.08)',
-                      flexWrap: 'wrap',
-                    }}
-                  >
-                    <div
-                      style={{
-                        width: '64px',
-                        height: '64px',
-                        borderRadius: '16px',
-                        backgroundColor: '#dcfce7',
-                        border: '2px solid #15803d',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontSize: '0.85rem',
-                        fontWeight: 900,
-                        color: '#15803d',
-                        overflow: 'hidden',
-                        flexShrink: 0,
-                      }}
-                    >
-                      {searchedStudent.avatar_url ? (
-                        <img src={searchedStudent.avatar_url} alt={searchedStudent.full_name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                      ) : (
-                        'USER'
-                      )}
-                    </div>
-
-                    <div style={{ flex: 1, minWidth: '180px' }}>
-                      <span className={styles.idBadge} style={{ fontSize: '0.7rem', padding: '2px 8px' }}>
-                        VERIFIED STUDENT
-                      </span>
-                      <h2 style={{ margin: '4px 0 2px 0', fontSize: '1.25rem', fontWeight: 900, color: '#0f172a' }}>
-                        {searchedStudent.full_name}
-                      </h2>
-                      <div style={{ fontSize: '0.82rem', fontWeight: 800, color: '#15803d' }}>
-                        ID: {searchedStudent.school_id} • {searchedStudent.course} ({searchedStudent.section || 'Section A'})
-                      </div>
-                      <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '2px' }}>
-                        {searchedStudent.email}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className={styles.attendanceStatsGrid}>
-                    <div className={styles.attStatCard} style={{ padding: '16px' }}>
-                      <span className={styles.attStatLabel} style={{ fontSize: '0.75rem' }}>Total Events</span>
-                      <div className={styles.attStatValue} style={{ fontSize: '1.8rem' }}>{historyTotalEvents}</div>
-                    </div>
-
-                    <div className={styles.attStatCard} style={{ padding: '16px' }}>
-                      <span className={styles.attStatLabel} style={{ fontSize: '0.75rem' }}>Total Present</span>
-                      <div className={`${styles.attStatValue} ${styles.attGreenText}`} style={{ fontSize: '1.8rem' }}>
-                        {historyPresentCount}
-                      </div>
-                    </div>
-
-                    <div className={styles.attStatCard} style={{ padding: '16px' }}>
-                      <span className={styles.attStatLabel} style={{ fontSize: '0.75rem' }}>Total Absences</span>
-                      <div className={styles.attStatValue} style={{ color: '#b91c1c', fontSize: '1.8rem' }}>
-                        {historyAbsentCount}
-                      </div>
-                    </div>
-
-                    <div className={styles.attStatCard} style={{ padding: '16px' }}>
-                      <span className={styles.attStatLabel} style={{ fontSize: '0.75rem' }}>Compliance Rate</span>
-                      <div className={`${styles.attStatValue} ${styles.attGreenText}`} style={{ fontSize: '1.8rem' }}>
-                        {historyComplianceRate}%
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className={styles.adminFormCard} style={{ padding: '16px 14px', width: '100%', boxSizing: 'border-box' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '8px' }}>
-                      <h3 className={styles.analyticsTitle} style={{ fontSize: '0.95rem', margin: 0 }}>
-                        Detailed Event Attendance Logs ({studentAttendanceRecords.length})
-                      </h3>
-                    </div>
-
-                    {studentAttendanceRecords.length === 0 ? (
-                      <div style={{ textAlign: 'center', padding: '20px', color: '#94a3b8', fontSize: '0.85rem' }}>
-                        No events recorded.
-                      </div>
+                  <div className="ad-card">
+                    <div className="ad-ct"><h3><span className="ad-ci"><Ic d="users" s={19} /></span> Authorized scanners ({staffList.length})</h3></div>
+                    {staffList.length === 0 ? (
+                      <div className="ad-empty">No authorized scanners registered yet.</div>
                     ) : (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', width: '100%' }}>
-                        {studentAttendanceRecords.map((record) => {
-                          const isPresent = record.status === 'PRESENT';
+                      <div className="ad-list">
+                        {staffList.map((st) => {
+                          const isPermanentAdmin = st.role === 'admin';
+                          const canAddSt = Boolean(st.can_add_students);
                           return (
-                            <div
-                              key={record.eventId}
-                              style={{
-                                backgroundColor: '#ffffff',
-                                border: `1px solid ${isPresent ? '#bbf7d0' : '#fee2e2'}`,
-                                borderRadius: '14px',
-                                padding: '12px 14px',
-                                display: 'flex',
-                                flexDirection: 'column',
-                                gap: '8px',
-                                width: '100%',
-                                boxSizing: 'border-box',
-                                boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
-                              }}
-                            >
-                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '10px' }}>
-                                <div style={{ minWidth: 0, flex: 1 }}>
-                                  <h4 style={{ margin: '0 0 2px 0', fontSize: '0.92rem', fontWeight: 900, color: '#0f172a', wordBreak: 'break-word' }}>
-                                    {record.eventTitle}
-                                  </h4>
-                                  <div style={{ fontSize: '0.75rem', color: '#15803d', fontWeight: 800 }}>
-                                    Location: {record.eventLocation || 'FaCET Facade'}
+                            <div key={st.id} className={`ad-sc ${isPermanentAdmin ? 'adm' : ''}`}>
+                              <div className="ad-scr">
+                                <div className="ad-rl">
+                                  <span className="ad-th round" style={{ width: 44, height: 44 }}><Ic d="user" s={22} /></span>
+                                  <div className="ad-rt">
+                                    <h4>{st.full_name} {isPermanentAdmin && <span className="ad-pill" style={{ marginLeft: 4 }}>Admin</span>}</h4>
+                                    <div>{st.email}</div>
                                   </div>
                                 </div>
-                                <span
-                                  style={{
-                                    display: 'inline-block',
-                                    backgroundColor: isPresent ? '#dcfce7' : '#fef2f2',
-                                    color: isPresent ? '#15803d' : '#b91c1c',
-                                    border: `1px solid ${isPresent ? '#86efac' : '#fecaca'}`,
-                                    borderRadius: '9999px',
-                                    padding: '3px 10px',
-                                    fontSize: '0.72rem',
-                                    fontWeight: 900,
-                                    flexShrink: 0,
-                                    textTransform: 'uppercase',
-                                  }}
-                                >
-                                  {isPresent ? 'PRESENT' : 'ABSENT'}
-                                </span>
+                                {isPermanentAdmin ? (
+                                  <span className="ad-pill" style={{ flexShrink: 0 }}><Ic d="lock" s={13} /> Permanent admin</span>
+                                ) : (
+                                  <button type="button" className="ad-b org sm" onClick={() => triggerDeletePrompt('staff', st.id, st.full_name)}>Revoke</button>
+                                )}
                               </div>
 
-                              <div
-                                style={{
-                                  display: 'grid',
-                                  gridTemplateColumns: 'repeat(auto-fit, minmax(85px, 1fr))',
-                                  gap: '8px',
-                                  backgroundColor: '#f8fafc',
-                                  borderRadius: '10px',
-                                  padding: '8px 10px',
-                                  fontSize: '0.75rem',
-                                }}
-                              >
-                                <div>
-                                  <span style={{ color: '#64748b', display: 'block', fontWeight: 700, fontSize: '0.68rem' }}>DATE</span>
-                                  <span style={{ fontWeight: 800, color: '#0f172a' }}>{record.eventDate}</span>
+                              {!isPermanentAdmin && (
+                                <div className={`ad-perm ${canAddSt ? 'on' : ''}`}>
+                                  <span>Can add student: <strong>{canAddSt ? 'ALLOWED' : 'LOCKED'}</strong></span>
+                                  <button
+                                    type="button"
+                                    className={`ad-b sm ${canAddSt ? 'dng' : 'out'}`}
+                                    onClick={() => handleToggleStaffAddStudentPermission(st.id, canAddSt, st.full_name)}
+                                  >
+                                    {canAddSt ? 'Revoke permission' : 'Grant permission'}
+                                  </button>
                                 </div>
-                                <div>
-                                  <span style={{ color: '#64748b', display: 'block', fontWeight: 700, fontSize: '0.68rem' }}>TIME IN</span>
-                                  <span style={{ fontWeight: 800, color: isPresent ? '#15803d' : '#94a3b8' }}>{record.actualTimeIn}</span>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* TAB 4: MANAGE EVENTS */}
+            {activeTab === 'add-event' && isAdmin && (
+              <div>
+                <PageHead icon="cal" badge="Events" title="Manage events" sub="Publish and update official campus activities." />
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
+                  <div className="ad-card" ref={formRef}>
+                    <div className="ad-ct">
+                      <h3><span className="ad-ci"><Ic d={editingEventId ? 'pencil' : 'plus'} s={19} /></span> {editingEventId ? 'Edit event' : 'Publish new event'}</h3>
+                      {editingEventId && <button type="button" className="ad-b neu sm" onClick={handleCancelEditEvent}><Ic d="x" s={14} /> Cancel edit</button>}
+                    </div>
+
+                    <form className="ad-fm" onSubmit={handleSaveEvent}>
+                      <Field label="Event poster">
+                        <input type="file" ref={eventImageInputRef} onChange={handleEventImageUpload} accept="image/*" style={{ display: 'none' }} />
+                        <div className="ad-up" onClick={() => eventImageInputRef.current?.click()}>
+                          {compressingImage ? (
+                            'Optimizing image...'
+                          ) : eventImage ? (
+                            <><img src={eventImage} alt="Event preview" /><span>Click to change picture</span></>
+                          ) : (
+                            <><Ic d="img" s={30} w={1.7} /> Upload event picture</>
+                          )}
+                        </div>
+                      </Field>
+                      <Field label="Event title *">
+                        <input className="ad-in" type="text" value={eventTitle} onChange={(e) => setEventTitle(e.target.value)} required />
+                      </Field>
+                      <div className="ad-2">
+                        <Field label="Location *">
+                          <input className="ad-in" type="text" value={eventLocation} onChange={(e) => setEventLocation(e.target.value)} required />
+                        </Field>
+                        <Field label="Mode">
+                          <select className="ad-in" value={eventStatus} onChange={(e) => setEventStatus(e.target.value)}>
+                            <option value="active">Active (Open)</option>
+                            <option value="inactive">Inactive (Closed)</option>
+                          </select>
+                        </Field>
+                      </div>
+                      <div className="ad-2">
+                        <Field label="Event date *">
+                          <input className="ad-in" type="date" value={eventDate} onChange={(e) => setEventDate(e.target.value)} required />
+                        </Field>
+                        <div className="ad-2" style={{ gap: 8 }}>
+                          <Field label="Time in *">
+                            <input className="ad-in" type="time" value={timeIn} onChange={(e) => setTimeIn(e.target.value)} required />
+                          </Field>
+                          <Field label="Time out *">
+                            <input className="ad-in" type="time" value={timeOut} onChange={(e) => setTimeOut(e.target.value)} required />
+                          </Field>
+                        </div>
+                      </div>
+                      <Field label="Description">
+                        <textarea className="ad-in" rows="2" value={eventDesc} onChange={(e) => setEventDesc(e.target.value)} placeholder="Brief details..." />
+                      </Field>
+                      <FormButtons editing={Boolean(editingEventId)} saving={loading} disabled={compressingImage} onCancel={handleCancelEditEvent} addLabel="Publish event" saveLabel="Save changes" />
+                    </form>
+                  </div>
+
+                  {/* PUBLISHED EVENTS */}
+                  <div className="ad-card">
+                    <div className="ad-ct">
+                      <h3><span className="ad-ci"><Ic d="cal" s={19} /></span> Published events ({filteredEvents.length})</h3>
+                      <SearchBox value={searchEventQuery} onChange={(e) => setSearchEventQuery(e.target.value)} placeholder="Search event..." />
+                    </div>
+
+                    {filteredEvents.length === 0 ? (
+                      <div className="ad-empty">No events found.</div>
+                    ) : (
+                      <div className="ad-list">
+                        {filteredEvents.map((ev) => {
+                          const isActive = ev.status === 'active';
+                          return (
+                            <div key={ev.id} className={`ad-row ${editingEventId === ev.id ? 'sel' : ''}`}>
+                              <div className="ad-rl">
+                                <span className="ad-th">{ev.image_url ? <img src={ev.image_url} alt="Event" /> : <Ic d="cal" s={22} />}</span>
+                                <div className="ad-rt">
+                                  <h4>{ev.title}</h4>
+                                  <div className="g">{ev.location || 'FaCET Facade'}</div>
+                                  <div>{ev.date} • {formatTime12Hour(ev.time_in)} - {formatTime12Hour(ev.time_out)}</div>
                                 </div>
-                                <div>
-                                  <span style={{ color: '#64748b', display: 'block', fontWeight: 700, fontSize: '0.68rem' }}>TIME OUT</span>
-                                  <span style={{ fontWeight: 800, color: isPresent ? '#15803d' : '#94a3b8' }}>{record.actualTimeOut}</span>
-                                </div>
+                              </div>
+                              <div className="ad-re">
+                                <span className={`ad-pill ${isActive ? '' : 'mu'}`}>{isActive ? 'Active' : 'Closed'}</span>
+                                <EditActions onEdit={() => handleStartEditEvent(ev)} onDel={() => triggerDeletePrompt('event', ev.id, ev.title)} delLabel="Delete" />
                               </div>
                             </div>
                           );
@@ -3425,319 +2085,278 @@ export default function AdminDashboard() {
                     )}
                   </div>
                 </div>
-              )}
-            </div>
-          )}
+              </div>
+            )}
+
+            {/* TAB: MANAGE OFFICERS */}
+            {activeTab === 'manage-officers' && isAdmin && (
+              <div>
+                <PageHead icon="award" badge="Leadership" title="Manage officers" sub="Publish the official student leadership roster." />
+                <div className="ad-g2">
+                  <div className="ad-card ad-sticky" ref={officerFormRef}>
+                    <div className="ad-ct">
+                      <h3><span className="ad-ci"><Ic d={editingOfficerId ? 'pencil' : 'plus'} s={19} /></span> {editingOfficerId ? 'Edit officer' : 'Add officer'}</h3>
+                      {editingOfficerId && <button type="button" className="ad-b neu sm" onClick={handleCancelEditOfficer}><Ic d="x" s={14} /> Cancel edit</button>}
+                    </div>
+
+                    <form className="ad-fm" onSubmit={handleSaveOfficer}>
+                      <input type="file" ref={officerAvatarInputRef} onChange={handleOfficerAvatarUpload} accept="image/*" style={{ display: 'none' }} />
+                      <Field label="Officer 2x2 / formal photo">
+                        <div className="ad-up" onClick={() => officerAvatarInputRef.current?.click()}>
+                          {compressingOfficerAvatar ? (
+                            'Compressing image...'
+                          ) : officerAvatar ? (
+                            <><img className="av" src={officerAvatar} alt="Officer preview" /><span>Click to change photo</span></>
+                          ) : (
+                            <><Ic d="user" s={30} w={1.7} /> Upload formal photo</>
+                          )}
+                        </div>
+                      </Field>
+                      <Field label="Full name *">
+                        <input className="ad-in" type="text" placeholder="e.g. Juan Dela Cruz" value={officerName} onChange={(e) => setOfficerName(e.target.value)} required />
+                      </Field>
+                      <Field label="Official position / role *">
+                        <input className="ad-in" type="text" placeholder="e.g. President, Vice President, Treasurer" value={officerPosition} onChange={(e) => setOfficerPosition(e.target.value)} required />
+                      </Field>
+                      <Field label="Department / council">
+                        <select className="ad-in" value={officerDepartment} onChange={(e) => setOfficerDepartment(e.target.value)}>
+                          {['Supreme Student Government (SSG)', 'BSCRIM Department', 'BSBA Department', 'BSA Department', 'BEED Department', 'BSAM Department'].map((d) => (<option key={d} value={d}>{d}</option>))}
+                        </select>
+                      </Field>
+                      <Field label="Term / academic year">
+                        <input className="ad-in" type="text" value={officerTerm} onChange={(e) => setOfficerTerm(e.target.value)} />
+                      </Field>
+                      <FormButtons editing={Boolean(editingOfficerId)} saving={loading} disabled={compressingOfficerAvatar} onCancel={handleCancelEditOfficer} addLabel="Publish officer" saveLabel="Save changes" />
+                    </form>
+                  </div>
+
+                  <div className="ad-card">
+                    <div className="ad-ct"><h3><span className="ad-ci"><Ic d="award" s={19} /></span> Official officers roster ({officersList.length})</h3></div>
+                    {officersList.length === 0 ? (
+                      <div className="ad-empty">No officers registered yet.</div>
+                    ) : (
+                      <div className="ad-list">
+                        {officersList.map((off) => (
+                          <div key={off.id} className="ad-row">
+                            <div className="ad-rl">
+                              <span className="ad-th round">{off.avatar_url ? <img src={off.avatar_url} alt={off.name} /> : <Ic d="user" s={24} />}</span>
+                              <div className="ad-rt">
+                                <h4>{off.name}</h4>
+                                <div className="g">{off.position}</div>
+                                <div>{off.department} • {off.term}</div>
+                              </div>
+                            </div>
+                            <EditActions onEdit={() => handleStartEditOfficer(off)} onDel={() => triggerDeletePrompt('officer', off.id, off.name)} delLabel="Remove" />
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* TAB 5: SCAN QR & QUICK LOG */}
+            {activeTab === 'scan-qr' && (
+              <div>
+                <PageHead icon="qr" badge="Attendance scanner" title="Scan QR & quick log" sub="Record time-in and time-out for official events." />
+                <div className="ad-g2 even">
+                  <div className="ad-card ad-center">
+                    <div className="ad-ct" style={{ justifyContent: 'center' }}><h3><span className="ad-ci"><Ic d="scan" s={19} /></span> Live attendance QR scanner</h3></div>
+                    <p className="ad-sub" style={{ marginTop: -6 }}>Configure the scanning mode and schedule below, then launch the continuous camera scanner.</p>
+
+                    {/* SCANNER GATE TOGGLE */}
+                    <div className={`ad-gate ${isScannerGateOpen ? 'on' : 'off'}`}>
+                      <div>
+                        <b>Scanner gate: {isScannerGateOpen ? 'OPEN (accepting scans)' : 'CLOSED (paused)'}</b>
+                        <small>{isScannerGateOpen ? 'Students and staff can scan right now' : 'Attendance logging is stopped by Administrator'}</small>
+                      </div>
+                      {isAdmin ? (
+                        <button type="button" className={`ad-b sm ${isScannerGateOpen ? 'pri' : 'dsol'}`} onClick={handleToggleScannerGate}>
+                          <Ic d="power" s={15} /> {isScannerGateOpen ? 'Turn OFF' : 'Turn ON'}
+                        </button>
+                      ) : (
+                        <span className="ad-pill mu">Admin controlled</span>
+                      )}
+                    </div>
+
+                    {/* TIME IN vs TIME OUT */}
+                    <div style={{ textAlign: 'left', marginBottom: 16 }}>
+                      <label className="ad-l">Select scanner mode</label>
+                      <div className="ad-seg">
+                        <button type="button" className={modeIn ? 'in' : ''} onClick={() => setScanMode('time_in')}><Ic d="check" s={16} /> Time in</button>
+                        <button type="button" className={!modeIn ? 'ou' : ''} onClick={() => setScanMode('time_out')}><Ic d="clock" s={16} /> Time out</button>
+                      </div>
+                    </div>
+
+                    {/* TARGET EVENT */}
+                    <div style={{ textAlign: 'left', marginBottom: 18 }}>
+                      <label className="ad-l">Target event schedule</label>
+                      <select className="ad-in" value={selectedEventId} onChange={(e) => setSelectedEventId(e.target.value)}>
+                        {events.map((ev) => (
+                          <option key={ev.id} value={ev.id}>
+                            {ev.title} ({ev.date}) - In: {formatTime12Hour(ev.time_in)} / Out: {formatTime12Hour(ev.time_out)}
+                          </option>
+                        ))}
+                      </select>
+                      {activeEventObj && (
+                        <div className="ad-note">
+                          <strong style={{ color: '#0b2a1e' }}>Scheduled hours: </strong>
+                          Time in starts <strong style={{ color: '#047857' }}>{formatTime12Hour(activeEventObj.time_in)}</strong> • Time out <strong style={{ color: '#2563eb' }}>{formatTime12Hour(activeEventObj.time_out)}</strong>
+                        </div>
+                      )}
+                    </div>
+
+                    <button
+                      type="button"
+                      className={`ad-b full ${!isScannerGateOpen ? 'gray' : modeIn ? 'pri' : 'blue'}`}
+                      style={{ height: 48 }}
+                      onClick={startCameraScanner}
+                      disabled={!isScannerGateOpen}
+                    >
+                      <Ic d="cam" s={18} /> {!isScannerGateOpen ? 'Scanner gate is closed by admin' : `Launch ${modeIn ? 'time in' : 'time out'} scanner`}
+                    </button>
+                  </div>
+
+                  {/* MANUAL CHECK-IN */}
+                  <div className="ad-card">
+                    <div className="ad-ct"><h3><span className="ad-ci"><Ic d="list" s={19} /></span> Manual school ID check-in</h3></div>
+                    <p className="ad-sub" style={{ marginTop: -6 }}>
+                      Mode: <strong style={{ color: modeIn ? '#047857' : '#2563eb' }}>{scanMode.toUpperCase()}</strong>. For students without smartphones or camera issues.
+                    </p>
+
+                    <form className="ad-fm" onSubmit={handleManualScanSubmit}>
+                      <Field label="School ID (e.g. 2024-0616) *">
+                        <input className="ad-in" type="text" placeholder="e.g. 2024-0616" value={manualStudentId} onChange={(e) => setManualStudentId(e.target.value)} required />
+                      </Field>
+                      <button type="submit" className={`ad-b full ${!isScannerGateOpen ? 'gray' : modeIn ? 'pri' : 'blue'}`} disabled={!isScannerGateOpen}>
+                        {!isScannerGateOpen ? 'Scanner closed' : `Mark ${modeIn ? 'time in' : 'time out'}`}
+                      </button>
+                    </form>
+
+                    {scanLogMsg.text && <div className={`ad-msg ${scanLogMsg.type}`}>{scanLogMsg.text}</div>}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* TAB 6: SEARCH STUDENT ATTENDANCE HISTORY */}
+            {activeTab === 'search-student' && (
+              <div style={{ maxWidth: 940, margin: '0 auto' }}>
+                <PageHead icon="list" badge="Records" title="Student records & logs" sub="View complete attendance history of any student." />
+
+                <div className="ad-card" style={{ marginBottom: 20 }}>
+                  <div className="ad-ct"><h3><span className="ad-ci"><Ic d="search" s={19} /></span> Search student attendance records</h3></div>
+                  <p className="ad-sub" style={{ marginTop: -6 }}>Enter the student&apos;s School ID to view total Present, Absent, and complete Time In / Time Out logs across all events.</p>
+                  <form onSubmit={handleSearchStudentHistory} className="ad-ra" style={{ flexWrap: 'nowrap' }}>
+                    <input className="ad-in" style={{ flex: 1, minWidth: 0 }} type="text" placeholder="e.g. 2024-0616" value={searchHistoryId} onChange={(e) => setSearchHistoryId(e.target.value)} required />
+                    <button type="submit" className="ad-b pri" disabled={searchingHistory}><Ic d="search" s={16} /> {searchingHistory ? 'Searching...' : 'Search'}</button>
+                  </form>
+                  {historySearchMessage && <div className="ad-msg error">{historySearchMessage}</div>}
+                </div>
+
+                {searchedStudent && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+                    <div className="ad-card">
+                      <div className="ad-pf">
+                        <div className="ad-pa">{searchedStudent.avatar_url ? <img src={searchedStudent.avatar_url} alt={searchedStudent.full_name} /> : <Ic d="user" s={34} w={1.7} />}</div>
+                        <div style={{ flex: 1, minWidth: 180 }}>
+                          <span className="ad-pill"><Ic d="shield" s={13} /> Verified student</span>
+                          <h2>{searchedStudent.full_name}</h2>
+                          <p>ID: {searchedStudent.school_id} • {searchedStudent.course} ({searchedStudent.section || 'Section A'})</p>
+                          <small>{searchedStudent.email}</small>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="ad-g4" style={{ margin: 0 }}>
+                      <Stat label="Total events" value={historyTotalEvents} />
+                      <Stat label="Total present" value={historyPresentCount} tone="g" />
+                      <Stat label="Total absences" value={historyAbsentCount} tone={historyAbsentCount > 0 ? 'r' : 'g'} />
+                      <Stat label="Compliance rate" value={`${historyComplianceRate}%`} tone="g" />
+                    </div>
+
+                    <div className="ad-card">
+                      <div className="ad-ct"><h3><span className="ad-ci"><Ic d="list" s={19} /></span> Detailed event attendance logs ({studentAttendanceRecords.length})</h3></div>
+                      {studentAttendanceRecords.length === 0 ? (
+                        <div className="ad-empty">No events recorded.</div>
+                      ) : (
+                        <div className="ad-list">
+                          {studentAttendanceRecords.map((record) => {
+                            const isPresent = record.status === 'PRESENT';
+                            return (
+                              <div key={record.eventId} className={`ad-lg ${isPresent ? '' : 'ab'}`}>
+                                <div className="ad-lgt">
+                                  <div>
+                                    <h4>{record.eventTitle}</h4>
+                                    <div>{record.eventLocation || 'FaCET Facade'}</div>
+                                  </div>
+                                  <span className={`ad-pill ${isPresent ? '' : 'no'}`}><Ic d={isPresent ? 'check' : 'x'} s={13} w={3} /> {isPresent ? 'Present' : 'Absent'}</span>
+                                </div>
+                                <div className="ad-lgg">
+                                  <div><small>Date</small><b>{record.eventDate}</b></div>
+                                  <div><small>Time in</small><b style={{ color: isPresent ? '#047857' : '#9db2a8' }}>{record.actualTimeIn}</b></div>
+                                  <div><small>Time out</small><b style={{ color: isPresent ? '#047857' : '#9db2a8' }}>{record.actualTimeOut}</b></div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </main>
       </div>
 
       {/* CONTINUOUS CAMERA SCANNER MODAL */}
       {isCameraModalOpen && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            backgroundColor: 'rgba(15, 23, 42, 0.85)',
-            backdropFilter: 'blur(6px)',
-            zIndex: 110,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '12px',
-          }}
-        >
-          <div
-            style={{
-              backgroundColor: '#ffffff',
-              width: '100%',
-              maxWidth: '440px',
-              borderRadius: '24px',
-              padding: '18px 16px',
-              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
-              textAlign: 'center',
-              boxSizing: 'border-box',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
-              <span
-                style={{
-                  backgroundColor: scanMode === 'time_in' ? '#dcfce7' : '#dbeafe',
-                  color: scanMode === 'time_in' ? '#15803d' : '#1d4ed8',
-                  padding: '4px 12px',
-                  borderRadius: '9999px',
-                  fontSize: '0.75rem',
-                  fontWeight: 900,
-                  textTransform: 'uppercase',
-                }}
-              >
-                ● {scanMode === 'time_in' ? 'Time In Mode' : 'Time Out Mode'}
-              </span>
-
-              <button
-                type="button"
-                onClick={closeCameraModal}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  fontSize: '1.2rem',
-                  fontWeight: 900,
-                  color: '#64748b',
-                  cursor: 'pointer',
-                  padding: '4px',
-                  touchAction: 'manipulation',
-                }}
-              >
-                ✕
-              </button>
+        <div className="ad-ov" style={{ zIndex: 110 }}>
+          <div className="ad-md sc">
+            <div className="ad-mh">
+              <span className={`ad-pill ${modeIn ? '' : 'no'}`} style={modeIn ? {} : { background: '#dbeafe', color: '#1d4ed8' }}>● {modeIn ? 'Time in mode' : 'Time out mode'}</span>
+              <button type="button" className="ad-xb" onClick={closeCameraModal} aria-label="Close camera"><Ic d="x" s={16} /></button>
             </div>
-
-            <div
-              style={{
-                position: 'relative',
-                width: '100%',
-                height: '280px',
-                margin: '0 auto',
-                backgroundColor: '#0f172a',
-                borderRadius: '18px',
-                overflow: 'hidden',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <div id="interactive-qr-reader" style={{ width: '100%', height: '100%' }} />
-            </div>
-
-            <div style={{ marginTop: '14px' }}>
-              <button
-                type="button"
-                onClick={closeCameraModal}
-                style={{
-                  width: '100%',
-                  padding: '12px',
-                  backgroundColor: '#ef4444',
-                  color: '#ffffff',
-                  border: 'none',
-                  borderRadius: '14px',
-                  fontSize: '0.9rem',
-                  fontWeight: 900,
-                  cursor: 'pointer',
-                  touchAction: 'manipulation',
-                }}
-              >
-                Close Camera
-              </button>
-            </div>
+            <div className="ad-rd"><div id="interactive-qr-reader" style={{ width: '100%', height: '100%' }} /></div>
+            <button type="button" className="ad-b dsol full" onClick={closeCameraModal}>Close camera</button>
           </div>
         </div>
       )}
 
       {/* LIVE SCAN FEEDBACK CARD */}
       {liveScanFeedback && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            backgroundColor: 'rgba(15, 23, 42, 0.85)',
-            backdropFilter: 'blur(8px)',
-            zIndex: 140,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '16px',
-            boxSizing: 'border-box',
-          }}
-        >
-          <div
-            style={{
-              backgroundColor: '#ffffff',
-              width: '100%',
-              maxWidth: '420px',
-              borderRadius: '26px',
-              padding: '24px 20px',
-              boxShadow: '0 25px 60px rgba(0, 0, 0, 0.35)',
-              textAlign: 'center',
-              boxSizing: 'border-box',
-              animation: 'fadeIn 0.2s ease',
-              border: `2px solid ${
-                liveScanFeedback.type === 'success'
-                  ? '#86efac'
-                  : liveScanFeedback.type === 'warning'
-                  ? '#fde047'
-                  : '#fca5a5'
-              }`,
-            }}
-          >
-            <div style={{ marginBottom: '14px' }}>
-              <span
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  backgroundColor:
-                    liveScanFeedback.type === 'success'
-                      ? '#dcfce7'
-                      : liveScanFeedback.type === 'warning'
-                      ? '#fefce8'
-                      : '#fee2e2',
-                  color:
-                    liveScanFeedback.type === 'success'
-                      ? '#15803d'
-                      : liveScanFeedback.type === 'warning'
-                      ? '#a16207'
-                      : '#b91c1c',
-                  padding: '5px 14px',
-                  borderRadius: '9999px',
-                  fontSize: '0.78rem',
-                  fontWeight: 900,
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.04em',
-                }}
-              >
-                {liveScanFeedback.type === 'success' ? '✓' : '●'} {liveScanFeedback.title}
-              </span>
-            </div>
+        <div className="ad-ov" style={{ zIndex: 140 }}>
+          <div className="ad-md sc" style={{ border: `2px solid ${liveScanFeedback.type === 'success' ? '#86efac' : liveScanFeedback.type === 'warning' ? '#fde047' : '#fca5a5'}` }}>
+            <span className={`ad-fbt ${liveScanFeedback.type}`}>
+              <Ic d={liveScanFeedback.type === 'success' ? 'check' : 'alert'} s={15} w={3} /> {liveScanFeedback.title}
+            </span>
 
             {liveScanFeedback.student ? (
               <div>
-                <div
-                  style={{
-                    width: '135px',
-                    height: '135px',
-                    borderRadius: '28px',
-                    backgroundColor: '#f1f5f9',
-                    border: `3px solid ${liveScanFeedback.type === 'success' ? '#15803d' : '#ea580c'}`,
-                    margin: '0 auto 16px auto',
-                    overflow: 'hidden',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    boxShadow: '0 8px 24px rgba(0, 0, 0, 0.12)',
-                  }}
-                >
-                  {liveScanFeedback.student.avatar_url ? (
-                    <img
-                      src={liveScanFeedback.student.avatar_url}
-                      alt={liveScanFeedback.student.full_name}
-                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                    />
-                  ) : (
-                    <span style={{ fontSize: '3.6rem' }}>👤</span>
-                  )}
+                <div className={`ad-fbp ${liveScanFeedback.type === 'success' ? '' : 'warn'}`}>
+                  {liveScanFeedback.student.avatar_url ? <img src={liveScanFeedback.student.avatar_url} alt={liveScanFeedback.student.full_name} /> : <Ic d="user" s={56} w={1.6} />}
+                </div>
+                <h3 style={{ fontSize: '1.35rem', marginBottom: 4 }}>{liveScanFeedback.student.full_name}</h3>
+                <div style={{ fontSize: '.95rem', fontWeight: 800, color: '#047857', marginBottom: 14 }}>ID: {liveScanFeedback.student.school_id}</div>
+
+                <div className="ad-fbs">
+                  <div><span>Program / course</span><strong>{liveScanFeedback.student.course}</strong></div>
+                  <div><span>Year &amp; section</span><strong>{liveScanFeedback.student.year_level || '1st Year'} • {liveScanFeedback.student.section || 'Section A'}</strong></div>
+                  <div><span>Recorded time</span><strong style={{ color: liveScanFeedback.type === 'success' ? '#047857' : '#ea580c' }}>{formatTime12Hour(liveScanFeedback.time)} ({liveScanFeedback.mode})</strong></div>
                 </div>
 
-                <h3
-                  style={{
-                    margin: '0 0 4px 0',
-                    fontSize: '1.3rem',
-                    fontWeight: 900,
-                    color: '#0f172a',
-                    lineHeight: 1.25,
-                  }}
-                >
-                  {liveScanFeedback.student.full_name}
-                </h3>
-                <div style={{ fontSize: '0.95rem', fontWeight: 900, color: '#15803d', marginBottom: '14px' }}>
-                  ID: {liveScanFeedback.student.school_id}
-                </div>
-
-                <div
-                  style={{
-                    backgroundColor: '#f8fafc',
-                    border: '1px solid #e2e8f0',
-                    borderRadius: '16px',
-                    padding: '12px 14px',
-                    marginBottom: '20px',
-                    textAlign: 'left',
-                    fontSize: '0.8rem',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '6px',
-                  }}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: '#64748b', fontWeight: 700 }}>Program / Course:</span>
-                    <strong style={{ color: '#0f172a' }}>{liveScanFeedback.student.course}</strong>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: '#64748b', fontWeight: 700 }}>Year &amp; Section:</span>
-                    <strong style={{ color: '#0f172a' }}>
-                      {liveScanFeedback.student.year_level || '1st Year'} • {liveScanFeedback.student.section || 'Section A'}
-                    </strong>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid #e2e8f0', paddingTop: '6px', marginTop: '2px' }}>
-                    <span style={{ color: '#64748b', fontWeight: 700 }}>Recorded Time:</span>
-                    <strong style={{ color: liveScanFeedback.type === 'success' ? '#15803d' : '#ea580c' }}>
-                      {formatTime12Hour(liveScanFeedback.time)} ({liveScanFeedback.mode})
-                    </strong>
-                  </div>
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                  <button
-                    type="button"
-                    onClick={handleRejectScan}
-                    style={{
-                      padding: '12px',
-                      backgroundColor: '#f1f5f9',
-                      color: '#475569',
-                      border: '1.5px solid #cbd5e1',
-                      borderRadius: '14px',
-                      fontWeight: 900,
-                      fontSize: '0.9rem',
-                      cursor: 'pointer',
-                      touchAction: 'manipulation',
-                    }}
-                  >
-                    ✕ No (Cancel)
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={handleAcknowledgeScan}
-                    style={{
-                      padding: '12px',
-                      backgroundColor: '#15803d',
-                      color: '#ffffff',
-                      border: 'none',
-                      borderRadius: '14px',
-                      fontWeight: 900,
-                      fontSize: '0.9rem',
-                      cursor: 'pointer',
-                      boxShadow: '0 4px 12px rgba(21, 128, 61, 0.25)',
-                      touchAction: 'manipulation',
-                    }}
-                  >
-                    ✓ OK (Next)
-                  </button>
+                <div className="ad-ma">
+                  <button type="button" className="ad-b neu" onClick={handleRejectScan}><Ic d="x" s={16} /> No (cancel)</button>
+                  <button type="button" className="ad-b pri" onClick={handleAcknowledgeScan}><Ic d="check" s={16} /> OK (next)</button>
                 </div>
               </div>
             ) : (
               <div>
-                <div style={{ fontSize: '1rem', fontWeight: 900, color: '#b91c1c', marginBottom: '8px' }}>
-                  {liveScanFeedback.title}
-                </div>
-                <p style={{ fontSize: '0.85rem', color: '#64748b', margin: '0 0 18px 0', lineHeight: 1.5 }}>
-                  {liveScanFeedback.message}
-                </p>
-                <button
-                  type="button"
-                  onClick={handleAcknowledgeScan}
-                  style={{
-                    width: '100%',
-                    padding: '12px',
-                    backgroundColor: '#ef4444',
-                    color: '#ffffff',
-                    border: 'none',
-                    borderRadius: '14px',
-                    fontWeight: 900,
-                    fontSize: '0.9rem',
-                    cursor: 'pointer',
-                    touchAction: 'manipulation',
-                  }}
-                >
-                  OK • Try Next QR
-                </button>
+                <p style={{ marginTop: 6 }}>{liveScanFeedback.message}</p>
+                <button type="button" className="ad-b dsol full" onClick={handleAcknowledgeScan}>OK • try next QR</button>
               </div>
             )}
           </div>
@@ -3746,96 +2365,14 @@ export default function AdminDashboard() {
 
       {/* CONFIRM EDIT MODAL */}
       {confirmEditModal.isOpen && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            backgroundColor: 'rgba(15, 23, 42, 0.75)',
-            backdropFilter: 'blur(5px)',
-            zIndex: 160,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '16px',
-          }}
-        >
-          <div
-            style={{
-              backgroundColor: '#ffffff',
-              width: '100%',
-              maxWidth: '380px',
-              borderRadius: '24px',
-              padding: '24px 20px',
-              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.3)',
-              textAlign: 'center',
-              boxSizing: 'border-box',
-            }}
-          >
-            <div
-              style={{
-                width: '52px',
-                height: '52px',
-                borderRadius: '16px',
-                backgroundColor: '#dcfce7',
-                color: '#15803d',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '1.5rem',
-                margin: '0 auto 12px auto',
-              }}
-            >
-              ✏️
-            </div>
-
-            <h3 style={{ fontSize: '1.2rem', fontWeight: 900, color: '#0f172a', margin: '0 0 6px 0' }}>
-              Confirm Changes
-            </h3>
-            <p style={{ fontSize: '0.85rem', color: '#64748b', margin: '0 0 18px 0', lineHeight: 1.45 }}>
-              Are you sure you want to save the changes made to{' '}
-              <strong style={{ color: '#15803d' }}>&quot;{confirmEditModal.title}&quot;</strong>?
-            </p>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <button
-                type="button"
-                onClick={handleExecuteEditSave}
-                disabled={savingEdit}
-                style={{
-                  width: '100%',
-                  padding: '12px',
-                  backgroundColor: '#15803d',
-                  color: '#ffffff',
-                  border: 'none',
-                  borderRadius: '14px',
-                  fontSize: '0.9rem',
-                  fontWeight: 900,
-                  cursor: 'pointer',
-                  touchAction: 'manipulation',
-                }}
-              >
-                {savingEdit ? 'Saving Changes...' : 'Yes, Save Changes'}
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setConfirmEditModal({ isOpen: false, type: '', payload: null, title: '' })}
-                disabled={savingEdit}
-                style={{
-                  width: '100%',
-                  padding: '10px',
-                  backgroundColor: '#f1f5f9',
-                  color: '#475569',
-                  border: 'none',
-                  borderRadius: '12px',
-                  fontSize: '0.85rem',
-                  fontWeight: 800,
-                  cursor: 'pointer',
-                  touchAction: 'manipulation',
-                }}
-              >
-                No, Cancel
-              </button>
+        <div className="ad-ov" style={{ zIndex: 160 }}>
+          <div className="ad-md">
+            <div className="ad-mi"><Ic d="pencil" s={26} /></div>
+            <h3>Confirm changes</h3>
+            <p>Are you sure you want to save the changes made to <strong>&quot;{confirmEditModal.title}&quot;</strong>?</p>
+            <div className="ad-ma">
+              <button type="button" className="ad-b neu" onClick={() => setConfirmEditModal({ isOpen: false, type: '', payload: null, title: '' })} disabled={savingEdit}>No, cancel</button>
+              <button type="button" className="ad-b pri" onClick={handleExecuteEditSave} disabled={savingEdit}>{savingEdit ? 'Saving...' : 'Yes, save'}</button>
             </div>
           </div>
         </div>
@@ -3843,97 +2380,14 @@ export default function AdminDashboard() {
 
       {/* SIGN OUT / LOGOUT CONFIRMATION MODAL */}
       {isLogoutModalOpen && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            backgroundColor: 'rgba(15, 23, 42, 0.45)',
-            backdropFilter: 'blur(4px)',
-            zIndex: 170,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '16px',
-          }}
-        >
-          <div
-            style={{
-              backgroundColor: '#ffffff',
-              width: '100%',
-              maxWidth: '380px',
-              borderRadius: '22px',
-              padding: '24px 22px',
-              boxShadow: '0 20px 40px rgba(0,0,0,0.18)',
-              position: 'relative',
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
-              <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 900, color: '#0f172a' }}>Sign Out</h3>
-              <button
-                onClick={() => setIsLogoutModalOpen(false)}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  fontSize: '1rem',
-                  color: '#94a3b8',
-                  cursor: 'pointer',
-                  padding: '4px',
-                }}
-              >
-                ✕
-              </button>
-            </div>
-
-            <p
-              style={{
-                textAlign: 'center',
-                color: '#334155',
-                fontSize: '0.92rem',
-                margin: '18px 0 24px 0',
-                fontWeight: 600,
-                lineHeight: 1.5,
-              }}
-            >
-              Are you sure you want to log out of the Admin Portal?
-            </p>
-
-            <div style={{ display: 'flex', gap: '10px' }}>
-              <button
-                type="button"
-                onClick={() => setIsLogoutModalOpen(false)}
-                style={{
-                  flex: 1,
-                  padding: '10px',
-                  backgroundColor: '#ffffff',
-                  border: '1px solid #cbd5e1',
-                  borderRadius: '10px',
-                  fontWeight: 800,
-                  fontSize: '0.85rem',
-                  color: '#334155',
-                  cursor: 'pointer',
-                  touchAction: 'manipulation',
-                }}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleConfirmSignOut}
-                style={{
-                  flex: 1,
-                  padding: '10px',
-                  backgroundColor: '#e11d48',
-                  border: 'none',
-                  borderRadius: '10px',
-                  fontWeight: 800,
-                  fontSize: '0.85rem',
-                  color: '#ffffff',
-                  cursor: 'pointer',
-                  touchAction: 'manipulation',
-                }}
-              >
-                Logout
-              </button>
+        <div className="ad-ov" style={{ zIndex: 170 }}>
+          <div className="ad-md" role="dialog" aria-modal="true" aria-label="Sign out">
+            <div className="ad-mi red"><Ic d="out" s={26} /></div>
+            <h3>Sign out</h3>
+            <p>Are you sure you want to log out of the Admin Portal?</p>
+            <div className="ad-ma">
+              <button type="button" className="ad-b neu" onClick={() => setIsLogoutModalOpen(false)}>Cancel</button>
+              <button type="button" className="ad-b dsol" onClick={handleConfirmSignOut}><Ic d="out" s={17} /> Logout</button>
             </div>
           </div>
         </div>
@@ -3941,113 +2395,23 @@ export default function AdminDashboard() {
 
       {/* IN-APP DELETE / REVOKE CONFIRMATION MODAL */}
       {deleteModal.isOpen && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            backgroundColor: 'rgba(15, 23, 42, 0.75)',
-            backdropFilter: 'blur(5px)',
-            zIndex: 150,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '16px',
-          }}
-        >
-          <div
-            style={{
-              backgroundColor: '#ffffff',
-              width: '100%',
-              maxWidth: '380px',
-              borderRadius: '24px',
-              padding: '22px 18px',
-              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.3)',
-              textAlign: 'center',
-              boxSizing: 'border-box',
-            }}
-          >
-            <div
-              style={{
-                width: '52px',
-                height: '52px',
-                borderRadius: '16px',
-                backgroundColor: deleteModal.type === 'staff' ? '#fff7ed' : '#fee2e2',
-                color: deleteModal.type === 'staff' ? '#ea580c' : '#b91c1c',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '1.5rem',
-                margin: '0 auto 12px auto',
-              }}
-            >
-              {deleteModal.type === 'staff' ? '🛡️' : '🗑️'}
-            </div>
-
-            <h3 style={{ fontSize: '1.2rem', fontWeight: 900, color: '#0f172a', margin: '0 0 6px 0' }}>
-              {deleteModal.type === 'staff' ? 'Revoke Scanner Access' : 'Confirm Delete'}
-            </h3>
-            <p style={{ fontSize: '0.85rem', color: '#64748b', margin: '0 0 18px 0', lineHeight: 1.45 }}>
+        <div className="ad-ov" style={{ zIndex: 150 }}>
+          <div className="ad-md">
+            <div className={`ad-mi ${deleteModal.type === 'staff' ? 'org' : 'red'}`}><Ic d={deleteModal.type === 'staff' ? 'shield' : 'trash'} s={26} /></div>
+            <h3>{deleteModal.type === 'staff' ? 'Revoke scanner access' : 'Confirm delete'}</h3>
+            <p>
               {deleteModal.type === 'staff' ? (
-                <>
-                  Are you sure you want to revoke the scanner clearance of{' '}
-                  <strong style={{ color: '#ea580c' }}>&quot;{deleteModal.title}&quot;</strong>? Their account will not be deleted and will safely return to regular Student status.
-                </>
+                <>Are you sure you want to revoke the scanner clearance of <strong>&quot;{deleteModal.title}&quot;</strong>? Their account will not be deleted and will safely return to regular Student status.</>
               ) : deleteModal.type === 'officer' ? (
-                <>
-                  Are you sure you want to remove{' '}
-                  <strong style={{ color: '#b91c1c' }}>&quot;{deleteModal.title}&quot;</strong> from the official roster of officers?
-                </>
+                <>Are you sure you want to remove <strong>&quot;{deleteModal.title}&quot;</strong> from the official roster of officers?</>
               ) : (
-                <>
-                  Are you sure you want to permanently delete{' '}
-                  <strong style={{ color: '#b91c1c' }}>&quot;{deleteModal.title}&quot;</strong>? This action cannot be undone.
-                </>
+                <>Are you sure you want to permanently delete <strong>&quot;{deleteModal.title}&quot;</strong>? This action cannot be undone.</>
               )}
             </p>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <button
-                type="button"
-                onClick={handleConfirmDelete}
-                disabled={deletingRecord}
-                style={{
-                  width: '100%',
-                  padding: '12px',
-                  backgroundColor: deleteModal.type === 'staff' ? '#ea580c' : '#b91c1c',
-                  color: '#ffffff',
-                  border: 'none',
-                  borderRadius: '14px',
-                  fontSize: '0.9rem',
-                  fontWeight: 900,
-                  cursor: 'pointer',
-                  touchAction: 'manipulation',
-                }}
-              >
-                {deletingRecord
-                  ? 'Processing...'
-                  : deleteModal.type === 'staff'
-                  ? 'Yes, Revoke Scanner Access'
-                  : 'Yes, Proceed'}
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setDeleteModal({ isOpen: false, type: '', id: null, title: '' })}
-                disabled={deletingRecord}
-                style={{
-                  width: '100%',
-                  padding: '10px',
-                  backgroundColor: '#f1f5f9',
-                  color: '#475569',
-                  border: 'none',
-                  borderRadius: '12px',
-                  fontSize: '0.85rem',
-                  fontWeight: 800,
-                  cursor: 'pointer',
-                  touchAction: 'manipulation',
-                }}
-              >
-                Cancel
+            <div className="ad-ma">
+              <button type="button" className="ad-b neu" onClick={() => setDeleteModal({ isOpen: false, type: '', id: null, title: '' })} disabled={deletingRecord}>Cancel</button>
+              <button type="button" className={`ad-b ${deleteModal.type === 'staff' ? 'osol' : 'dsol'}`} onClick={handleConfirmDelete} disabled={deletingRecord}>
+                {deletingRecord ? 'Processing...' : deleteModal.type === 'staff' ? 'Yes, revoke' : 'Yes, proceed'}
               </button>
             </div>
           </div>
