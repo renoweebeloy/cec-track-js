@@ -18,6 +18,7 @@ const P = {
   users: 'M17 21v-2a4 4 0 00-4-4H7a4 4 0 00-4 4v2M10 11a4 4 0 100-8 4 4 0 000 8zM21 21v-2a4 4 0 00-3-3.85M16 3.13a4 4 0 010 7.75',
   cal: 'M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V6a2 2 0 012-2z',
   award: 'M12 15a6 6 0 100-12 6 6 0 000 12zM8.21 13.89L7 23l5-3 5 3-1.21-9.12',
+  clock: 'M12 22a10 10 0 100-20 10 10 0 000 20zM12 6v6l4 2',
   pin: 'M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0zM12 13a3 3 0 100-6 3 3 0 000 6z',
 };
 const Ic = ({ d, s = 18, w = 2.2 }) => (
@@ -59,7 +60,7 @@ export default function Home() {
     const tick = () => {
       const now = new Date();
       setCurrentTime(now.toLocaleTimeString('en-US', { timeZone: 'Asia/Manila', hour: '2-digit', minute: '2-digit', second: '2-digit' }));
-      setCurrentDate(now.toLocaleDateString('en-US', { timeZone: 'Asia/Manila', weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' }));
+      setCurrentDate(now.toLocaleDateString('en-US', { timeZone: 'Asia/Manila', weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }));
     };
     tick();
     const t = setInterval(tick, 1000);
@@ -162,6 +163,8 @@ export default function Home() {
         .hero>*{position:relative;z-index:1}
         .pills{display:flex;justify-content:center;gap:10px;flex-wrap:wrap;margin-bottom:28px}
         .pill{display:inline-flex;align-items:center;gap:8px;background:#fff;border:1px solid var(--line);color:#2f4d3e;box-shadow:0 4px 12px rgba(6,78,59,.07);border-radius:999px;padding:7px 15px;font-size:.78rem;font-weight:700;white-space:nowrap}
+        .pill.live{color:#047857;font-weight:800;letter-spacing:.05em}
+        .oi{display:inline-flex;color:#ea580c}
         .dot{width:8px;height:8px;border-radius:50%;background:#4ade80;animation:pulse 1.8s infinite}
         @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(74,222,128,.7)}70%{box-shadow:0 0 0 8px rgba(74,222,128,0)}100%{box-shadow:0 0 0 0 rgba(74,222,128,0)}}
         .logo{width:124px;height:124px;border-radius:50%;background:#fff;padding:9px;margin:0 auto 18px;box-shadow:0 0 0 1px var(--line),0 0 0 7px var(--g0),0 14px 30px rgba(5,150,105,.25);animation:rise .7s both}
@@ -264,7 +267,9 @@ export default function Home() {
 
       <section className="hero">
         <div className="pills">
-          <span className="pill"><span className="dot" /> Live PHT · {currentTime || 'Loading...'} · {currentDate || ''}</span>
+          <span className="pill live"><span className="dot" /> LIVE PHT</span>
+          <span className="pill"><span className="oi"><Ic d="clock" s={15} /></span> {currentTime || 'Loading...'}</span>
+          <span className="pill"><span className="oi"><Ic d="cal" s={15} /></span> {currentDate || 'Loading...'}</span>
           <span className="pill" style={{ color: '#047857' }}><Ic d="shield" s={15} /> Official CEC Portal</span>
         </div>
 
