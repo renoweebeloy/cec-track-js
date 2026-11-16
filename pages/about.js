@@ -134,7 +134,7 @@ export default function About() {
 
       <section className="ab-hero">
         <div className="ab-logo">
-          <img src="/logo.png" alt="Cateel Extension Campus Logo" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+          <img src="/logo.g" alt="Cateel Extension Campus Logo" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
         </div>
         <span className="ab-pill">About CECTRACK</span>
         <h1>Transforming student <br />organization operations</h1>
