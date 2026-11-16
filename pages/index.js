@@ -164,7 +164,7 @@ export default function Home() {
         .pills{display:flex;justify-content:center;gap:10px;flex-wrap:wrap;margin-bottom:28px}
         .pill{display:inline-flex;align-items:center;gap:8px;background:#fff;border:1px solid var(--line);color:#2f4d3e;box-shadow:0 4px 12px rgba(6,78,59,.07);border-radius:999px;padding:7px 15px;font-size:.78rem;font-weight:700;white-space:nowrap}
         .pill.live{color:#047857;font-weight:800;letter-spacing:.05em}
-        .oi{display:inline-flex;color:#ea580c}
+        .oi{display:inline-flex;color:#16a34a}
         .dot{width:8px;height:8px;border-radius:50%;background:#4ade80;animation:pulse 1.8s infinite}
         @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(74,222,128,.7)}70%{box-shadow:0 0 0 8px rgba(74,222,128,0)}100%{box-shadow:0 0 0 0 rgba(74,222,128,0)}}
         .logo{width:124px;height:124px;border-radius:50%;background:#fff;padding:9px;margin:0 auto 18px;box-shadow:0 0 0 1px var(--line),0 0 0 7px var(--g0),0 14px 30px rgba(5,150,105,.25);animation:rise .7s both}
