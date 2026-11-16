@@ -756,9 +756,23 @@ export default function StudentDashboard() {
         .sd-b.out:hover:not(:disabled){background:var(--g1)}
         .sd-b.neu{background:#fff;color:#3f5a4b;border-color:var(--line)}
         .sd-b.neu:hover:not(:disabled){background:var(--g0)}
-        .sd-b.dsol{background:linear-gradient(135deg,#f43f5e,#dc2626);color:#fff;box-shadow:0 8px 20px rgba(220,38,38,.28)}
-
-        .sd-hd{position:sticky;top:0;z-index:40;height:64px;background:rgba(255,255,255,.88);backdrop-filter:blur(14px);border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:0 16px;gap:10px}
+        .sd-b.dsol{background:linear-gradient(135deg,#f43f5e,#dc2626);color:#fff;box-shadow:0 8px 20px rgba(220,38,38,.28)}        
+.sd-hd {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  z-index: 200;
+  height: 64px;
+  background: rgba(255,255,255,.95);
+  backdrop-filter: blur(14px);
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  gap: 10px;
+}
         .sd-hl{display:flex;align-items:center;gap:10px;min-width:0}
         .sd-menu{display:none;width:40px;height:40px;border-radius:12px;border:1px solid var(--line);background:#fff;color:var(--g7);align-items:center;justify-content:center}
         .sd-brand b{font:800 1.15rem 'Bricolage Grotesque',sans-serif;color:var(--g8);letter-spacing:-.02em;margin-right:6px}
@@ -771,7 +785,15 @@ export default function StudentDashboard() {
         .sd-av{width:40px;height:40px;border-radius:50%;overflow:hidden;background:var(--g1);box-shadow:0 0 0 2px #fff,0 0 0 4px var(--g5);display:flex;align-items:center;justify-content:center;font-weight:800;color:var(--g7);flex-shrink:0}
         .sd-av img{width:100%;height:100%;object-fit:cover}
 
-        .sd-shell{display:flex;flex:1;min-width:0;width:100%}     
+        
+.sd-shell {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  width: 100%;
+  margin-top: 64px;
+}
+     
 .sd-side {
   width: 236px;
   flex-shrink: 0;
