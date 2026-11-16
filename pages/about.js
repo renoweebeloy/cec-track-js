@@ -136,7 +136,7 @@ export default function About() {
         <div className="ab-logo">
           <img src="/logo.g" alt="Cateel Extension Campus Logo" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
         </div>
-        <span className="ab-pill">About CECTRACK</span>
+        <span className="ab-pill">{/* TAB 8: ABOUT */}</span>
         <h1>Transforming student <br />organization operations</h1>
         <p>
           CECTRACK is an all-in-one centralized digital ecosystem engineered specifically for the students, officers, and faculty of{' '}
