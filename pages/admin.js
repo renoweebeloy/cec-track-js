@@ -1782,7 +1782,7 @@ export default function AdminDashboard() {
           <div>
             <div className="ad-st">
               <div>
-                <h2>Portal menu</h2>
+                <h2>Portal </h2>
                 <small>{isAdmin ? 'Administrator access' : 'Staff officer access'}</small>
               </div>
               {isSidebarOpen && (
