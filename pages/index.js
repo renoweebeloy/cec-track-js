@@ -5,7 +5,7 @@ import { supabase } from '../lib/supabaseClient';
 
 const COURSES = [
   { k: 'BSBA', n: 'Business Administration', c: '#16a34a' },
-  { k: 'BSCRIM', n: 'Criminology', c: '#FF0000' },
+  { k: 'BSCRIM', n: 'Criminology', c: '#0f766e' },
   { k: 'BSA', n: 'Accountancy', c: '#65a30d' },
   { k: 'BEED', n: 'Elementary Education', c: '#059669' },
   { k: 'BSAM', n: 'Agribusiness Management', c: '#15803d' },
