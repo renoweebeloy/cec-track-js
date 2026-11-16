@@ -5,10 +5,10 @@ import { supabase } from '../lib/supabaseClient';
 
 const COURSES = [
   { k: 'BSBA', n: 'Business Administration', c: '#16a34a' },
-  { k: 'BSCRIM', n: 'Criminology', c: null },
-  { k: 'BSA', n: 'Accountancy', c: null },
-  { k: 'BEED', n: 'Elementary Education', c: null },
-  { k: 'BSAM', n: 'Agribusiness Management', c: null },
+  { k: 'BSCRIM', n: 'Criminology', c: '#dc2626' },
+  { k: 'BSA', n: 'Accountancy', c: '#059669' },
+  { k: 'BEED', n: 'Elementary Education', c: '#2563eb' },
+  { k: 'BSAM', n: 'Agribusiness Management', c: '#d97706' },
 ];
 
 const P = {
@@ -21,6 +21,7 @@ const P = {
   award: 'M12 15a6 6 0 100-12 6 6 0 000 12zM8.21 13.89L7 23l5-3 5 3-1.21-9.12',
   clock: 'M12 22a10 10 0 100-20 10 10 0 000 20zM12 6v6l4 2',
   pin: 'M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0zM12 13a3 3 0 100-6 3 3 0 000 6z',
+  idcard: 'M3 5h18a2 2 0 012 2v10a2 2 0 01-2 2H3a2 2 0 01-2-2V7a2 2 0 012-2zM6 10h5M6 14h5M14 9h4v6h-4z',
 };
 
 const Ic = ({ d, s = 18, w = 2.2 }) => (
@@ -210,20 +211,16 @@ export default function Home() {
         .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:16px}
         .cc,.ev,.of{background:#fff;border:1px solid var(--line);box-shadow:0 6px 18px rgba(6,78,59,.06);transition:transform .25s,box-shadow .25s,border-color .25s}
         .cc:hover,.ev:hover,.of:hover{transform:translateY(-5px);box-shadow:0 18px 38px rgba(5,150,105,.17);border-color:#86efac}
-        .cc{border-radius:24px;padding:22px 20px 18px;position:relative;overflow:hidden}
-        .cc::before{content:'';position:absolute;left:0;top:0;bottom:0;width:6px;background:var(--a)}
-        .cb{display:inline-block;font-size:.8rem;font-weight:800;padding:4px 13px;border-radius:999px;color:var(--a);background:color-mix(in srgb,var(--a) 12%,white);margin-bottom:12px}
-        .cn{font:800 3rem/1 'Bricolage Grotesque',sans-serif;letter-spacing:-.04em}
-        .cm{font-size:.9rem;font-weight:700;color:var(--mut);margin:6px 0 16px}
-        .bar{height:6px;background:#e5f3ea;border-radius:99px;overflow:hidden;margin-bottom:8px}.bar i{display:block;height:100%;width:100%;background:var(--a);border-radius:99px}
-        .cf{display:flex;justify-content:space-between;font-size:.78rem;font-weight:700;color:#6f8b7d}.cf b{color:var(--g6)}
 
-        /* Plain white cards (walay color-color except BSBA) */
-        .cc.plain::before{display:none}
-        .cc.plain .cb{color:var(--ink);background:#fff;border:1px solid var(--line)}
-        .cc.plain .bar{background:#f1f5f9}
-        .cc.plain .bar i{background:#e2e8f0}
-        .cc.plain .cf b{color:var(--ink)}
+        /* Plain white course boxes with colored badge text */
+        .cc{background:#fff;border-radius:24px;padding:22px 20px 18px;position:relative;overflow:hidden}
+        .cb{display:inline-block;font-size:.8rem;font-weight:800;padding:4px 13px;border-radius:999px;color:var(--a);background:#fff;border:1px solid var(--line);margin-bottom:12px}
+        .cn{font:800 3rem/1 'Bricolage Grotesque',sans-serif;letter-spacing:-.04em;color:var(--ink)}
+        .cm{font-size:.9rem;font-weight:700;color:var(--mut);margin:6px 0 16px}
+        .bar{height:6px;background:#f1f5f9;border-radius:99px;overflow:hidden;margin-bottom:10px}.bar i{display:block;height:100%;width:100%;background:#e2e8f0;border-radius:99px}
+        .cf{display:flex;justify-content:space-between;align-items:center;gap:6px;font-size:.78rem;font-weight:700;color:#6f8b7d}
+        .idr{display:inline-flex;align-items:center;gap:5px;color:#56705f}
+        .idr b{color:var(--g6);font-weight:800}
 
         .eg{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:20px}
         .ev{border-radius:24px;overflow:hidden;display:flex;flex-direction:column}
@@ -354,12 +351,15 @@ export default function Home() {
           </div>
           <div className="grid">
             {COURSES.map((c) => (
-              <div key={c.k} className={`cc ${c.c ? '' : 'plain'}`} style={c.c ? { '--a': c.c } : undefined}>
+              <div key={c.k} className="cc" style={{ '--a': c.c }}>
                 <span className="cb">{c.k}</span>
                 <div className="cn">{counts[c.k]}</div>
                 <div className="cm">{c.n}</div>
                 <div className="bar"><i /></div>
-                <div className="cf"><span>Enrolled active</span><span>ID ready <b>{counts[c.k]}</b></span></div>
+                <div className="cf">
+                  <span>Enrolled active</span>
+                  <span className="idr"><Ic d="idcard" s={15} w={2} /> ID ready <b>{counts[c.k]}</b></span>
+                </div>
               </div>
             ))}
           </div>
