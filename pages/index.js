@@ -253,7 +253,7 @@ export default function Home() {
       <header className="hd">
         <div className="hd-in">
           <button className="brand" onClick={() => router.push('/')}>
-            <img src="/logo.png" alt="" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+            <img src="/logo.ng" alt="" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
             CECTRACK
           </button>
           <div className="nav">
