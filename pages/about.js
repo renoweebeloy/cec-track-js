@@ -27,7 +27,7 @@ export default function About() {
   const router = useRouter();
 
   // Opisyal na litrato mula sa public folder
-  const developerPhotoUrl = '/beloy.jpg';
+  const developerPhotoUrl = '/beloy.jg';
 
   return (
     <div>
