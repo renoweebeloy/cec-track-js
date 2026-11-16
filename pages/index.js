@@ -147,39 +147,39 @@ export default function Home() {
         .hd{position:sticky;top:0;z-index:50;background:rgba(255,255,255,.85);backdrop-filter:blur(14px);border-bottom:1px solid var(--line)}
         .hd-in{max-width:1180px;margin:auto;padding:10px 18px;display:flex;align-items:center;justify-content:space-between}
         .brand{display:flex;align-items:center;gap:10px;background:none;border:0;font:800 1.2rem 'Bricolage Grotesque',sans-serif;color:var(--g8);letter-spacing:-.02em}
-        .brand img{width:34px;height:34px;object-fit:contain}
         .nav{display:flex;align-items:center;gap:6px}
         .lnk{background:none;border:0;font-weight:700;font-size:.9rem;color:#2f4d3e;padding:8px 14px;border-radius:999px}
         .lnk:hover{background:var(--g0)}
         .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:0;border-radius:999px;font-weight:800;font-size:.88rem;padding:11px 20px;transition:transform .2s,box-shadow .2s,background .2s}
         .btn-g{background:linear-gradient(135deg,var(--g5),var(--g7));color:#fff;box-shadow:0 8px 20px rgba(5,150,105,.32)}
         .btn-g:hover{transform:translateY(-2px);box-shadow:0 12px 26px rgba(5,150,105,.4)}
-        .btn-w{background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.32)}
-        .btn-w:hover{background:rgba(255,255,255,.22)}
+        .btn-w{background:#fff;color:var(--g7);border:1px solid #b7ecd3}
+        .btn-w:hover{background:var(--g0)}
 
-        .hero{position:relative;color:#fff;text-align:center;padding:40px 18px 110px;overflow:hidden;border-radius:0 0 48px 48px;
-          background:radial-gradient(800px 380px at 12% -10%,rgba(52,211,153,.38),transparent 60%),radial-gradient(640px 360px at 95% 0,rgba(190,242,100,.2),transparent 60%),linear-gradient(165deg,#075e45,#04261a 75%)}
-        .hero::after{content:'';position:absolute;inset:0;background-image:radial-gradient(rgba(255,255,255,.08) 1px,transparent 1px);background-size:22px 22px;pointer-events:none}
+        .hero{position:relative;color:var(--ink);text-align:center;padding:40px 18px 110px;overflow:hidden;border-radius:0 0 48px 48px;border-bottom:1px solid var(--line);box-shadow:0 18px 40px rgba(6,78,59,.06);
+          background:radial-gradient(700px 340px at 6% -8%,rgba(16,185,129,.22),transparent 60%),radial-gradient(600px 320px at 100% 0,rgba(163,230,53,.18),transparent 60%),radial-gradient(760px 380px at 50% 112%,rgba(16,185,129,.12),transparent 60%),#ffffff}
+        .hero::after{content:'';position:absolute;inset:0;background-image:radial-gradient(rgba(5,150,105,.09) 1px,transparent 1px);background-size:22px 22px;pointer-events:none}
         .hero>*{position:relative;z-index:1}
         .pills{display:flex;justify-content:center;gap:10px;flex-wrap:wrap;margin-bottom:28px}
-        .pill{display:inline-flex;align-items:center;gap:8px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.24);backdrop-filter:blur(8px);border-radius:999px;padding:7px 15px;font-size:.78rem;font-weight:700;white-space:nowrap}
+        .pill{display:inline-flex;align-items:center;gap:8px;background:#fff;border:1px solid var(--line);color:#2f4d3e;box-shadow:0 4px 12px rgba(6,78,59,.07);border-radius:999px;padding:7px 15px;font-size:.78rem;font-weight:700;white-space:nowrap}
         .dot{width:8px;height:8px;border-radius:50%;background:#4ade80;animation:pulse 1.8s infinite}
         @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(74,222,128,.7)}70%{box-shadow:0 0 0 8px rgba(74,222,128,0)}100%{box-shadow:0 0 0 0 rgba(74,222,128,0)}}
-        .logo{width:124px;height:124px;border-radius:50%;background:#fff;padding:9px;margin:0 auto 18px;box-shadow:0 0 0 7px rgba(255,255,255,.14),0 18px 44px rgba(0,0,0,.35);animation:rise .7s both}
+        .logo{width:124px;height:124px;border-radius:50%;background:#fff;padding:9px;margin:0 auto 18px;box-shadow:0 0 0 1px var(--line),0 0 0 7px var(--g0),0 14px 30px rgba(5,150,105,.25);animation:rise .7s both}
         @keyframes rise{from{opacity:0;transform:translateY(16px) scale(.96)}to{opacity:1;transform:none}}
         .logo img{width:100%;height:100%;object-fit:contain}
-        .tag{font-size:.86rem;font-weight:700;color:var(--g2);margin-bottom:4px}
-        .h1{font-size:clamp(3.4rem,12vw,6rem);font-weight:800;letter-spacing:-.045em;margin:0;line-height:.95}
+        .tag{font-size:.86rem;font-weight:700;color:var(--g6);margin-bottom:4px}
+        .h1{font-size:clamp(3.4rem,12vw,6rem);font-weight:800;letter-spacing:-.045em;margin:0;line-height:.95;color:var(--g8)}
         .sub{font-size:1.3rem;font-weight:700;margin:10px 0 8px;font-family:'Bricolage Grotesque',sans-serif}
-        .desc{color:#c9ecdc;font-size:.96rem;line-height:1.65;max-width:470px;margin:0 auto 28px}
+        .desc{color:var(--mut);font-size:.96rem;line-height:1.65;max-width:470px;margin:0 auto 28px}
 
-        .sr{max-width:620px;margin:0 auto;display:flex;align-items:center;gap:8px;background:#fff;border-radius:999px;padding:7px 7px 7px 20px;color:#6f8b7d;box-shadow:0 0 0 5px rgba(255,255,255,.16),0 20px 44px rgba(0,0,0,.3)}
+        .sr{max-width:620px;margin:0 auto;display:flex;align-items:center;gap:8px;background:#fff;border-radius:999px;padding:7px 7px 7px 20px;color:#6f8b7d;box-shadow:0 0 0 1px var(--line),0 14px 34px rgba(6,78,59,.12);transition:box-shadow .2s}
+        .sr:focus-within{box-shadow:0 0 0 1px var(--g5),0 0 0 5px rgba(16,185,129,.18),0 14px 34px rgba(6,78,59,.12)}
         .sr input{flex:1;min-width:0;border:0;outline:0;font-size:.95rem;font-weight:700;font-family:inherit;color:var(--ink);background:transparent}
         .x{background:none;border:0;color:#9db2a8;font-weight:900;padding:4px 6px}
         .acts{display:flex;justify-content:center;gap:10px;flex-wrap:wrap;margin-top:22px}
 
         .res{max-width:620px;margin:18px auto 0;text-align:left}
-        .vc{background:#fff;color:var(--ink);border-radius:24px;padding:20px;display:flex;gap:14px;position:relative;box-shadow:0 22px 54px rgba(0,0,0,.3)}
+        .vc{background:#fff;color:var(--ink);border-radius:24px;padding:20px;display:flex;gap:14px;position:relative;box-shadow:0 0 0 1px var(--line),0 18px 44px rgba(6,78,59,.14)}
         .av{width:66px;height:66px;border-radius:20px;object-fit:cover;background:var(--g1);display:flex;align-items:center;justify-content:center;font-size:1.7rem;font-weight:800;color:var(--g7);flex-shrink:0}
         .ok{display:inline-flex;align-items:center;gap:5px;background:var(--g1);color:var(--g7);border-radius:999px;font-size:.72rem;font-weight:800;padding:4px 11px;margin-bottom:8px}
         .vc h3{margin:0 0 4px;font-size:1.12rem;line-height:1.25}
@@ -253,7 +253,6 @@ export default function Home() {
       <header className="hd">
         <div className="hd-in">
           <button className="brand" onClick={() => router.push('/')}>
-            <img src="/logo.ng" alt="" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
             CECTRACK
           </button>
           <div className="nav">
@@ -266,7 +265,7 @@ export default function Home() {
       <section className="hero">
         <div className="pills">
           <span className="pill"><span className="dot" /> Live PHT · {currentTime || 'Loading...'} · {currentDate || ''}</span>
-          <span className="pill" style={{ color: '#a7f3d0' }}><Ic d="shield" s={15} /> Official CEC Portal</span>
+          <span className="pill" style={{ color: '#047857' }}><Ic d="shield" s={15} /> Official CEC Portal</span>
         </div>
 
         <div className="logo">
