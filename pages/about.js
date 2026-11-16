@@ -50,7 +50,6 @@ export default function About() {
         .ab-hd{position:sticky;top:0;z-index:50;background:rgba(255,255,255,.85);backdrop-filter:blur(14px);border-bottom:1px solid var(--line)}
         .ab-hd-in{max-width:1180px;margin:auto;padding:10px 18px;display:flex;align-items:center;justify-content:space-between}
         .ab-brand{display:flex;align-items:center;gap:10px;background:none;border:0;font:800 1.2rem 'Bricolage Grotesque',sans-serif;color:var(--g8);letter-spacing:-.02em}
-        .ab-brand img{width:34px;height:34px;object-fit:contain}
         .ab-nav{display:flex;align-items:center;gap:6px}
         .ab-lnk{background:none;border:0;font-weight:700;font-size:.9rem;color:#2f4d3e;padding:8px 14px;border-radius:999px}
         .ab-lnk:hover{background:var(--g0)}
@@ -61,10 +60,7 @@ export default function About() {
           background:radial-gradient(700px 340px at 8% -10%,rgba(16,185,129,.22),transparent 60%),radial-gradient(600px 320px at 100% 0,rgba(163,230,53,.18),transparent 60%),#fff;border-bottom:1px solid var(--line)}
         .ab-hero::after{content:'';position:absolute;inset:0;background-image:radial-gradient(rgba(5,150,105,.09) 1px,transparent 1px);background-size:22px 22px;pointer-events:none}
         .ab-hero>*{position:relative;z-index:1}
-        .ab-logo{width:104px;height:104px;border-radius:50%;background:#fff;padding:8px;margin:0 auto 18px;box-shadow:0 0 0 1px var(--line),0 0 0 7px var(--g0),0 14px 30px rgba(5,150,105,.25);animation:ab-rise .7s both}
-        @keyframes ab-rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
-        .ab-logo img{width:100%;height:100%;object-fit:contain}
-        .ab-pill{display:inline-block;background:var(--g0);color:var(--g7);border:1px solid #b7ecd3;padding:6px 16px;border-radius:999px;font-size:.85rem;font-weight:800;margin-bottom:16px}
+        .ab-pill{display:inline-flex;align-items:center;gap:7px;background:var(--g0);color:var(--g7);border:1px solid #b7ecd3;padding:6px 16px;border-radius:999px;font-size:.85rem;font-weight:800;margin-bottom:16px}
         .ab-hero h1{font-size:clamp(2.1rem,6vw,3.4rem);font-weight:800;letter-spacing:-.04em;line-height:1.08;margin:0 0 16px;color:var(--g8)}
         .ab-hero p{font-size:1.02rem;color:var(--mut);max-width:660px;margin:0 auto;line-height:1.65}
         .ab-hero p strong{color:var(--ink)}
@@ -122,7 +118,6 @@ export default function About() {
       <header className="ab-hd">
         <div className="ab-hd-in">
           <button className="ab-brand" onClick={() => router.push('/')}>
-            <img src="/logo.g" alt="" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
             CECTRACK
           </button>
           <div className="ab-nav">
@@ -133,10 +128,14 @@ export default function About() {
       </header>
 
       <section className="ab-hero">
-        <div className="ab-logo">
-          <img src="/logo.g" alt="Cateel Extension Campus Logo" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
-        </div>
-        <span className="ab-pill">About CECTRACK</span>
+        <span className="ab-pill">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="10" />
+            <line x1="12" y1="16" x2="12" y2="12" />
+            <line x1="12" y1="8" x2="12.01" y2="8" />
+          </svg>
+          About CECTRACK
+        </span>
         <h1>Transforming student <br />organization operations</h1>
         <p>
           CECTRACK is an all-in-one centralized digital ecosystem engineered specifically for the students, officers, and faculty of{' '}
