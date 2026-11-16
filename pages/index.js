@@ -5,10 +5,10 @@ import { supabase } from '../lib/supabaseClient';
 
 const COURSES = [
   { k: 'BSBA', n: 'Business Administration', c: '#16a34a' },
-  { k: 'BSCRIM', n: 'Criminology', c: '#0f766e' },
-  { k: 'BSA', n: 'Accountancy', c: '#65a30d' },
-  { k: 'BEED', n: 'Elementary Education', c: '#059669' },
-  { k: 'BSAM', n: 'Agribusiness Management', c: '#15803d' },
+  { k: 'BSCRIM', n: 'Criminology', c: null },
+  { k: 'BSA', n: 'Accountancy', c: null },
+  { k: 'BEED', n: 'Elementary Education', c: null },
+  { k: 'BSAM', n: 'Agribusiness Management', c: null },
 ];
 
 const P = {
@@ -17,10 +17,12 @@ const P = {
   login: 'M15 3h4a2 2 0 012 2v14a2 2 0 01-2 2h-4M10 17l5-5-5-5M15 12H3',
   users: 'M17 21v-2a4 4 0 00-4-4H7a4 4 0 00-4 4v2M10 11a4 4 0 100-8 4 4 0 000 8zM21 21v-2a4 4 0 00-3-3.85M16 3.13a4 4 0 010 7.75',
   cal: 'M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V6a2 2 0 012-2z',
+  img: 'M5 3h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2zM8.5 10a1.5 1.5 0 100-3 1.5 1.5 0 000 3zM21 15l-5-5L5 21',
   award: 'M12 15a6 6 0 100-12 6 6 0 000 12zM8.21 13.89L7 23l5-3 5 3-1.21-9.12',
   clock: 'M12 22a10 10 0 100-20 10 10 0 000 20zM12 6v6l4 2',
   pin: 'M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0zM12 13a3 3 0 100-6 3 3 0 000 6z',
 };
+
 const Ic = ({ d, s = 18, w = 2.2 }) => (
   <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={w} strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
     <path d={P[d]} />
@@ -123,6 +125,7 @@ export default function Home() {
       setSearchLoading(false);
     }
   };
+
   const clearSearch = () => { setSearchId(''); setSearchResult(null); };
   const scrollToEvents = () => document.getElementById('events-section')?.scrollIntoView({ behavior: 'smooth' });
   const st = searchResult?.student;
@@ -215,6 +218,13 @@ export default function Home() {
         .bar{height:6px;background:#e5f3ea;border-radius:99px;overflow:hidden;margin-bottom:8px}.bar i{display:block;height:100%;width:100%;background:var(--a);border-radius:99px}
         .cf{display:flex;justify-content:space-between;font-size:.78rem;font-weight:700;color:#6f8b7d}.cf b{color:var(--g6)}
 
+        /* Plain white cards (walay color-color except BSBA) */
+        .cc.plain::before{display:none}
+        .cc.plain .cb{color:var(--ink);background:#fff;border:1px solid var(--line)}
+        .cc.plain .bar{background:#f1f5f9}
+        .cc.plain .bar i{background:#e2e8f0}
+        .cc.plain .cf b{color:var(--ink)}
+
         .eg{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:20px}
         .ev{border-radius:24px;overflow:hidden;display:flex;flex-direction:column}
         .ei{height:160px;overflow:hidden;background:linear-gradient(135deg,var(--g1),var(--g2));display:flex;align-items:center;justify-content:center;color:var(--g7)}
@@ -234,21 +244,27 @@ export default function Home() {
         .cen{text-align:center}.cen p{max-width:560px;margin:8px auto 26px;color:var(--mut);line-height:1.6}
         .h2{font-size:clamp(1.9rem,5vw,2.6rem);font-weight:800;margin:14px 0 0;letter-spacing:-.03em;color:var(--g8)}
         .og{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:20px;text-align:center}
-        .of{border-radius:26px;padding:24px 16px}
+        .of{border-radius:26px;padding:24px 16px;min-width:0}
         .op{width:112px;height:112px;border-radius:50%;margin:0 auto 16px;overflow:hidden;background:var(--g0);border:4px solid #fff;box-shadow:0 0 0 3px var(--g5),0 12px 24px rgba(5,150,105,.22);display:flex;align-items:center;justify-content:center;color:var(--g6)}
         .op img{width:100%;height:100%;object-fit:cover}
-        .pos{display:inline-block;background:var(--g0);color:var(--g7);border:1px solid #bbf7d0;font-size:.78rem;font-weight:800;padding:4px 13px;border-radius:999px;margin-bottom:10px}
-        .of h3{margin:0 0 4px;font-size:1.08rem}.of small{display:block;color:var(--mut);font-weight:600;font-size:.82rem}
+        .pos{display:inline-block;background:var(--g0);color:var(--g7);border:1px solid #bbf7d0;font-size:.78rem;font-weight:800;padding:4px 13px;border-radius:999px;margin-bottom:10px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+        .of h3{margin:0 0 4px;font-size:1.08rem;word-break:break-word}.of small{display:block;color:var(--mut);font-weight:600;font-size:.82rem}
 
         .ft{margin-top:72px;background:linear-gradient(165deg,#075e45,#04261a);color:#b4e3cc;padding:28px 18px}
         .ft-in{max-width:1180px;margin:auto;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:14px;font-size:.82rem;font-weight:700}
         .fl{display:flex;gap:20px;align-items:center;flex-wrap:wrap}.fl span{cursor:pointer}.fl span:hover{color:#fff}
         .fb{border:1px solid #34d399;color:#6ee7b7;border-radius:999px;padding:4px 12px;background:rgba(52,211,153,.1)}
 
-        @media(max-width:600px){
+        @media(max-width:640px){
           .hero{padding:30px 14px 100px;border-radius:0 0 34px 34px}
           .btn{padding:10px 16px}.lnk{padding:6px 8px}.vc{flex-direction:column}
           .sr .btn{padding:10px 14px}.stl{font-size:1.1rem}
+          .og{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+          .of{padding:16px 10px;border-radius:20px}
+          .op{width:78px;height:78px;margin-bottom:10px;border-width:3px}
+          .pos{font-size:.7rem;padding:3px 9px;margin-bottom:6px}
+          .of h3{font-size:.94rem}
+          .of small{font-size:.74rem}
         }
         @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
       `}</style>
@@ -338,7 +354,7 @@ export default function Home() {
           </div>
           <div className="grid">
             {COURSES.map((c) => (
-              <div key={c.k} className="cc" style={{ '--a': c.c }}>
+              <div key={c.k} className={`cc ${c.c ? '' : 'plain'}`} style={c.c ? { '--a': c.c } : undefined}>
                 <span className="cb">{c.k}</span>
                 <div className="cn">{counts[c.k]}</div>
                 <div className="cm">{c.n}</div>
@@ -368,7 +384,7 @@ export default function Home() {
                 const on = ev.status === 'active';
                 return (
                   <div key={ev.id} className="ev">
-                    <div className="ei">{ev.image_url ? <img src={ev.image_url} alt={ev.title} /> : <Ic d="cal" s={40} w={1.6} />}</div>
+                    <div className="ei">{ev.image_url ? <img src={ev.image_url} alt={ev.title} /> : <Ic d="img" s={40} w={1.6} />}</div>
                     <div className="eb">
                       <div className="et"><span className={`sb ${on ? 'on' : ''}`}>{on ? '● Active (open)' : 'Closed'}</span><span>{ev.date}</span></div>
                       <h3>{ev.title}</h3>
