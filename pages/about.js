@@ -27,7 +27,7 @@ export default function About() {
   const router = useRouter();
 
   // Opisyal na litrato mula sa public folder
-  const developerPhotoUrl = '/beloy.jg';
+  const developerPhotoUrl = '/beloy.jpg';
 
   return (
     <div>
@@ -122,7 +122,7 @@ export default function About() {
       <header className="ab-hd">
         <div className="ab-hd-in">
           <button className="ab-brand" onClick={() => router.push('/')}>
-            <img src="/logo.png" alt="" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+            <img src="/logo.g" alt="" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
             CECTRACK
           </button>
           <div className="ab-nav">
