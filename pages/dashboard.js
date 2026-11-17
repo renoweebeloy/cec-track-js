@@ -1446,7 +1446,7 @@ export default function StudentDashboard() {
                 </div>
                 <div className="sd-dbd">
                   <span>Developer</span>
-                  <span>💻 Full-Stack Web &amp; Database Systems</span>
+                  <span>💻 Gamer and Website Dev</span>
                   <span>📍 Davao Oriental State University Main Campus</span>
                 </div>
                 <p className="bio">
