@@ -36,6 +36,7 @@ const P = {
   img: 'M5 3h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2zM8.5 10a1.5 1.5 0 100-3 1.5 1.5 0 000 3zM21 15l-5-5L5 21',
   cloud: 'M18 10h-1.26A8 8 0 109 20h9a5 5 0 000-10z',
 };
+
 const Ic = ({ d, s = 18, w = 2.1 }) => (
   <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={w} strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }} aria-hidden="true">
     <path d={P[d]} />
@@ -115,7 +116,7 @@ export default function StudentDashboard() {
   const [passwordLoading, setPasswordLoading] = useState(false);
   const [passwordMsg, setPasswordMsg] = useState({ type: '', text: '' });
 
-  // Default Student Profile Data (Giilisan sa Developer & 0000-0000 imbes nga Ive cadalzo)
+  // Default Student Profile Data
   const [profile, setProfile] = useState({
     full_name: 'Developer',
     school_id: '0000-0000',
@@ -194,7 +195,6 @@ export default function StudentDashboard() {
             if (supabase) await supabase.auth.signOut();
           } catch (e) {}
 
-          // Reset ngadto sa Developer ug 0000-0000 inig-expire
           setProfile({
             full_name: 'Developer',
             school_id: '0000-0000',
@@ -291,7 +291,6 @@ export default function StudentDashboard() {
       const { data: authData } = await supabase.auth.getUser();
       if (authData?.user?.email) userEmail = authData.user.email;
 
-      // Kon walay user session, pabalikon sa log-in
       if (!userEmail && !cachedId) {
         router.replace('/');
         return;
@@ -497,30 +496,13 @@ export default function StudentDashboard() {
       const fileName = `CEC-ID-${profile.school_id || 'Student'}.png`;
       const isMessengerApp = /FBAN|FBAV|Messenger|FB_IAB|Instagram|Line/i.test(navigator.userAgent || '');
 
-      canvas.toBlob(async (blob) => {
+      canvas.toBlob((blob) => {
         if (!blob) {
           setDownloadingId(false);
           return;
         }
 
         const blobUrl = URL.createObjectURL(blob);
-
-        if (navigator.canShare) {
-          const file = new File([blob], fileName, { type: 'image/png' });
-          if (navigator.canShare({ files: [file] })) {
-            try {
-              await navigator.share({
-                files: [file],
-                title: 'Official Student ID',
-                text: `Official Student ID: ${profile.full_name} (${profile.school_id})`,
-              });
-              setDownloadingId(false);
-              return;
-            } catch (shareErr) {
-              console.log('Native share dismissed or cancelled:', shareErr);
-            }
-          }
-        }
 
         if (isMessengerApp) {
           setIdModalData({
@@ -533,13 +515,18 @@ export default function StudentDashboard() {
           return;
         }
 
+        // Direct download sa Laptop ug Android (walay Share pop-up)
         const downloadLink = document.createElement('a');
+        downloadLink.style.display = 'none';
         downloadLink.download = fileName;
         downloadLink.href = blobUrl;
         document.body.appendChild(downloadLink);
         downloadLink.click();
         document.body.removeChild(downloadLink);
+
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 2000);
         setDownloadingId(false);
+        showNotify('success', 'Official ID downloaded successfully!');
       }, 'image/png');
     } catch (err) {
       console.error('Error generating ID card image:', err);
@@ -756,23 +743,24 @@ export default function StudentDashboard() {
         .sd-b.out:hover:not(:disabled){background:var(--g1)}
         .sd-b.neu{background:#fff;color:#3f5a4b;border-color:var(--line)}
         .sd-b.neu:hover:not(:disabled){background:var(--g0)}
-        .sd-b.dsol{background:linear-gradient(135deg,#f43f5e,#dc2626);color:#fff;box-shadow:0 8px 20px rgba(220,38,38,.28)}        
-.sd-hd {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  z-index: 200;
-  height: 64px;
-  background: rgba(255,255,255,.95);
-  backdrop-filter: blur(14px);
-  border-bottom: 1px solid var(--line);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 16px;
-  gap: 10px;
-}
+        .sd-b.dsol{background:linear-gradient(135deg,#f43f5e,#dc2626);color:#fff;box-shadow:0 8px 20px rgba(220,38,38,.28)}
+
+        .sd-hd {
+          position: fixed;
+          top: 0;
+          left: 0;
+          width: 100%;
+          z-index: 200;
+          height: 64px;
+          background: rgba(255,255,255,.95);
+          backdrop-filter: blur(14px);
+          border-bottom: 1px solid var(--line);
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 0 16px;
+          gap: 10px;
+        }
         .sd-hl{display:flex;align-items:center;gap:10px;min-width:0}
         .sd-menu{display:none;width:40px;height:40px;border-radius:12px;border:1px solid var(--line);background:#fff;color:var(--g7);align-items:center;justify-content:center}
         .sd-brand b{font:800 1.15rem 'Bricolage Grotesque',sans-serif;color:var(--g8);letter-spacing:-.02em;margin-right:6px}
@@ -785,34 +773,31 @@ export default function StudentDashboard() {
         .sd-av{width:40px;height:40px;border-radius:50%;overflow:hidden;background:var(--g1);box-shadow:0 0 0 2px #fff,0 0 0 4px var(--g5);display:flex;align-items:center;justify-content:center;font-weight:800;color:var(--g7);flex-shrink:0}
         .sd-av img{width:100%;height:100%;object-fit:cover}
 
-        
-.sd-shell {
-  display: flex;
-  flex: 1;
-  min-width: 0;
-  width: 100%;
-  margin-top: 64px;
-}
-     
-.sd-side {
-  width: 236px;
-  flex-shrink: 0;
-  background: #fff;
-  border-right: 1px solid var(--line);
-  padding: 22px 14px;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  overflow-y: auto;
+        .sd-shell {
+          display: flex;
+          flex: 1;
+          min-width: 0;
+          width: 100%;
+          margin-top: 64px;
+        }
 
-  /* FIXED SIDEBAR */
-  position: fixed;
-  top: 64px;
-  left: 0;
-  bottom: 0;
-  height: auto;
-  z-index: 30;
-}
+        .sd-side {
+          width: 236px;
+          flex-shrink: 0;
+          background: #fff;
+          border-right: 1px solid var(--line);
+          padding: 22px 14px;
+          display: flex;
+          flex-direction: column;
+          justify-content: space-between;
+          overflow-y: auto;
+          position: fixed;
+          top: 64px;
+          left: 0;
+          bottom: 0;
+          height: auto;
+          z-index: 30;
+        }
         .sd-st{padding:0 8px;margin-bottom:18px;display:flex;justify-content:space-between;align-items:center}
         .sd-st h2{margin:0;font-size:1.3rem;font-weight:800;color:var(--g8)}
         .sd-st small{font-size:.76rem;font-weight:700;color:#7a9488}
@@ -821,13 +806,14 @@ export default function StudentDashboard() {
         .sd-nav button:hover{background:var(--g0);color:var(--g7)}
         .sd-nav button.on{background:linear-gradient(135deg,var(--g5),var(--g7));color:#fff;font-weight:800;box-shadow:0 8px 18px rgba(5,150,105,.28)}
         .sd-so{display:flex;align-items:center;gap:12px;width:100%;height:44px;padding:0 14px;border:0;border-radius:14px;background:none;color:var(--red);font-size:.9rem;font-weight:800}
-        .sd-so:hover{background:#fef2f2}     
-.sd-main {
-  flex: 1;
-  min-width: 0;
-  margin-left: 236px;
-  padding: 30px 34px;
-}
+        .sd-so:hover{background:#fef2f2}
+
+        .sd-main {
+          flex: 1;
+          min-width: 0;
+          margin-left: 236px;
+          padding: 30px 34px;
+        }
         .sd-wrap{max-width:980px;margin:0 auto;width:100%}
         .sd-bd{position:fixed;inset:0;background:rgba(4,38,26,.5);backdrop-filter:blur(3px);z-index:90}
 
@@ -998,12 +984,10 @@ export default function StudentDashboard() {
           .sd-menu{display:inline-flex}
           .sd-side{position:fixed;top:0;bottom:0;left:0;height:auto;width:260px;max-width:82vw;z-index:100;transform:translateX(-100%);transition:transform .28s cubic-bezier(.4,0,.2,1)}
           .sd-side.open{transform:none;box-shadow:8px 0 30px rgba(0,0,0,.2)}
-          .sd-main{padding:18px 14px}
+          .sd-main{margin-left:0;padding:18px 14px}
           .sd-g4{grid-template-columns:repeat(2,1fr);gap:10px}
           .sd-g3{grid-template-columns:1fr}
-          .sd-un b{max-width:90px}        
-.sd-main {
-  margin-left: 0;
+          .sd-un b{max-width:90px}
         }
         @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
       `}</style>
@@ -1113,7 +1097,7 @@ export default function StudentDashboard() {
 
                     <div className="sd-qr">
                       {profile.avatar_url ? (
-                        <img src={qrCodeUrl} alt="Student QR Code" style={{ imageRendering: 'pixelated' }} />
+                        <img src={qrCodeUrl} crossOrigin="anonymous" alt="Student QR Code" style={{ imageRendering: 'pixelated' }} />
                       ) : (
                         <div className="sd-lock">
                           <b>QR code locked</b>
