@@ -288,7 +288,7 @@ export default function Login() {
         </div>
       </div>
 
-      <div className="lg-foot">© 2026 CEC-TRACK • DOrSU Cateel Extension Campus</div>
+      <div className="lg-foot"></div>
 
       {/* Data Privacy Modal */}
       {showPrivacyModal && (
